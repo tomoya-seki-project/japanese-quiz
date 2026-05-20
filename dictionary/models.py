@@ -95,5 +95,9 @@ class UserVocab(TimeStampedModel):
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocab'
     )
+    weight = models.IntegerField(default=50)
+    correct_times = models.IntegerField()
+    incorrect_times = models.IntegerField()
+    last_quiz_at = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'user_vocab'
