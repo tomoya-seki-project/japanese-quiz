@@ -1,2 +1,49 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse_lazy
 
+from django.views.generic import (
+    CreateView,
+    FormView,
+    TemplateView,
+)
+
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+
+from django.utils.decorators import method_decorator
+
+from .forms import (
+    RegistForm,
+    UserLoginForm,
+)
+
+class HomeView(TemplateView):
+    template_name = 'accounts/home.html'
+
+class RegistUserView(CreateView):
+    template_name = 'accounts/regist.html'
+    form_class = RegistForm
+    success_url = reverse_lazy('accounts:home')
+
+class UserLoginView(LoginView):
+    template_name = 'accounts/login.html'
+    form_class = UserLoginForm
+    next_page = reverse_lazy('accounts:home')
+
+    def form_valid(self, form):
+        result = super().form_valid()
+        remember = form.cleaned_data['remember_me']
+        if remember:
+            self.request.session.set_expiry(60 * 60 * 24 * 30)
+        else:
+            self.request.session.set_expiry(60 * 60)
+        return result
+
+class UserLogoutView(LoginRequiredMixin, LogoutView):
+    template_name = 'accounts/logout.html'
+    next_page = reverse_lazy('accounts:home')
+
+class UserView(LoginRequiredMixin, TemplateView):
+    template_name = 'accounts/user_detail.html'

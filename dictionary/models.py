@@ -6,8 +6,8 @@ User = get_user_model()
 
 class Vocab(TimeStampedModel):
     TYPE_CHOICES = [
-        ('漢字', '漢字'),
-        ('カタカナ', 'カタカナ'),
+        ('kanji', 'kanji'),
+        ('katakana', 'katakana'),
     ]
     LEVEL_CHOICES = [
         ('N1','N1'),
@@ -17,7 +17,7 @@ class Vocab(TimeStampedModel):
         ('N5','N5'),
     ]
     CATEGORY_CHOICES = [
-        ('生活','生活')
+        ('normal','normal')
     ]
     STATUS_CHOICES = [
         ('none', 'None'),

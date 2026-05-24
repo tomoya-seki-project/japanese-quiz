@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset='utf-8'>
+        <meta name="viewport" content="width=devire-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand" href="{% url "accounts:home" %}">home</a>
+            {% if user.is_authenticated %}
+                <a class="navbar-brand" href="{% url "accounts:user_detail" %}">profile</a>
+                <a class="navbar-brand" href="#" id="logout-link">logout</a>
+            {% else %}
+                <a class="navbar-brand" href="{% url "accounts:regist" %}">sign in</a>
+                <a class="navbar-brand" href="{% url "accounts:login" %}">login</a>
+            {% endif %}
+        </nav>
+        {% block content %}
+        {% endblock %}
+        {% block javascript %}
+        {% endblock %}
+        {% if user.is_authenticated %}
+            <form id="logout-form" method="POST" action="{% url "accounts:logout" %}" style="display:none;">
+                {% csrf_token %}
+            </form>
+            <script>
+                document.addEventListener('DOMContentLoaded', function(){
+                    document.getElementById('logout-link').addEventListener('click', function(e){
+                        e.preventDefault();
+                        document.getElementById('logout-form').submit();
+                    });
+                });
+            </script>
+        {% endif %}
+    </body>
+</html>
