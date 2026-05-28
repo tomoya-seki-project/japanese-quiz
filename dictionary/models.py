@@ -1,62 +1,62 @@
 from django.db import models
-from django.contrib.auth import get_user_model
+from django.conf import settings
 from core.models import TimeStampedModel
 
-User = get_user_model()
+
+class VocabType(models.TextChoices):
+    KANJI = "kanji", "Kanji"
+    KATAKANA = "katakana", "Katakana"
+
+class VocabLevel(models.TextChoices):
+    JLPT_N1 = "N1", "N1"
+    JLPT_N2 = "N2", "N2"
+    JLPT_N3 = "N3", "N3"
+    JLPT_N4 = "N4", "N4"
+    JLPT_N5 = "N5", "N5"
+
+class VocabCategory(models.TextChoices):
+    LIFE = "life", "Life"
+
+class VocabStatus(models.TextChoices):
+    NONE = "none", "None"
+    PENDING = "pending", "Pending"
+    ON_HOLD = "on_hold", "On hold"
+    REJECTED = "rejected", "Rejected"
 
 class Vocab(TimeStampedModel):
-    TYPE_CHOICES = [
-        ('kanji', 'kanji'),
-        ('katakana', 'katakana'),
-    ]
-    LEVEL_CHOICES = [
-        ('N1','N1'),
-        ('N2','N2'),
-        ('N3','N3'),
-        ('N4','N4'),
-        ('N5','N5'),
-    ]
-    CATEGORY_CHOICES = [
-        ('normal','normal')
-    ]
-    STATUS_CHOICES = [
-        ('none', 'None'),
-        ('pending', 'pending'),
-        ('on_hold', 'on hold'),
-        ('rejected', 'rejected'),
-    ]
-
     word = models.CharField(max_length=50)
     word_slug = models.CharField(max_length=255)
     meaning = models.CharField(max_length=255)
-    answer = models.CharField(max_length=255)
+    kana = models.CharField(max_length=255)
     is_active = models.BooleanField(default=False)
     type = models.CharField(
-        max_length=20, choices=TYPE_CHOICES
+        max_length=20, choices=VocabType.choices
         )
     level = models.CharField(
-        max_length=10, choices=LEVEL_CHOICES
+        max_length=10, choices=VocabLevel.choices
         )
     category = models.CharField(
-        max_length=20, choices=CATEGORY_CHOICES
+        max_length=20, choices=VocabCategory.choices
         )
     status = models.CharField(
-        max_length=40, choices=STATUS_CHOICES, default='none'
+        max_length=40, choices=VocabStatus.choices, default=VocabStatus.NONE
     )
 
     users = models.ManyToManyField(
-        User,
+        settings.AUTH_USER_MODEL,
         through='UserVocab',
-        related_name='vocab'
+        related_name='vocabs'
     )
     
     created_by = models.ForeignKey(
-        User, null=True, blank=True, 
+        settings.AUTH_USER_MODEL, 
+        null=True, blank=True, 
         on_delete=models.SET_NULL,
         related_name='created_vocab'
         )
     approved_by = models.ForeignKey(
-        User, null=True, blank=True,
+        settings.AUTH_USER_MODEL, 
+        null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='approved_vocab'
     )
@@ -65,13 +65,13 @@ class Vocab(TimeStampedModel):
         db_table = 'vocab'
         constraints = [
             models.UniqueConstraint(
-                fields=['word', 'answer'],
-                name='word_and_answer'
+                fields=['word', 'kana'],
+                name='word_kana_unique',
             )
         ]
 
-
 class KanjiDetail(TimeStampedModel):
+    similar_kanji = models.CharField(max_length=255, blank=True, null=True)
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
         related_name='kanji_detail'
@@ -80,6 +80,8 @@ class KanjiDetail(TimeStampedModel):
         db_table = 'kanji_detail'
 
 class KatakanaDetail(TimeStampedModel):
+    original_word = models.CharField(max_length=255, blank=True, null=True)
+    native_japanese = models.CharField(max_length=255, blank=True, null=True)
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
         related_name='katakana_detail'
@@ -89,15 +91,23 @@ class KatakanaDetail(TimeStampedModel):
 
 class UserVocab(TimeStampedModel):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
         related_name='user_vocab')
     vocab = models.ForeignKey(
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocab'
     )
     weight = models.IntegerField(default=50)
-    correct_times = models.IntegerField()
-    incorrect_times = models.IntegerField()
-    last_quiz_at = models.DateTimeField(auto_now=True)
+    correct_count = models.IntegerField(default=0)
+    incorrect_count = models.IntegerField(default=0)
+    streak = models.IntegerField(default=0)
+    last_quiz_at = models.DateTimeField(blank=True, null=True)
     class Meta:
         db_table = 'user_vocab'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'vocab'],
+                name='user_vocab_unique',
+            )
+        ]

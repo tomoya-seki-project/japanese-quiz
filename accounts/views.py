@@ -20,20 +20,20 @@ from .forms import (
 )
 
 class HomeView(TemplateView):
-    template_name = 'accounts/home.html'
+    template_name = 'accounts/user_home.html'
 
 class RegistUserView(CreateView):
-    template_name = 'accounts/regist.html'
+    template_name = 'accounts/user_regist.html'
     form_class = RegistForm
-    success_url = reverse_lazy('accounts:home')
+    success_url = reverse_lazy('accounts:user_home')
 
 class UserLoginView(LoginView):
-    template_name = 'accounts/login.html'
+    template_name = 'accounts/user_login.html'
     form_class = UserLoginForm
-    next_page = reverse_lazy('accounts:home')
+    next_page = reverse_lazy('accounts:user_home')
 
     def form_valid(self, form):
-        result = super().form_valid()
+        result = super().form_valid(form)
         remember = form.cleaned_data['remember_me']
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
@@ -42,8 +42,8 @@ class UserLoginView(LoginView):
         return result
 
 class UserLogoutView(LoginRequiredMixin, LogoutView):
-    template_name = 'accounts/logout.html'
-    next_page = reverse_lazy('accounts:home')
+    template_name = 'accounts/user_logout.html'
+    next_page = reverse_lazy('accounts:user_home')
 
 class UserView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_detail.html'
