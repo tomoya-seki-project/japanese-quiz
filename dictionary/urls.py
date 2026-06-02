@@ -1,9 +1,21 @@
 from django.urls import path
-from . import views
 from django.views.generic.base import TemplateView
+
+from . import views
+from .views import (
+    VocabHomeView,
+    VocabCreateRequestView,
+    VocabDetailView,
+    VocabUpdateRequestView,
+    VocabDeleteRequestView,    
+)
 
 app_name = 'dictionary'
 
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='core/temp.html'), name='temp'),
+    path('home/', VocabHomeView.as_view(), name='vocab_home'),
+    path('vocab/create', VocabCreateRequestView.as_view(), name='vocab_create'),
+    path('vocab/<int:vocab_id>', VocabDetailView.as_view(), name='vocab_detail'),
+    path('vocab/<int:vocab_id>/edit/', VocabUpdateRequestView.as_view(), name='vocab_edit'),
+    path('vocab/<int:vocab_id>/delete/', VocabDeleteRequestView.as_view(), name='vocab_delete'),
 ]

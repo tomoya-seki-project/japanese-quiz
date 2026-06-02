@@ -6,14 +6,13 @@ from .models import (
     Vocab,
     VocabCategory,
     VocabLevel,
-    VocabStatus,
     VocabType,
     UserVocab,
     KanjiDetail,
     KatakanaDetail,
 )
 
-class VocabCreateForm(forms.Form):
+class VocabCreateRequestForm(forms.Form):
     #--- vocab table ---#
     type = forms.ChoiceField(choices=VocabType.choices)
     word = forms.CharField(max_length=50, label='Word')
@@ -44,3 +43,9 @@ class VocabCreateForm(forms.Form):
                 self.pending_vocab = existing_vocab
 
         return cleaned_data
+    
+class VocabUpdateRequestForm(forms.Form):
+    pass
+
+class VocabDeleteRequestForm(forms.Form):
+    pass

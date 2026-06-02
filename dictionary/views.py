@@ -12,25 +12,29 @@ from django.views.generic import (
 )
 
 from .forms import (
-    VocabCreateForm
+    VocabCreateRequestForm,
+    VocabUpdateRequestForm,
+    VocabDeleteRequestForm,
 )
 from .models import (
     Vocab,
     UserVocab,
     VocabType,
-    VocabStatus,
     VocabCategory,
     VocabLevel,
     KanjiDetail,
     KatakanaDetail,
+    VocabRequest,
+    VocabRequestStatus,
+    VocabRequestType,
 )
 
 class VocabHomeView(TemplateView):
     template_name = "dictionary/vocab_home.html"
 
-class VocabCreateView(LoginRequiredMixin, FormView):
+class VocabCreateRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/Vocab_create.html"
-    form_class = VocabCreateForm
+    form_class = VocabCreateRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
 
     def form_valid(self, form):
@@ -40,13 +44,21 @@ class VocabCreateView(LoginRequiredMixin, FormView):
     def form_invalid(self, form):
         if hasattr(form, "pending_vocab"):
             vocab = form.pending_vocab
-            vocab.status = VocabStatus.PENDING
             vocab.save()
             # create admin message
         return super().form_invalid(form) 
     
-class VocabEditView(LoginRequiredMixin, FormView):
+class VocabUpdateRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/Vocab_edit.html"
+    success_url = reverse_lazy("dictionary:Vocab_home")
+
+class VocabDeleteRequestView(LoginRequiredMixin, FormView):
+    template_name = "dictionary/Vocab_delete.html"
+    success_url = reverse_lazy("dictionary:Vocab_home")
+
+class VocabDetailView(TemplateView):
+    template_name = "dictionary/Vocab_detail.html"
+
     
     
     

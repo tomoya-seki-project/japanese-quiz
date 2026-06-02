@@ -17,18 +17,13 @@ class VocabLevel(models.TextChoices):
 class VocabCategory(models.TextChoices):
     LIFE = "life", "Life"
 
-class VocabStatus(models.TextChoices):
-    NONE = "none", "None"
-    PENDING = "pending", "Pending"
-    ON_HOLD = "on_hold", "On hold"
-    REJECTED = "rejected", "Rejected"
-
 class Vocab(TimeStampedModel):
     word = models.CharField(max_length=50)
     word_slug = models.CharField(max_length=255)
     meaning = models.CharField(max_length=255)
     kana = models.CharField(max_length=255)
     is_active = models.BooleanField(default=False)
+    has_submission = models.BooleanField(default=False)
     type = models.CharField(
         max_length=20, choices=VocabType.choices
         )
@@ -38,9 +33,6 @@ class Vocab(TimeStampedModel):
     category = models.CharField(
         max_length=20, choices=VocabCategory.choices
         )
-    status = models.CharField(
-        max_length=40, choices=VocabStatus.choices, default=VocabStatus.NONE
-    )
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -111,3 +103,47 @@ class UserVocab(TimeStampedModel):
                 name='user_vocab_unique',
             )
         ]
+class VocabRequestType(models.TextChoices):
+    CREATE = "create", "Create"
+    EDIT = "edit", "Edit"
+    DELETE = "delete", "Delete"
+    REVIEW = "review", "Review"
+
+class VocabRequestStatus(models.TextChoices):
+    NONE = "none", "None"
+    PENDING = "pending", "Pending"
+    REJECTED = "rejected", "Rejected"
+    APPROVED = 'approved', "Approved"
+
+class VocabRequest(TimeStampedModel):
+    type = models.CharField(choices=VocabRequestType.choices)
+    status = models.CharField(choices=VocabRequestStatus.choices)
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name = "applied_vocab_submissions"
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name = "approved_vocab_submission"
+    )
+
+    original_vocab = models.ForeignKey(
+        Vocab, on_delete=models.CASCADE,
+        null=True, related_name = "submissions"
+    )
+
+    proposed_word = models.CharField(max_length=50)
+    proposed_meaning = models.CharField(max_length=255)
+    proposed_kana = models.CharField(max_length=255)
+
+    #kanji
+    proposed_similar_word = models.CharField(max_length=255, blank=True, null=True)
+
+    #katakana
+    proposed_original_word = models.CharField(max_length=255, blank=True, null=True)
+    proposed_native_japanese = models.CharField(max_length=255, blank=True, null=True)
