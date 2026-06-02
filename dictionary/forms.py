@@ -10,11 +10,14 @@ from .models import (
     UserVocab,
     KanjiDetail,
     KatakanaDetail,
+    VocabRequest,
+    VocabRequestType,
+    VocabRequestStatus
 )
 
 class VocabCreateRequestForm(forms.Form):
     #--- vocab table ---#
-    type = forms.ChoiceField(choices=VocabType.choices)
+    vocab_type = forms.ChoiceField(choices=VocabType.choices, label='type')
     word = forms.CharField(max_length=50, label='Word')
     meaning = forms.CharField(max_length=255, label="Meaning")
     kana = forms.CharField(max_length=255, label='Kana')
@@ -22,7 +25,7 @@ class VocabCreateRequestForm(forms.Form):
     category = forms.ChoiceField(choices=VocabCategory.choices)
 
     #--- kanji detail table ---#
-    similar_kanji = forms.CharField(max_length=255, required=False)
+    similar_word = forms.CharField(max_length=255, required=False)
     
     #--- katakana detail table ---#
     original_word = forms.CharField(max_length=255, required=False)
@@ -40,7 +43,7 @@ class VocabCreateRequestForm(forms.Form):
                 self.add_error('word', 'There is the same word on the list and active.')
             else:
                 self.add_error(None, 'There was the same word on the list, Passed to the admin to review.')
-                self.pending_vocab = existing_vocab
+                self.deactived_vocab = existing_vocab
 
         return cleaned_data
     

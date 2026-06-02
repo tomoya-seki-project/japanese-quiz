@@ -33,7 +33,7 @@ class UserManager(DjangoUserManager):
 class User(AbstractUser):
     username = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    last_login = models.DateTimeField()
+    last_login = models.DateTimeField(null=True)
 
     objects = UserManager()
 

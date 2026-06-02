@@ -116,9 +116,9 @@ class VocabRequestStatus(models.TextChoices):
     APPROVED = 'approved', "Approved"
 
 class VocabRequest(TimeStampedModel):
-    type = models.CharField(choices=VocabRequestType.choices)
-    status = models.CharField(choices=VocabRequestStatus.choices)
-    reason = models.CharField(max_length=255)
+    request_type = models.CharField(max_length=20, choices=VocabRequestType.choices)
+    status = models.CharField(max_length=20, choices=VocabRequestStatus.choices)
+    reason = models.CharField(max_length=255,blank=True,null=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -138,8 +138,11 @@ class VocabRequest(TimeStampedModel):
     )
 
     proposed_word = models.CharField(max_length=50)
+    proposed_vocab_type = models.CharField(max_length=20, choices=VocabType.choices)
     proposed_meaning = models.CharField(max_length=255)
     proposed_kana = models.CharField(max_length=255)
+    proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices)
+    proposed_Category = models.CharField(max_length=20, choices=VocabCategory.choices)
 
     #kanji
     proposed_similar_word = models.CharField(max_length=255, blank=True, null=True)
