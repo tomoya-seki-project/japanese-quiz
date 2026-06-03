@@ -108,6 +108,7 @@ class VocabRequestType(models.TextChoices):
     EDIT = "edit", "Edit"
     DELETE = "delete", "Delete"
     REVIEW = "review", "Review"
+    RESTORE = "restore", "Restore"
 
 class VocabRequestStatus(models.TextChoices):
     NONE = "none", "None"
@@ -142,10 +143,10 @@ class VocabRequest(TimeStampedModel):
     proposed_meaning = models.CharField(max_length=255)
     proposed_kana = models.CharField(max_length=255)
     proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices)
-    proposed_Category = models.CharField(max_length=20, choices=VocabCategory.choices)
+    proposed_category = models.CharField(max_length=20, choices=VocabCategory.choices)
 
     #kanji
-    proposed_similar_word = models.CharField(max_length=255, blank=True, null=True)
+    proposed_similar_kanji = models.CharField(max_length=255, blank=True, null=True)
 
     #katakana
     proposed_original_word = models.CharField(max_length=255, blank=True, null=True)

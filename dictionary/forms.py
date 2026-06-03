@@ -25,7 +25,7 @@ class VocabCreateRequestForm(forms.Form):
     category = forms.ChoiceField(choices=VocabCategory.choices)
 
     #--- kanji detail table ---#
-    similar_word = forms.CharField(max_length=255, required=False)
+    similar_kanji = forms.CharField(max_length=255, required=False)
     
     #--- katakana detail table ---#
     original_word = forms.CharField(max_length=255, required=False)
@@ -42,7 +42,6 @@ class VocabCreateRequestForm(forms.Form):
             if existing_vocab.is_active:
                 self.add_error('word', 'There is the same word on the list and active.')
             else:
-                self.add_error(None, 'There was the same word on the list, Passed to the admin to review.')
                 self.deactived_vocab = existing_vocab
 
         return cleaned_data
