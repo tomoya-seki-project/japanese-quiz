@@ -17,7 +17,7 @@ def genCreateVocabRequest(user, form):
     kana = form.cleaned_data["kana"]
     vocab_type = form.cleaned_data["vocab_type"]
     request = VocabRequest.objects.filter(
-        request_type = VocabRequestType.CREATE,
+        #request_type = VocabRequestType.CREATE,
         status = VocabRequestStatus.PENDING,
         proposed_word = word,
         proposed_kana = kana,
@@ -52,7 +52,7 @@ def genUpdateVocabRequest(user, form):
 def genRestoreVocabRequest(user, vocab):
     is_created = False
     request = VocabRequest.objects.filter(
-        request_type = VocabRequestType.RESTORE,
+        #request_type = VocabRequestType.RESTORE,
         status = VocabRequestStatus.PENDING,
         proposed_word = vocab.word,
         proposed_kana = vocab.kana,

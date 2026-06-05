@@ -1,6 +1,8 @@
 from django.db import models
+from django.db.models import JSONField
 from django.conf import settings
 from core.models import TimeStampedModel
+
 
 
 class VocabType(models.TextChoices):
@@ -23,7 +25,6 @@ class Vocab(TimeStampedModel):
     meaning = models.CharField(max_length=255)
     kana = models.CharField(max_length=255)
     is_active = models.BooleanField(default=False)
-    has_submission = models.BooleanField(default=False)
     type = models.CharField(
         max_length=20, choices=VocabType.choices
         )
@@ -151,3 +152,6 @@ class VocabRequest(TimeStampedModel):
     #katakana
     proposed_original_word = models.CharField(max_length=255, blank=True, null=True)
     proposed_native_japanese = models.CharField(max_length=255, blank=True, null=True)
+
+    #for update type request only
+    original_data = models.JSONField(blank=True, null=True)

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -10,6 +10,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import (
     TemplateView,
     FormView,
+    ListView,
 )
 
 from ..forms import (
@@ -41,7 +42,7 @@ class VocabHomeView(TemplateView):
     template_name = "dictionary/vocab_home.html"
 
 class VocabCreateRequestView(LoginRequiredMixin, FormView):
-    template_name = "dictionary/Vocab_create.html"
+    template_name = "dictionary/vocab_create.html"
     form_class = VocabCreateRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
 
@@ -75,18 +76,33 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
         return super().get_success_url()
     
 class VocabUpdateRequestView(LoginRequiredMixin, FormView):
-    template_name = "dictionary/Vocab_edit.html"
+    template_name = "dictionary/vocab_edit.html"
+    form_class = VocabUpdateRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["target_vocab"] = get_object_or_404(
+            Vocab,
+            pk = self.kwargs["pk"]
+        )
+        return kwargs
+    
+    def form_valid(self, form):
+        genUpdateVocabRequest(
+            user=self.request.user,
+            form=form
+        )
+        return super().form_valid(form)
+    
+
+
 class VocabDeleteRequestView(LoginRequiredMixin, FormView):
-    template_name = "dictionary/Vocab_delete.html"
+    template_name = "dictionary/vocab_delete.html"
     success_url = reverse_lazy("dictionary:vocab_home")
 
 class VocabDetailView(TemplateView):
-    template_name = "dictionary/Vocab_detail.html"
+    template_name = "dictionary/vocab_detail.html"
 
-    
-    
-    
-
-    
+class VocabListView(ListView):
+    template_name = "dictionary/vocab_list.html"

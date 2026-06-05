@@ -15,7 +15,7 @@ from .models import (
     VocabRequestStatus
 )
 
-class VocabCreateRequestForm(forms.Form):
+class BaseVocabRequestForm(forms.Form):
     #--- vocab table ---#
     vocab_type = forms.ChoiceField(choices=VocabType.choices, label='type')
     word = forms.CharField(max_length=50, label='Word')
@@ -31,6 +31,7 @@ class VocabCreateRequestForm(forms.Form):
     original_word = forms.CharField(max_length=255, required=False)
     native_japanese = forms.CharField(max_length=255, required=False)
 
+class VocabCreateRequestForm(BaseVocabRequestForm):
     def clean(self):
         cleaned_data = super().clean()
         word = cleaned_data.get('word')
@@ -46,8 +47,23 @@ class VocabCreateRequestForm(forms.Form):
 
         return cleaned_data
     
-class VocabUpdateRequestForm(forms.Form):
-    pass
+class VocabUpdateRequestForm(BaseVocabRequestForm):
+    def __init__(self, *args, target_vocab=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target_vocab = target_vocab
+
+    def clean(self):
+        cleaned_data = super().clean()
+        word = cleaned_data.get('word')
+        kana = cleaned_data.get('kana')
+        pk = cleaned_data.get('pk')
+
+        existing_vocab = Vocab.objects.filter(word=word, kana=kana).exclude(pk=self.target_vocab.pk).first()
+
+        if existing_vocab:
+            self.add_error('word', 'There is the same word on the list and active')
+
+        return cleaned_data
 
 class VocabDeleteRequestForm(forms.Form):
     pass
