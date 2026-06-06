@@ -47,7 +47,52 @@ def genCreateVocabRequest(user, form):
     return is_created
 
 def genUpdateVocabRequest(user, form):
-    pass
+    is_created = False
+    request = VocabRequest.objects.filter(
+        status = VocabRequestStatus.PENDING,
+        proposed_word = form.target_vocab.word,
+        proposed_kana = form.target_vocab.kana
+    ).first()
+    if request:
+        #add log
+        is_created = False
+    else:
+        update_request = VocabRequest.objects.create(
+            created_by = user,
+            request_type = VocabRequestType.UPDATE,
+            status = VocabRequestStatus.PENDING,
+            proposed_word = form.cleaned_data["word"],
+            proposed_vocab_type = form.cleaned_data["vocab_type"],
+            proposed_meaning = form.cleaned_data["meaning"],
+            proposed_kana = form.cleaned_data["kana"],
+            proposed_level = form.cleaned_data["level"],
+            proposed_category = form.cleaned_data["category"],
+            original_vocab = form.target_vocab,
+        )
+        
+        update_request.original_data = {
+            "word" : form.target_vocab.word,
+            "meaning" : form.target_vocab.meaning,
+            "kana" : form.target_vocab.kana,
+            "type" : form.target_vocab.type,
+            "level" : form.target_vocab.level,
+            "category": form.target_vocab.category,
+        }
+        
+        match form.cleaned_data["vocab_type"]:
+            case VocabType.KANJI:
+                update_request.original_data["similar_kanji"] = form.target_vocab.kanji_detail.similar_kanji
+                update_request.proposed_similar_kanji = form.cleaned_data["similar_kanji"]
+            case VocabType.KATAKANA:
+                update_request.original_data["original_word"] = form.target_vocab.katakana_detail.original_word
+                update_request.original_data["native_japanes"] = form.target_vocab.katakana_detail.native_japanese
+                update_request.proposed_original_word = form.cleaned_data["original_word"]
+                update_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
+
+        
+        update_request.save()
+        is_created = True
+    return is_created
 
 def genRestoreVocabRequest(user, vocab):
     is_created = False
@@ -86,4 +131,27 @@ def genRestoreVocabRequest(user, vocab):
     return is_created
 
 def genDeleteVocabRequest(user, vocab):
+    is_created = False
+    request = VocabRequest.objects.filter(
+        status = VocabRequestStatus.PENDING,
+        proposed_word = vocab.word,
+        proposed_kana = vocab.kana
+    )
+    if request:
+        #add log
+        is_created = False
+    else:
+        delete_request = VocabRequest.objects.create(
+            created_by = user,
+            request_type = VocabRequestType.DELETE,
+            status = VocabRequestStatus.PENDING,
+            original_vocab = vocab,
+        )
+        is_created = True
+    return is_created
+
+def approveVocabRequest(admin, vocab_request):
+    pass
+
+def rejectVocabRequest(admin, vocab_request):
     pass

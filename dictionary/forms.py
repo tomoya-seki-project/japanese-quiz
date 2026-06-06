@@ -67,3 +67,15 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
 
 class VocabDeleteRequestForm(forms.Form):
     pass
+
+class VocabSearchForm(forms.Form):
+    word = forms.CharField(max_length=50, required=False)
+    kana = forms.CharField(max_length=255, required=False)
+    level = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabLevel.choices),
+        required=False,
+    )
+    category = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabCategory.choices),
+        required=False,
+    )

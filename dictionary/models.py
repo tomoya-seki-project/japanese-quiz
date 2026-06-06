@@ -106,7 +106,7 @@ class UserVocab(TimeStampedModel):
         ]
 class VocabRequestType(models.TextChoices):
     CREATE = "create", "Create"
-    EDIT = "edit", "Edit"
+    UPDATE = "update", "Update"
     DELETE = "delete", "Delete"
     REVIEW = "review", "Review"
     RESTORE = "restore", "Restore"
@@ -127,7 +127,7 @@ class VocabRequest(TimeStampedModel):
         null=True,
         related_name = "applied_vocab_submissions"
     )
-    approved_by = models.ForeignKey(
+    reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
