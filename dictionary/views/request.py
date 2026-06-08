@@ -21,7 +21,7 @@ def genCreateVocabRequest(user, form):
         status = VocabRequestStatus.PENDING,
         proposed_word = word,
         proposed_kana = kana,
-    ).first()
+    ).exists()
     if request:
         is_created = False
     else:
@@ -52,7 +52,7 @@ def genUpdateVocabRequest(user, form):
         status = VocabRequestStatus.PENDING,
         proposed_word = form.target_vocab.word,
         proposed_kana = form.target_vocab.kana
-    ).first()
+    ).exists()
     if request:
         #add log
         is_created = False
@@ -85,7 +85,7 @@ def genUpdateVocabRequest(user, form):
                 update_request.proposed_similar_kanji = form.cleaned_data["similar_kanji"]
             case VocabType.KATAKANA:
                 update_request.original_data["original_word"] = form.target_vocab.katakana_detail.original_word
-                update_request.original_data["native_japanes"] = form.target_vocab.katakana_detail.native_japanese
+                update_request.original_data["native_japanese"] = form.target_vocab.katakana_detail.native_japanese
                 update_request.proposed_original_word = form.cleaned_data["original_word"]
                 update_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
 
@@ -101,7 +101,7 @@ def genRestoreVocabRequest(user, vocab):
         status = VocabRequestStatus.PENDING,
         proposed_word = vocab.word,
         proposed_kana = vocab.kana,
-    ).first()
+    ).exists()
     if request:
         # add log
         is_created = False

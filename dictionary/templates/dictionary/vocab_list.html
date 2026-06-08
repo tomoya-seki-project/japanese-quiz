@@ -1,4 +1,27 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>vocab list</h1>
+<form method="GET">
+    {{ search_form.as_p }}
+    <button type="submit">confirm</button>
+</form>
+<table>
+    <thead>
+        <tr>
+            <th>id</th>
+            <th>word</th>
+            <th>kana</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for vocab in vocabs %}
+        <tr>
+            <td>{{ vocab.pk }}</td>
+            <td>{{ vocab.word }}</td>
+            <td>{{ vocab.kana }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
 {% endblock %}

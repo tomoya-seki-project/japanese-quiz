@@ -86,7 +86,8 @@ class UserVocab(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
-        related_name='user_vocab')
+        related_name='user_vocab'
+    )
     vocab = models.ForeignKey(
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocab'
@@ -139,12 +140,12 @@ class VocabRequest(TimeStampedModel):
         null=True, related_name = "submissions"
     )
 
-    proposed_word = models.CharField(max_length=50)
-    proposed_vocab_type = models.CharField(max_length=20, choices=VocabType.choices)
-    proposed_meaning = models.CharField(max_length=255)
-    proposed_kana = models.CharField(max_length=255)
-    proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices)
-    proposed_category = models.CharField(max_length=20, choices=VocabCategory.choices)
+    proposed_word = models.CharField(max_length=50, blank=True, null=True)
+    proposed_vocab_type = models.CharField(max_length=20, choices=VocabType.choices, blank=True, null=True)
+    proposed_meaning = models.CharField(max_length=255, blank=True, null=True)
+    proposed_kana = models.CharField(max_length=255, blank=True, null=True)
+    proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices, blank=True, null=True)
+    proposed_category = models.CharField(max_length=20, choices=VocabCategory.choices, blank=True, null=True)
 
     #kanji
     proposed_similar_kanji = models.CharField(max_length=255, blank=True, null=True)

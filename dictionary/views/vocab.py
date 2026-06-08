@@ -48,9 +48,9 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
     success_url = reverse_lazy("HomePage")
 
     def form_valid(self, form):
-        has_restore_vocab = False
+        self.has_restore_vocab = False
         if hasattr(form, "deactived_vocab"):
-            has_restore_vocab = True
+            self.has_restore_vocab = True
             created = genRestoreVocabRequest(
                 user=self.request.user,
                 vocab=form.deactived_vocab,
@@ -83,7 +83,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
     
     @property
     def target_vocab(self):
-        if not hasattr(self, "_targer_vocab"):
+        if not hasattr(self, "_target_vocab"):
             self._target_vocab = get_object_or_404(
                 Vocab,
                 pk = self.kwargs["vocab_id"]
@@ -127,6 +127,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
 
 class VocabDeleteRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/vocab_delete.html"
+    form_class = VocabDeleteRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
 
 class VocabDetailView(TemplateView):
@@ -144,11 +145,14 @@ class VocabDetailView(TemplateView):
 class VocabListView(ListView):
     model = Vocab
     template_name = "dictionary/vocab_list.html"
+    context_object_name = "vocabs"
+    ordering = ['pk',]
+    #paginate_by = 10
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context["searchForm"] = VocabSearchForm(
+        context["search_form"] = VocabSearchForm(
             self.request.GET
         )
         return context
@@ -169,8 +173,46 @@ class VocabListView(ListView):
             lv = form.cleaned_data.get("level")
             if lv:
                 qs = qs.filter(level=lv)
-            category = form.cleaned_data.get("catefgory")
+            category = form.cleaned_data.get("category")
             if category:
                 qs = qs.filter(category=category)
+
+        return qs
+    
+class UserVocabListView(LoginRequiredMixin, ListView):
+    model = UserVocab
+    template_name = 'dictionary/user_vocab_list.html'
+    context_object_name = 'vocabs'
+    ordering = ['pk',]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['search_form'] = VocabSearchForm(
+            self.request.GET
+        )
+        return context
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        if self.request.user.is_authenticated:
+            qs = UserVocab.objects.filter(user=self.request.user).select_related("vocab")
+        form = VocabSearchForm(self.request.GET)
+
+        if form.is_valid():
+
+            word = form.cleaned_data.get("word")
+            if word:
+                qs = qs.filter(vocab__word__icontains=word)
+            kana = form.cleaned_data.get("kana")
+            if kana:
+                qs = qs.filter(vocab__kana__icontains=kana)
+            lv = form.cleaned_data.get("level")
+            if lv:
+                qs = qs.filter(vocab__level=lv)
+            category = form.cleaned_data.get("category")
+            if category:
+                qs = qs.filter(vocab__category=category)
 
         return qs

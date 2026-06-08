@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
+from django.conf import settings
 
 from django.views.generic import (
     CreateView,
@@ -13,6 +14,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
 from django.utils.decorators import method_decorator
+
+from core.views import current_time_by_ymd_hms
 
 from .forms import (
     RegistForm,
@@ -35,6 +38,10 @@ class UserLoginView(LoginView):
     def form_valid(self, form):
         result = super().form_valid(form)
         remember = form.cleaned_data['remember_me']
+        user = self.request.user
+
+        user.last_login = current_time_by_ymd_hms()
+        user.save()
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:

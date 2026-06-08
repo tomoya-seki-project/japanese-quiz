@@ -54,6 +54,9 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
+        if self.target_vocab is None:
+            raise ValidationError("Target vocab is missing")
         word = cleaned_data.get('word')
         kana = cleaned_data.get('kana')
         pk = cleaned_data.get('pk')
