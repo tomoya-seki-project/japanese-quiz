@@ -11,18 +11,32 @@ from ..models import (
     VocabRequestType,
 )
 
+def hasPendingRequest(*, target_vocab, word, kana):
+    qs = VocabRequest.objects.filter(status = VocabRequestStatus.PENDING)
+
+    if target_vocab is not None:
+        qs = qs.filter(original_vocab = target_vocab)
+    else:
+        qs = qs.filter(
+            proposed_word = word,
+            proposed_kana = kana,
+        )
+    return qs.exists()
+
 def genCreateVocabRequest(user, form):
     is_created = False
     word = form.cleaned_data["word"]
     kana = form.cleaned_data["kana"]
     vocab_type = form.cleaned_data["vocab_type"]
-    request = VocabRequest.objects.filter(
-        #request_type = VocabRequestType.CREATE,
-        status = VocabRequestStatus.PENDING,
-        proposed_word = word,
-        proposed_kana = kana,
-    ).exists()
-    if request:
+    # request = VocabRequest.objects.filter(
+    #     #request_type = VocabRequestType.CREATE,
+    #     status = VocabRequestStatus.PENDING,
+    #     proposed_word = word,
+    #     proposed_kana = kana,
+    # ).exists()
+    # if request:
+    #     pass
+    if hasPendingRequest(word = word, kana = kana):
         is_created = False
     else:
         create_request = VocabRequest.objects.create(
@@ -48,12 +62,14 @@ def genCreateVocabRequest(user, form):
 
 def genUpdateVocabRequest(user, form):
     is_created = False
-    request = VocabRequest.objects.filter(
-        status = VocabRequestStatus.PENDING,
-        proposed_word = form.target_vocab.word,
-        proposed_kana = form.target_vocab.kana
-    ).exists()
-    if request:
+    # request = VocabRequest.objects.filter(
+    #     status = VocabRequestStatus.PENDING,
+    #     proposed_word = form.target_vocab.word,
+    #     proposed_kana = form.target_vocab.kana
+    # ).exists()
+    # if request:
+    #     pass
+    if hasPendingRequest(vocab = form.target_vocab):
         #add log
         is_created = False
     else:
@@ -96,13 +112,15 @@ def genUpdateVocabRequest(user, form):
 
 def genRestoreVocabRequest(user, vocab):
     is_created = False
-    request = VocabRequest.objects.filter(
-        #request_type = VocabRequestType.RESTORE,
-        status = VocabRequestStatus.PENDING,
-        proposed_word = vocab.word,
-        proposed_kana = vocab.kana,
-    ).exists()
-    if request:
+    # request = VocabRequest.objects.filter(
+    #     #request_type = VocabRequestType.RESTORE,
+    #     status = VocabRequestStatus.PENDING,
+    #     proposed_word = vocab.word,
+    #     proposed_kana = vocab.kana,
+    # ).exists()
+    # if request:
+    #     pass
+    if hasPendingRequest(vocab = vocab):
         # add log
         is_created = False
     else:
@@ -132,12 +150,12 @@ def genRestoreVocabRequest(user, vocab):
 
 def genDeleteVocabRequest(user, vocab):
     is_created = False
-    request = VocabRequest.objects.filter(
-        status = VocabRequestStatus.PENDING,
-        proposed_word = vocab.word,
-        proposed_kana = vocab.kana
-    )
-    if request:
+    # request = VocabRequest.objects.filter(
+    #     status = VocabRequestStatus.PENDING,
+    #     original_vocab = vocab,
+    # ).exists()
+    # if request:
+    if hasPendingRequest(vocab = vocab):
         #add log
         is_created = False
     else:

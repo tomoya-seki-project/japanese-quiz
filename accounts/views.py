@@ -13,9 +13,8 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
+from django.utils import timezone
 from django.utils.decorators import method_decorator
-
-from core.views import current_time_by_ymd_hms
 
 from .forms import (
     RegistForm,
@@ -40,7 +39,7 @@ class UserLoginView(LoginView):
         remember = form.cleaned_data['remember_me']
         user = self.request.user
 
-        user.last_login = current_time_by_ymd_hms()
+        user.last_login = timezone.localtime()
         user.save()
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)

@@ -15,7 +15,7 @@ from .views.vocab import (
 app_name = 'dictionary'
 
 urlpatterns = [
-    path('home/', VocabHomeView.as_view(), name='vocab_home'),
+    path('', VocabHomeView.as_view(), name='vocab_home'),
     path('vocab/create', VocabCreateRequestView.as_view(), name='vocab_create'),
     path('vocab/<int:vocab_id>', VocabDetailView.as_view(), name='vocab_detail'),
     path('vocab/<int:vocab_id>/update/', VocabUpdateRequestView.as_view(), name='vocab_update'),

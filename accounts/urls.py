@@ -9,7 +9,7 @@ from .views import (
 app_name = 'accounts'
 
 urlpatterns = [
-    path('home/', HomeView.as_view(), name='user_home'),
+    path('', HomeView.as_view(), name='user_home'),
     path('user_regist/', RegistUserView.as_view(), name='user_regist'),
     path('user_login/', UserLoginView.as_view(), name='user_login'),
     path('user_logout/', UserLogoutView.as_view(), name='user_logout'),

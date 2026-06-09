@@ -69,7 +69,13 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
         return cleaned_data
 
 class VocabDeleteRequestForm(forms.Form):
-    pass
+    confirm = forms.BooleanField(required=False)
+
+    def clean_confirm(self):
+        confirm = self.cleaned_data.get("confirm")
+        if confirm == False:
+            raise ValidationError("Please confirm the action")
+        return confirm
 
 class VocabSearchForm(forms.Form):
     word = forms.CharField(max_length=50, required=False)

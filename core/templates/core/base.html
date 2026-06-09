@@ -15,6 +15,7 @@
                 <a class="navbar-brand" href="{% url "accounts:user_regist" %}">sign in</a>
                 <a class="navbar-brand" href="{% url "accounts:user_login" %}">login</a>
             {% endif %}
+            <a class="navbar-brand" href="{% url "dictionary:vocab_home" %}">vocab</a>
         </nav>
         {% block content %}
         {% endblock %}

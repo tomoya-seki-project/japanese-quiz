@@ -130,6 +130,28 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
     form_class = VocabDeleteRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
 
+    @property
+    def target_vocab(self):
+        if not hasattr(self, "_target_vocab"):
+            self._target_vocab = get_object_or_404(
+                Vocab,
+                pk = self.kwargs["vocab_id"]
+            )
+        return self._target_vocab
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["vocab"] = self.target_vocab
+        return context
+    
+    def form_valid(self, form):
+        genDeleteVocabRequest(
+            user=self.request.user,
+            vocab=self.target_vocab
+        )
+        return super().form_valid(form)
+    
+
 class VocabDetailView(TemplateView):
     template_name = "dictionary/vocab_detail.html"
 

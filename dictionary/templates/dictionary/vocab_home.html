@@ -1,6 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>vocab home</h1>
-<a href="{% url "dictionary:vocab_create" %}">Create</a>
 <a href="{% url "dictionary:vocab_list" %}">List</a>
+{% if user.is_authenticated %}
+<a href="{% url "dictionary:vocab_create" %}">Create</a>
+<a href="{% url "dictionary:user_vocab_list" %}">MyList</a>
+{% endif %}
 {% endblock %}

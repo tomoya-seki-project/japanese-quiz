@@ -156,3 +156,5 @@ class VocabRequest(TimeStampedModel):
 
     #for update type request only
     original_data = models.JSONField(blank=True, null=True)
+    class Meta:
+        db_table = "vocab_request"
