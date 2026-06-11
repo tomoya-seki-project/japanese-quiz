@@ -1,17 +1,19 @@
 from ..models import (
-    Vocab,
-    UserVocab,
     VocabType,
     VocabCategory,
     VocabLevel,
-    KanjiDetail,
-    KatakanaDetail,
-    VocabRequest,
     VocabRequestStatus,
     VocabRequestType,
 )
+from ..models import (
+    Vocab,
+    UserVocab,
+    VocabDetail,
+    KatakanaDetail,
+    VocabRequest,
+)
 
-def hasPendingRequest(*, target_vocab, word, kana):
+def hasPendingRequest(*, target_vocab=None, word=None, kana=None):
     qs = VocabRequest.objects.filter(status = VocabRequestStatus.PENDING)
 
     if target_vocab is not None:
@@ -48,11 +50,12 @@ def genCreateVocabRequest(user, form):
             proposed_meaning = form.cleaned_data["meaning"],
             proposed_kana = kana,
             proposed_level = form.cleaned_data["level"],
-            proposed_category = form.cleaned_data["category"]
+            proposed_category = form.cleaned_data["category"],
+            proposed_similar_word = form.cleaned_data["similar_word"],
         )
         match vocab_type:
-            case VocabType.KANJI:
-                create_request.proposed_similar_kanji = form.cleaned_data["similar_kanji"]
+            case VocabType.VOCAB:
+                pass
             case VocabType.KATAKANA:
                 create_request.proposed_original_word = form.cleaned_data["original_word"]
                 create_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
@@ -84,6 +87,7 @@ def genUpdateVocabRequest(user, form):
             proposed_level = form.cleaned_data["level"],
             proposed_category = form.cleaned_data["category"],
             original_vocab = form.target_vocab,
+            proposed_similar_word = form.cleaned_data["similar_word"],
         )
         
         update_request.original_data = {
@@ -93,12 +97,12 @@ def genUpdateVocabRequest(user, form):
             "type" : form.target_vocab.type,
             "level" : form.target_vocab.level,
             "category": form.target_vocab.category,
+            "similar_word": form.target_vocab.similar_word,
         }
         
         match form.cleaned_data["vocab_type"]:
-            case VocabType.KANJI:
-                update_request.original_data["similar_kanji"] = form.target_vocab.kanji_detail.similar_kanji
-                update_request.proposed_similar_kanji = form.cleaned_data["similar_kanji"]
+            case VocabType.VOCAB:
+                pass
             case VocabType.KATAKANA:
                 update_request.original_data["original_word"] = form.target_vocab.katakana_detail.original_word
                 update_request.original_data["native_japanese"] = form.target_vocab.katakana_detail.native_japanese
@@ -135,11 +139,12 @@ def genRestoreVocabRequest(user, vocab):
             proposed_level = vocab.level,
             proposed_category = vocab.category,
             original_vocab = vocab,
+            proposed_similar_word = vocab.similar_word,
         )
         match vocab.type:
-            case VocabType.KANJI:
-                if hasattr(vocab, "kanji_detail"):
-                    restore_request.proposed_similar_kanji = vocab.kanji_detail.similar_kanji
+            case VocabType.VOCAB:
+                if hasattr(vocab, "vocab_detail"):
+                    pass
             case VocabType.KATAKANA:
                 if hasattr(vocab, "katakana_detail"):
                     restore_request.proposed_original_word = vocab.katakana_detail.original_word

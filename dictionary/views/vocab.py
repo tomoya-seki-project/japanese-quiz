@@ -20,16 +20,18 @@ from ..forms import (
     VocabSearchForm,
 )
 from ..models import (
-    Vocab,
-    UserVocab,
     VocabType,
     VocabCategory,
     VocabLevel,
-    KanjiDetail,
-    KatakanaDetail,
-    VocabRequest,
     VocabRequestStatus,
     VocabRequestType,
+)
+from ..models import (
+    Vocab,
+    UserVocab,
+    VocabDetail,
+    KatakanaDetail,
+    VocabRequest,
 )
 
 from .request import (
@@ -105,12 +107,11 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
             "kana" : vocab.kana,
             "level" : vocab.level,
             "category" : vocab.category, 
+            "similar_word" : vocab.similar_word
         })
         match vocab.type:
-            case VocabType.KANJI:
-                initial_data.update({
-                    "similar_kanji" : vocab.kanji_detail.similar_kanji
-                })
+            case VocabType.VOCAB:
+                pass
             case VocabType.KATAKANA:
                 initial_data.update({
                     "original_word" : vocab.katakana_detail.original_word,

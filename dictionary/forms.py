@@ -3,16 +3,18 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import (
-    Vocab,
+    VocabType,
     VocabCategory,
     VocabLevel,
-    VocabType,
+    VocabRequestStatus,
+    VocabRequestType,
+)
+from .models import (
+    Vocab,
     UserVocab,
-    KanjiDetail,
+    VocabDetail,
     KatakanaDetail,
     VocabRequest,
-    VocabRequestType,
-    VocabRequestStatus
 )
 
 class BaseVocabRequestForm(forms.Form):
@@ -23,9 +25,10 @@ class BaseVocabRequestForm(forms.Form):
     kana = forms.CharField(max_length=255, label='Kana')
     level = forms.ChoiceField(choices=VocabLevel.choices)
     category = forms.ChoiceField(choices=VocabCategory.choices)
+    similar_word = forms.CharField(max_length=255, required=False)
 
     #--- kanji detail table ---#
-    similar_kanji = forms.CharField(max_length=255, required=False)
+    #nothing special right now
     
     #--- katakana detail table ---#
     original_word = forms.CharField(max_length=255, required=False)

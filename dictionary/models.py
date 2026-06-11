@@ -6,7 +6,7 @@ from core.models import TimeStampedModel
 
 
 class VocabType(models.TextChoices):
-    KANJI = "kanji", "Kanji"
+    VOCAB = "vocab", "Vocab"
     KATAKANA = "katakana", "Katakana"
 
 class VocabLevel(models.TextChoices):
@@ -34,6 +34,8 @@ class Vocab(TimeStampedModel):
     category = models.CharField(
         max_length=20, choices=VocabCategory.choices
         )
+    
+    similar_word = models.CharField(max_length=255, blank=True, null=True)
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -63,14 +65,13 @@ class Vocab(TimeStampedModel):
             )
         ]
 
-class KanjiDetail(TimeStampedModel):
-    similar_kanji = models.CharField(max_length=255, blank=True, null=True)
+class VocabDetail(TimeStampedModel):
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
-        related_name='kanji_detail'
+        related_name='vocab_detail'
         )
     class Meta:
-        db_table = 'kanji_detail'
+        db_table = 'vocab_detail'
 
 class KatakanaDetail(TimeStampedModel):
     original_word = models.CharField(max_length=255, blank=True, null=True)
@@ -147,10 +148,12 @@ class VocabRequest(TimeStampedModel):
     proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices, blank=True, null=True)
     proposed_category = models.CharField(max_length=20, choices=VocabCategory.choices, blank=True, null=True)
 
-    #kanji
-    proposed_similar_kanji = models.CharField(max_length=255, blank=True, null=True)
+    proposed_similar_word = models.CharField(max_length=255, blank=True, null=True)
+    
+    #vocab type
+    # nothing special right now
 
-    #katakana
+    #katakana type
     proposed_original_word = models.CharField(max_length=255, blank=True, null=True)
     proposed_native_japanese = models.CharField(max_length=255, blank=True, null=True)
 
