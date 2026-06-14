@@ -31,7 +31,6 @@ class BaseVocabRequestForm(forms.Form):
     #nothing special right now
     
     #--- katakana detail table ---#
-    original_word = forms.CharField(max_length=255, required=False)
     native_japanese = forms.CharField(max_length=255, required=False)
 
 class VocabCreateRequestForm(BaseVocabRequestForm):

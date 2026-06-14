@@ -57,7 +57,6 @@ def genCreateVocabRequest(user, form):
             case VocabType.VOCAB:
                 pass
             case VocabType.KATAKANA:
-                create_request.proposed_original_word = form.cleaned_data["original_word"]
                 create_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
         create_request.save()
         is_created = True
@@ -104,9 +103,7 @@ def genUpdateVocabRequest(user, form):
             case VocabType.VOCAB:
                 pass
             case VocabType.KATAKANA:
-                update_request.original_data["original_word"] = form.target_vocab.katakana_detail.original_word
                 update_request.original_data["native_japanese"] = form.target_vocab.katakana_detail.native_japanese
-                update_request.proposed_original_word = form.cleaned_data["original_word"]
                 update_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
 
         
@@ -147,7 +144,6 @@ def genRestoreVocabRequest(user, vocab):
                     pass
             case VocabType.KATAKANA:
                 if hasattr(vocab, "katakana_detail"):
-                    restore_request.proposed_original_word = vocab.katakana_detail.original_word
                     restore_request.proposed_native_japanese = vocab.katakana_detail.native_japanese
         restore_request.save()
         is_created = True

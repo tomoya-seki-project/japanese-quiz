@@ -33,12 +33,14 @@ class UserManager(DjangoUserManager):
 class User(AbstractUser):
     username = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    last_login = models.DateTimeField(null=True)
-
+    
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
+    def __str__(self):
+        return self.username
 
 class UserProfile(TimeStampedModel):
     user = models.OneToOneField(

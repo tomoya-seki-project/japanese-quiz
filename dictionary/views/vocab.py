@@ -114,7 +114,6 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
                 pass
             case VocabType.KATAKANA:
                 initial_data.update({
-                    "original_word" : vocab.katakana_detail.original_word,
                     "native_japanese" : vocab.katakana_detail.native_japanese
                 })
         return initial_data

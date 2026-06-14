@@ -20,22 +20,25 @@ class VocabCategory(models.TextChoices):
     LIFE = "life", "Life"
 
 class Vocab(TimeStampedModel):
-    word = models.CharField(max_length=50)
+    word = models.CharField(verbose_name="Word", max_length=50)
     word_slug = models.CharField(max_length=255)
-    meaning = models.CharField(max_length=255)
-    kana = models.CharField(max_length=255)
+    meaning = models.CharField(verbose_name="Meaning", max_length=255)
+    kana = models.CharField(verbose_name="Kana", max_length=255)
     is_active = models.BooleanField(default=False)
     type = models.CharField(
+        verbose_name="Type", 
         max_length=20, choices=VocabType.choices
         )
     level = models.CharField(
+        verbose_name="Level", 
         max_length=10, choices=VocabLevel.choices
         )
     category = models.CharField(
+        verbose_name="Category", 
         max_length=20, choices=VocabCategory.choices
         )
     
-    similar_word = models.CharField(max_length=255, blank=True, null=True)
+    similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -74,7 +77,6 @@ class VocabDetail(TimeStampedModel):
         db_table = 'vocab_detail'
 
 class KatakanaDetail(TimeStampedModel):
-    original_word = models.CharField(max_length=255, blank=True, null=True)
     native_japanese = models.CharField(max_length=255, blank=True, null=True)
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
@@ -93,11 +95,11 @@ class UserVocab(TimeStampedModel):
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocab'
     )
-    weight = models.IntegerField(default=50)
-    correct_count = models.IntegerField(default=0)
-    incorrect_count = models.IntegerField(default=0)
-    streak = models.IntegerField(default=0)
-    last_quiz_at = models.DateTimeField(blank=True, null=True)
+    weight = models.IntegerField(verbose_name="Weight", default=50)
+    correct_count = models.IntegerField(verbose_name="Correct", default=0)
+    incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
+    streak = models.IntegerField(verbose_name="Streak", default=0)
+    last_quiz_at = models.DateTimeField(verbose_name="Last Quiz", blank=True, null=True)
     class Meta:
         db_table = 'user_vocab'
         constraints = [
@@ -120,44 +122,45 @@ class VocabRequestStatus(models.TextChoices):
     APPROVED = 'approved', "Approved"
 
 class VocabRequest(TimeStampedModel):
-    request_type = models.CharField(max_length=20, choices=VocabRequestType.choices)
-    status = models.CharField(max_length=20, choices=VocabRequestStatus.choices)
-    reason = models.CharField(max_length=255,blank=True,null=True)
+    request_type = models.CharField(verbose_name="Request", max_length=20, choices=VocabRequestType.choices)
+    status = models.CharField(verbose_name="Status", max_length=20, choices=VocabRequestStatus.choices)
+    reason = models.CharField(verbose_name="Reason", max_length=255,blank=True,null=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name = "applied_vocab_submissions"
+        related_name = "applied_vocab_submissions",
+        verbose_name="Created By", 
     )
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name = "approved_vocab_submission"
+        related_name = "approved_vocab_submission",
+        verbose_name="Reviewed By", 
     )
 
     original_vocab = models.ForeignKey(
         Vocab, on_delete=models.CASCADE,
-        null=True, related_name = "submissions"
+        null=True, related_name = "requests"
     )
 
-    proposed_word = models.CharField(max_length=50, blank=True, null=True)
-    proposed_vocab_type = models.CharField(max_length=20, choices=VocabType.choices, blank=True, null=True)
-    proposed_meaning = models.CharField(max_length=255, blank=True, null=True)
-    proposed_kana = models.CharField(max_length=255, blank=True, null=True)
-    proposed_level = models.CharField(max_length=10, choices=VocabLevel.choices, blank=True, null=True)
-    proposed_category = models.CharField(max_length=20, choices=VocabCategory.choices, blank=True, null=True)
+    proposed_word = models.CharField(verbose_name="Word", max_length=50, blank=True, null=True)
+    proposed_vocab_type = models.CharField(verbose_name="Type", max_length=20, choices=VocabType.choices, blank=True, null=True)
+    proposed_meaning = models.CharField(verbose_name="Meaning", max_length=255, blank=True, null=True)
+    proposed_kana = models.CharField(verbose_name="Kana", max_length=255, blank=True, null=True)
+    proposed_level = models.CharField(verbose_name="level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
+    proposed_category = models.CharField(verbose_name="Category", max_length=20, choices=VocabCategory.choices, blank=True, null=True)
 
-    proposed_similar_word = models.CharField(max_length=255, blank=True, null=True)
+    proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
     
     #vocab type
     # nothing special right now
 
     #katakana type
-    proposed_original_word = models.CharField(max_length=255, blank=True, null=True)
-    proposed_native_japanese = models.CharField(max_length=255, blank=True, null=True)
+    proposed_native_japanese = models.CharField(verbose_name="Native Japanese", max_length=255, blank=True, null=True)
 
     #for update type request only
-    original_data = models.JSONField(blank=True, null=True)
+    original_data = models.JSONField(verbose_name="Last Record", blank=True, null=True)
     class Meta:
         db_table = "vocab_request"
