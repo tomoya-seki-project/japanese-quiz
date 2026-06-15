@@ -53,6 +53,7 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
     def __init__(self, *args, target_vocab=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.target_vocab = target_vocab
+        self.fields["vocab_type"].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()

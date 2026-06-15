@@ -5,6 +5,7 @@ from core.models import TimeStampedModel
 
 
 
+
 class VocabType(models.TextChoices):
     VOCAB = "vocab", "Vocab"
     KATAKANA = "katakana", "Katakana"
@@ -162,5 +163,6 @@ class VocabRequest(TimeStampedModel):
 
     #for update type request only
     original_data = models.JSONField(verbose_name="Last Record", blank=True, null=True)
+    
     class Meta:
         db_table = "vocab_request"

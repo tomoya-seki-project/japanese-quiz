@@ -1,8 +1,7 @@
 from django.urls import path
 from django.views.generic.base import TemplateView
 
-from .views import vocab
-from .views.vocab import (
+from .views import (
     VocabHomeView,
     VocabCreateRequestView,
     VocabDetailView,
