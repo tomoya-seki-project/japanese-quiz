@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import JSONField
+from django.db.models import JSONField, Q
 from django.conf import settings
 from core.models import TimeStampedModel
 
@@ -9,8 +9,12 @@ from core.models import TimeStampedModel
 class VocabType(models.TextChoices):
     VOCAB = "vocab", "Vocab"
     KATAKANA = "katakana", "Katakana"
+    # ADVERB = "adverb", "副詞"
+    # MIMETIC = "mimetic", "擬音・擬態語"
+    # CONJUNCTION = "conjunction", "接続詞"
 
 class VocabLevel(models.TextChoices):
+    JLPT_N0 = "N0", "N0"
     JLPT_N1 = "N1", "N1"
     JLPT_N2 = "N2", "N2"
     JLPT_N3 = "N3", "N3"
@@ -18,7 +22,26 @@ class VocabLevel(models.TextChoices):
     JLPT_N5 = "N5", "N5"
 
 class VocabCategory(models.TextChoices):
-    LIFE = "life", "Life"
+    VERB = "verb", "動詞"
+
+    DAILY_LIFE = "daily_life", "日常生活"
+    PEOPLE_RELATIONSHIPS = "people_relationships", "人間関係"
+    FOOD = "food", "食事・料理"
+    PLACES_FACILITIES = "places_facilities", "場所・施設"
+    EDUCATION_LANGUAGE = "education_language", "教育・言語"
+    WORK_BUSINESS = "work_business", "仕事・ビジネス"
+    MONEY_ECONOMY = "money_economy", "お金・経済"
+    SOCIETY_LAW = "society_law", "社会・法律"
+    TRANSPORT_TRAVEL = "transport_travel", "交通・旅行"
+    HEALTH_BODY = "health_body", "健康・身体"
+    NATURE_SCIENCE = "nature_science", "自然・科学"
+    TECHNOLOGY_TOOLS = "technology_tools", "技術・道具"
+    CULTURE_ENTERTAINMENT = "culture_entertainment", "文化・娯楽"
+    EMOTION_THOUGHT = "emotion_thought", "感情・思考"
+
+    # ADVERB = "adverb", "副詞"
+    # MIMETIC = "mimetic", "擬音・擬態語"
+    # CONJUNCTION = "conjunction", "接続詞"
 
 class Vocab(TimeStampedModel):
     word = models.CharField(verbose_name="Word", max_length=50)
@@ -36,7 +59,7 @@ class Vocab(TimeStampedModel):
         )
     category = models.CharField(
         verbose_name="Category", 
-        max_length=20, choices=VocabCategory.choices
+        max_length=50, choices=VocabCategory.choices
         )
     
     similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
@@ -146,12 +169,12 @@ class VocabRequest(TimeStampedModel):
         null=True, related_name = "requests"
     )
 
-    proposed_word = models.CharField(verbose_name="Word", max_length=50, blank=True, null=True)
-    proposed_vocab_type = models.CharField(verbose_name="Type", max_length=20, choices=VocabType.choices, blank=True, null=True)
+    proposed_word = models.CharField(verbose_name="Word", max_length=50, default="word")
+    proposed_vocab_type = models.CharField(verbose_name="Type", max_length=20, choices=VocabType.choices, default="vocab")
     proposed_meaning = models.CharField(verbose_name="Meaning", max_length=255, blank=True, null=True)
-    proposed_kana = models.CharField(verbose_name="Kana", max_length=255, blank=True, null=True)
+    proposed_kana = models.CharField(verbose_name="Kana", max_length=255, default="kana")
     proposed_level = models.CharField(verbose_name="level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
-    proposed_category = models.CharField(verbose_name="Category", max_length=20, choices=VocabCategory.choices, blank=True, null=True)
+    proposed_category = models.CharField(verbose_name="Category", max_length=50, choices=VocabCategory.choices, blank=True, null=True)
 
     proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
     
@@ -166,3 +189,21 @@ class VocabRequest(TimeStampedModel):
     
     class Meta:
         db_table = "vocab_request"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["original_vocab"],
+                condition=Q(
+                    status = VocabRequestStatus.PENDING,
+                    original_vocab__isnull = False,
+                ),
+                name = "unique_pending_vocab_request_on_other",
+            ),
+            models.UniqueConstraint(
+                fields=["proposed_word", "proposed_kana"],
+                condition=Q(
+                    status = VocabRequestStatus.PENDING,
+                    original_vocab__isnull = True,
+                ),
+                name = "unique_pending_vocab_request_on_create"
+            ),
+        ]
