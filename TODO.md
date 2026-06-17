@@ -1,71 +1,74 @@
-# 專案待辦事項
+# Project TODO
 
-## 詞彙申請／後台管理
+呢份 TODO 主要記低之後要補嘅位，同埋已經處理咗嘅 decision。  
+寫法會盡量用廣東話 + English technical terms，方便自己返嚟睇嗰陣快啲入腦。
 
-- [ ] **第 1 點：實作核准及拒絕申請的實際處理流程。**
-  - 目前狀態：刻意保留為未完成。
-  - 只有操作真正完成後，才顯示成功訊息。
+## VocabRequest / Admin Review Flow
 
-- [x] **第 2 點：將後台的核准／拒絕操作由 GET 連結改為 POST。**
-  - 避免誤觸、重新整理時重複執行，以及連續點擊。
-  - 當申請不再是 `PENDING` 狀態後，禁止再次處理。
+- [ ] **第 1 點：真正實作 approve / reject request 嘅處理 flow。**
+  - 目前狀態：刻意留返未完成。
+  - 要等 approve / reject 真係成功處理完，先可以 show success message。
 
-- [ ] **第 3 點：為後台自訂的核准／拒絕 View 加入權限檢查。**
-  - 學習 Django 後台權限處理後再實作。
-  - 檢查審核者是否擁有修改 `VocabRequest` 的權限。
+- [x] **第 2 點：Admin 入面嘅 approve / reject action 由 GET link 改做 POST。**
+  - 避免誤 click、refresh page 時重複執行，或者連續 click 造成重複處理。
+  - 當 request 已經唔係 `PENDING` 狀態，就唔可以再處理多次。
 
-- [x] **第 4 點：將 `VocabUpdateRequestForm` 的 `vocab_type` 設為唯讀。**
-  - 避免使用者在更新詞彙申請期間改變詞彙類型。
+- [ ] **第 3 點：幫 admin custom approve / reject view 加 permission check。**
+  - 等學清楚 Django admin permission flow 之後再補。
+  - 要 check reviewer 係咪有 permission 去 change `VocabRequest`。
 
-- [x] **第 9 點：將由工作流程控制的後台欄位設為唯讀。**
-  - 例如：`status`、`request_type`、`reviewed_by`，以及適當的 proposed data。
-  - 狀態變更應經由核准／拒絕 service 處理。
+- [x] **第 4 點：將 `VocabUpdateRequestForm` 入面嘅 `vocab_type` set 做 readonly。**
+  - 避免 user 喺 update vocab request 期間改咗 vocab type，令 detail model 關係變亂。
 
-- [x] **第 5A 點：確保建立 `VocabRequest` 的操作具備交易原子性。**
-  - 避免建立 request 時發生例外、程序中斷或伺服器故障，留下只儲存了一部分的資料。
-  - 目前 create/update/restore/delete request creation 已使用 `transaction.atomic()`。
+- [x] **第 9 點：Admin 入面由 workflow 控制嘅 fields 要 set 做 readonly。**
+  - 例如：`status`、`request_type`、`reviewed_by`，同埋適合 readonly 嘅 proposed data。
+  - 狀態變更應該經 approve / reject service 處理，唔應該喺 admin form 直接亂改。
 
-- [ ] **第 5B 點：確保審核 approve/reject 的操作具備交易原子性。**
-  - 之後實作第 1 點 approve/reject workflow 時處理。
-  - 若審核時需要同時更新 `VocabRequest`、`Vocab`、`VocabDetail`、`KatakanaDetail` 等資料，應包在同一個 transaction 內。
+- [x] **第 5A 點：建立 `VocabRequest` 嘅操作要有 transaction atomic。**
+  - 避免 create request 中途 exception、server stop，或者其中一部分 save 咗但另一部分冇 save。
+  - 目前 create / update / restore / delete request creation 已經用咗 `transaction.atomic()`。
 
-- [x] **第 7 點：防止同時建立多筆重複的 pending 申請。**
-  - 目前構想：在 `Vocab` 加入欄位，當有 pending 申請時將該詞彙標記／鎖定。
-  - 同時考慮資料庫約束或資料列鎖定，因為單純檢查 Boolean 欄位，在並行請求下仍可能發生競爭狀況。
+- [ ] **第 5B 點：approve / reject review flow 都要有 transaction atomic。**
+  - 之後做第 1 點 approve / reject workflow 嗰陣一齊處理。
+  - 如果 review 時要同時 update `VocabRequest`、`Vocab`、`VocabDetail`、`KatakanaDetail` 等資料，應該包喺同一個 transaction 入面。
 
-- [ ] **第 11 點：決定不同詞彙類型專屬欄位的驗證規則。**
-  - 例如：Katakana 類型是否必須填寫 `native_japanese`。
+- [x] **第 7 點：防止同時建立多筆 duplicate pending request。**
+  - 目前方向：喺 `Vocab` 加 field，當有 pending request 時 mark / lock 住嗰個 vocab。
+  - 亦要考慮 database constraint 或 row lock，因為淨係 check Boolean field，遇到 concurrent request 時仍然可能有 race condition。
 
-## 詞彙
+- [ ] **第 11 點：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
+  - 例如：Katakana type 係咪一定要填 `native_japanese`。
 
-- [x] **第 8 點：公開詞彙列表只顯示已啟用的詞彙。**
-  - 在適當位置加入 `is_active=True` 篩選。
+## Vocab
 
-- [x] **第 4 點補充：決定變更詞彙類型時的驗證及關聯 detail 處理方式。**
-  - 目前決定：在 `VocabUpdateRequestForm` 將詞彙類型設為唯讀。
+- [x] **第 8 點：公開 vocab list 只 show active vocab。**
+  - 喺適合位置加 `is_active=True` filter。
 
-- [x] **第 10 點：保留 `VocabRequest.original_vocab` 目前的 `CASCADE` 行為。**
-  - 正常刪除方式是停用，而不是從資料庫永久刪除。
-  - 如果詞彙被永久刪除，目前可以接受其審核紀錄一併消失。
+- [x] **第 4 點補充：決定改 vocab type 時，validation 同 related detail 要點處理。**
+  - 目前決定：喺 `VocabUpdateRequestForm` 將 vocab type set 做 readonly。
 
-## 帳戶後台
+- [x] **第 10 點：保留 `VocabRequest.original_vocab` 目前嘅 `CASCADE` 行為。**
+  - 正常 delete vocab 嘅方式係 soft delete / disable，而唔係 database 入面永久 delete。
+  - 如果 vocab 真係被永久 delete，目前接受相關 review record 一齊消失。
 
-- [ ] **第 6 點：檢視自訂 User Admin 的實作。**
-  - `CustomizedUserAdmin` 目前繼承 `admin.ModelAdmin`，而不是 Django 的 `UserAdmin`。
-  - 一般後台表單可能直接儲存密碼欄位內容，而沒有呼叫 `set_password()`。
-  - 使用及設定 `UserAdmin` 可以取得標準的密碼雜湊表單、密碼修改流程、群組、權限及 staff 欄位。
+## Account Admin
 
-## 一般改善
+- [ ] **第 6 點：檢查 custom User Admin 寫法。**
+  - `CustomizedUserAdmin` 目前繼承 `admin.ModelAdmin`，唔係 Django standard `UserAdmin`。
+  - 普通 admin form 可能會直接 save password field，冇 call `set_password()`，咁 password hash 會出事。
+  - 用返 `UserAdmin` 可以攞到 standard password hash form、password change flow、groups、permissions、staff fields 等功能。
 
-- [ ] **改善 A：**為 `Vocab`、`VocabRequest` 等 model 加入 `__str__()`。
-- [ ] **改善 B：**考慮將 `vocabRequestService` 重新命名為 `VocabRequestService`。
-- [ ] **改善 C：**移除未使用的 import 及舊有的註解查詢程式碼。
-- [ ] **改善 D：**為重複申請、建立／更新／刪除流程，以及核准／拒絕流程加入測試。
-- [ ] **改善 E：**加入 `requirements.txt` 或 `pyproject.toml` 等依賴套件設定。
-- [ ] **改善 F：**正式部署前，將 `SECRET_KEY`、`DEBUG` 等設定移至環境變數。
-- [ ] **改善 G：**清理 `git diff --check` 報告的行尾空白。
+## General Improvements
 
-## 之後要做的功能
+- [ ] **改善 A：** 幫 `Vocab`、`VocabRequest` 等 model 加 `__str__()`，admin 同 debug 時會易睇好多。
+- [ ] **改善 B：** 考慮將 `vocabRequestService` rename 做 `VocabRequestService`，跟返 class naming style。
+- [ ] **改善 C：** 清走未用嘅 import 同舊嘅 commented query code。
+- [ ] **改善 D：** 幫 duplicate request、create / update / delete flow、approve / reject flow 加 tests。
+- [ ] **改善 E：** 加 `requirements.txt` 或 `pyproject.toml`，正式記低 project dependencies。
+- [ ] **改善 F：** 正式 deploy 前，將 `SECRET_KEY`、`DEBUG` 等 settings 搬去 environment variables。
+- [ ] **改善 G：** 清理 `git diff --check` 報告嘅 trailing whitespace。
+
+## Later Features
 
 - [ ] 實作 vocab request approve / reject email notification。
 - [ ] 實作 account email activation。
