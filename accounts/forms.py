@@ -1,11 +1,12 @@
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, ReadOnlyPasswordHashField
+from django.contrib.auth import get_user_model
+
 from django.core.exceptions import ValidationError
 
 from django import forms
 
-from .models import User
-
+User = get_user_model()
 
 class RegistForm(forms.ModelForm):
     password2 = forms.CharField(label='Password(confirm)', widget=forms.PasswordInput)
@@ -59,3 +60,39 @@ class UserLoginForm(AuthenticationForm):
     username = forms.EmailField(label='Email : ')
     password = forms.CharField(label='Password', widget=forms.PasswordInput())
     remember_me = forms.BooleanField(label='Remember Me', required=False)
+
+class UserChangeAdminForm(forms.ModelForm):
+    password = ReadOnlyPasswordHashField(label='password')
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password', 'is_active', 'is_staff', 'is_superuser')
+
+    def clean_password(self):
+        return self.instance.password
+
+# class UserCreationAdminForm(forms.ModelForm):
+#     password1 = forms.CharField(label="Password", widget=forms.PasswordInput)
+#     password2 = forms.CharField(label="Password(Confirm)", widget=forms.PasswordInput)
+
+#     class Meta:
+#         model = User
+#         fields = ('username', 'email')
+
+#     def clean(self):
+#         cleaned_data = super().clean()
+#         password1 = cleaned_data.get('password1')
+#         password2 = cleaned_data.get('password2')
+#         if password1 and password2:
+#             if password1 != password2:
+#                 self.add_error("password2", "password and password(confirm) have to be the same")
+#         else:
+#             self.add_error(None, "Please enter both password")
+#         return cleaned_data
+    
+#     def save(self, commit=True):
+#         user = super().save(commit=False)
+#         user.set_password(self.cleaned_data['password1'])
+#         if commit:
+#             user.save()
+#         return user
