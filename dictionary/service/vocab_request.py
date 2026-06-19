@@ -17,6 +17,20 @@ from ..models import (
 )
 
 class VocabRequestService():
+
+    @staticmethod
+    def build_vocab_data(vocab_request):
+        return {
+            "word": vocab_request.proposed_word,
+            "kana": vocab_request.proposed_kana,
+            "meaning": vocab_request.proposed_meaning,
+            "type": vocab_request.proposed_vocab_type,
+            "level": vocab_request.proposed_level,
+            "category": vocab_request.proposed_category,
+            "native_japanese": vocab_request.proposed_native_japanese,
+            "created_by": vocab_request.created_by,
+        }
+    
     @staticmethod
     def hasPendingRequest(*, target_vocab=None, word=None, kana=None):
         qs = VocabRequest.objects.filter(status = VocabRequestStatus.PENDING)

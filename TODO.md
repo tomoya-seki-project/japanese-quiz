@@ -188,6 +188,10 @@
 - [ ] **改善 E：** 加 `requirements.txt` 或 `pyproject.toml`，正式記低 project dependencies。
 - [ ] **改善 F：** 正式 deploy 前，將 `SECRET_KEY`、`DEBUG` 等 settings 搬去 environment variables。
 - [ ] **改善 G：** 清理 `git diff --check` 報告嘅 trailing whitespace。
+- [ ] **改善 H：** 實作 `Vocab.word_slug` 嘅產生同同步規則。
+  - 目前 `word_slug` 暫時容許 `blank=True, null=True`，create / update vocab 時未處理 slug。
+  - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
+  - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
 
 ## VocabRequest Result / UserVocab Flow
 

@@ -71,28 +71,36 @@ class UserChangeAdminForm(forms.ModelForm):
     def clean_password(self):
         return self.instance.password
 
-# class UserCreationAdminForm(forms.ModelForm):
-#     password1 = forms.CharField(label="Password", widget=forms.PasswordInput)
-#     password2 = forms.CharField(label="Password(Confirm)", widget=forms.PasswordInput)
+class UserCreationAdminForm(forms.ModelForm):
+    password1 = forms.CharField(label="Password", widget=forms.PasswordInput())
+    password2 = forms.CharField(label="Password(Confirm)", widget=forms.PasswordInput())
 
-#     class Meta:
-#         model = User
-#         fields = ('username', 'email')
+    class Meta:
+        model = User
+        fields = ('username', 'email')
 
-#     def clean(self):
-#         cleaned_data = super().clean()
-#         password1 = cleaned_data.get('password1')
-#         password2 = cleaned_data.get('password2')
-#         if password1 and password2:
-#             if password1 != password2:
-#                 self.add_error("password2", "password and password(confirm) have to be the same")
-#         else:
-#             self.add_error(None, "Please enter both password")
-#         return cleaned_data
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        email = cleaned_data.get('email')
+        password1 = cleaned_data.get('password1')
+        password2 = cleaned_data.get('password2')
+        if password1 and password2:
+            if password1 != password2:
+                self.add_error("password2", "password and password(confirm) have to be the same")
+            else:
+                user = User(username=username, email=email)
+                try:
+                    validate_password(password1, user)
+                except ValidationError as e:
+                    self.add_error("password1", e)
+        else:
+            self.add_error(None, "Please enter both password")
+        return cleaned_data
     
-#     def save(self, commit=True):
-#         user = super().save(commit=False)
-#         user.set_password(self.cleaned_data['password1'])
-#         if commit:
-#             user.save()
-#         return user
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password1'])
+        if commit:
+            user.save()
+        return user

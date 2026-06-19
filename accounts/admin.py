@@ -3,13 +3,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
 from .models import UserProfile
-from .forms import RegistForm, UserChangeAdminForm
+from .forms import UserCreationAdminForm, UserChangeAdminForm
 User = get_user_model()
 
 @admin.register(User)
 class CustomizedUserAdmin(UserAdmin):
     form = UserChangeAdminForm
-    add_form = RegistForm
+    add_form = UserCreationAdminForm
     list_display = (
         'username',
         'email',
@@ -37,7 +37,7 @@ class CustomizedUserAdmin(UserAdmin):
         (
             'User Info', {
                 'classes': ("wide",),
-                'fields': ('username', 'email', 'password', 'password2')
+                'fields': ('username', 'email', 'password1', 'password2')
             }
         ),
     )

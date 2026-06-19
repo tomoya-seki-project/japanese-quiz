@@ -45,7 +45,7 @@ class VocabCategory(models.TextChoices):
 
 class Vocab(TimeStampedModel):
     word = models.CharField(verbose_name="Word", max_length=50)
-    word_slug = models.CharField(max_length=255)
+    word_slug = models.CharField(max_length=255, blank=True, null=True)
     meaning = models.CharField(verbose_name="Meaning", max_length=255)
     kana = models.CharField(verbose_name="Kana", max_length=255)
     is_active = models.BooleanField(default=False)
@@ -62,7 +62,7 @@ class Vocab(TimeStampedModel):
         max_length=50, choices=VocabCategory.choices
         )
     
-    similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
+    #similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -92,7 +92,7 @@ class Vocab(TimeStampedModel):
             )
         ]
 
-class VocabDetail(TimeStampedModel):
+class VocabDetail(models.Model):
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
         related_name='vocab_detail'
@@ -100,7 +100,7 @@ class VocabDetail(TimeStampedModel):
     class Meta:
         db_table = 'vocab_detail'
 
-class KatakanaDetail(TimeStampedModel):
+class KatakanaDetail(models.Model):
     native_japanese = models.CharField(max_length=255, blank=True, null=True)
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
