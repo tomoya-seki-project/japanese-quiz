@@ -12,9 +12,10 @@
 
 ### VocabRequest / Admin Review Flow
 
-- [ ] **第 1 點：真正實作 approve / reject request 嘅處理 flow。**
-  - 目前狀態：刻意留返未完成。
-  - 要等 approve / reject 真係成功處理完，先可以 show success message。
+- [x] **第 1 點：真正實作 approve / reject request 嘅處理 flow。**
+  - Approve 已按 CREATE / UPDATE / RESTORE / DELETE request type 呼叫對應 vocab action。
+  - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
+  - Admin 會根據 service 回傳結果顯示成功或已處理 warning。
 
 - [x] **第 2 點：Admin 入面嘅 approve / reject action 由 GET link 改做 POST。**
   - 避免誤 click、refresh page 時重複執行，或者連續 click 造成重複處理。
@@ -35,16 +36,16 @@
   - 避免 create request 中途 exception、server stop，或者其中一部分 save 咗但另一部分冇 save。
   - 目前 create / update / restore / delete request creation 已經用咗 `transaction.atomic()`。
 
-- [ ] **第 5B 點：approve / reject review flow 都要有 transaction atomic。**
-  - 之後做第 1 點 approve / reject workflow 嗰陣一齊處理。
-  - 如果 review 時要同時 update `VocabRequest`、`Vocab`、`VocabDetail`、`KatakanaDetail` 等資料，應該包喺同一個 transaction 入面。
+- [x] **第 5B 點：approve / reject review flow 都要有 transaction atomic。**
+  - Approve / reject 已使用 `transaction.atomic()`、`select_for_update()` 同 `PENDING` status check。
+  - Review 時更新 `VocabRequest` 同執行 vocab action 會放喺同一個 transaction 入面。
 
 - [x] **第 7 點：防止同時建立多筆 duplicate pending request。**
   - 目前方向：喺 `Vocab` 加 field，當有 pending request 時 mark / lock 住嗰個 vocab。
   - 亦要考慮 database constraint 或 row lock，因為淨係 check Boolean field，遇到 concurrent request 時仍然可能有 race condition。
 
-- [ ] **第 11 點：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
-  - 例如：Katakana type 係咪一定要填 `native_japanese`。
+- [x] **第 11 點：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
+  - CREATE / UPDATE Katakana request 喺 approve 時必須有 `proposed_native_japanese`。
 
 ### Vocab
 
@@ -118,6 +119,13 @@
 
 ## Quiz Question Logic
 
+- [ ] **按 vocab type / level / category 篩選 quiz 出題範圍。**
+  - Quiz 開始前，user 可以選擇今次想練習嘅 `type`、`level` 同 `category`。
+  - Filter 條件應套用喺目前 user 擁有嘅 `UserVocab` question pool，而唔係全站所有 vocab。
+  - 要支援單一條件、複數條件，以及唔設定條件時使用全部可用 vocab。
+  - 如果 filter 後冇任何可出題 vocab，要顯示清楚提示，唔應直接抽題失敗。
+  - Weighted random、最近 10 題排除同 overdue boost，都應該喺 filter 後嘅 question pool 上運作。
+
 - [ ] **用 weighted random 揀下一條 vocab question。**
   - Question pool 會來自目前 user 嘅 `UserVocab`。
   - 每個 `UserVocab` 已經有 `weight` field，抽題時 weight 越高，被抽中嘅機會就越高。
@@ -181,8 +189,8 @@
 
 ## General Improvements
 
-- [ ] **改善 A：** 幫 `Vocab`、`VocabRequest` 等 model 加 `__str__()`，admin 同 debug 時會易睇好多。
-- [ ] **改善 B：** 考慮將 `vocabRequestService` rename 做 `VocabRequestService`，跟返 class naming style。
+- [x] **改善 A：** 幫 `Vocab`、`VocabRequest` 等 model 加 `__str__()`，admin 同 debug 時會易睇好多。
+- [x] **改善 B：** 將 `vocabRequestService` rename 做 `VocabRequestService`，跟返 class naming style。
 - [ ] **改善 C：** 清走未用嘅 import 同舊嘅 commented query code。
 - [ ] **改善 D：** 幫 duplicate request、create / update / delete flow、approve / reject flow 加 tests。
 - [ ] **改善 E：** 加 `requirements.txt` 或 `pyproject.toml`，正式記低 project dependencies。
@@ -192,6 +200,17 @@
   - 目前 `word_slug` 暫時容許 `blank=True, null=True`，create / update vocab 時未處理 slug。
   - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
   - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
+
+- [x] **改善 I：** Approve request 時驗證 review 後嘅最終 proposed data 是否足夠。
+  - User submit CREATE request 時，容許 `meaning`、`level`、`category` 等 proposed fields 留空，由 admin review 時補返或修改。
+  - UPDATE request 會由原本 vocab 放 initial data；如果原本資料係空，admin review 時同樣可以補返。
+  - Nullable proposed fields 係 request submission / review workflow 嘅設計，唔代表 user submit 時必須填齊。
+  - 只係 admin 撳 Approve 嗰刻，先要驗證最終 proposed data 能否安全寫入 `Vocab` 同相關 detail model。
+  - 資料仍然不足時，應留喺 review page 顯示清楚錯誤，唔執行 vocab action，亦唔將 request 標成 approved。
+
+- [ ] **改善 J：** Approve UPDATE / RESTORE / DELETE request 前驗證 `original_vocab`。
+  - 呢三種 request 都依賴 `original_vocab` 作為目標。
+  - 如果 `original_vocab` 係 `None`、已被刪除，或者資料狀態唔符合 request type，應停止處理並回傳清楚 error result。
 
 ## VocabRequest Result / UserVocab Flow
 
@@ -215,3 +234,13 @@
 - [ ] **研究同設計 account email activation flow。**
   - 呢部分暫時未有確定 idea，之後再決定 implementation。
   - 要再考慮 registration 後係咪即時限制 login、activation link 幾耐 expire，同 resend activation email flow。
+
+## UI / UX
+
+- [ ] **整一個 50 音假名 keyboard。**
+  - 只用喺 user 回答 quiz 嘅介面。
+  - Vocab search、create request、update request 等其他 forms 繼續使用普通 keyboard。
+  - 俾冇安裝日文輸入法，或者答 quiz 時需要假名提示嘅 user 使用。
+  - 按下假名後，將文字插入 quiz answer input，而唔係覆蓋原有內容。
+  - 考慮平假名／片假名切換、濁音／半濁音、拗音、促音同長音符號。
+  - 可以加入簡單提示，幫 user 確認讀音或輸入方式。

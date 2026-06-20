@@ -14,12 +14,12 @@ class VocabType(models.TextChoices):
     # CONJUNCTION = "conjunction", "接続詞"
 
 class VocabLevel(models.TextChoices):
-    JLPT_N0 = "N0", "N0"
-    JLPT_N1 = "N1", "N1"
-    JLPT_N2 = "N2", "N2"
-    JLPT_N3 = "N3", "N3"
-    JLPT_N4 = "N4", "N4"
-    JLPT_N5 = "N5", "N5"
+    JLPT_N0 = "0", "未定義"
+    JLPT_N1 = "1", "N1"
+    JLPT_N2 = "2", "N2"
+    JLPT_N3 = "3", "N3"
+    JLPT_N4 = "4", "N4"
+    JLPT_N5 = "5", "N5"
 
 class VocabCategory(models.TextChoices):
     VERB = "verb", "動詞"
@@ -83,6 +83,9 @@ class Vocab(TimeStampedModel):
         related_name='approved_vocab'
     )
 
+    def __str__(self):
+        return f"{self.word}:{self.kana}"
+
     class Meta:
         db_table = 'vocab'
         constraints = [
@@ -136,7 +139,7 @@ class VocabRequestType(models.TextChoices):
     CREATE = "create", "Create"
     UPDATE = "update", "Update"
     DELETE = "delete", "Delete"
-    REVIEW = "review", "Review"
+    #REVIEW = "review", "Review"
     RESTORE = "restore", "Restore"
 
 class VocabRequestStatus(models.TextChoices):
@@ -176,7 +179,7 @@ class VocabRequest(TimeStampedModel):
     proposed_level = models.CharField(verbose_name="level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
     proposed_category = models.CharField(verbose_name="Category", max_length=50, choices=VocabCategory.choices, blank=True, null=True)
 
-    proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
+    #proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
     
     #vocab type
     # nothing special right now
@@ -187,6 +190,9 @@ class VocabRequest(TimeStampedModel):
     #for update type request only
     original_data = models.JSONField(verbose_name="Last Record", blank=True, null=True)
     
+    def __str__(self):
+        return f"{self.proposed_word}:{self.request_type}:{self.status}"
+
     class Meta:
         db_table = "vocab_request"
         constraints = [

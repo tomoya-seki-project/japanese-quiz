@@ -2,6 +2,8 @@ from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
+from django.core.exceptions import ValidationError
+
 from django.shortcuts import get_object_or_404, redirect
 
 from django.urls import path, reverse
@@ -109,7 +111,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'proposed_meaning',
         'proposed_level',
         'proposed_category',
-        'proposed_similar_word',
+        #'proposed_similar_word',
         'proposed_native_japanese',
         'created_by',
         #'review_buttons',
@@ -117,30 +119,58 @@ class VocabRequestAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_approve" in request.POST:
-            VocabRequestService.approveVocabRequest(
-                vocab_request=obj,
-                reviewed_by=request.user,
-            )
-            self.message_user(
-                request,
-                f"Vocab request approved by {request.user}",
-                messages.SUCCESS,
-            )
+            try:
+                is_success = VocabRequestService.approveVocabRequest(
+                    vocab_request=obj,
+                    reviewed_by=request.user,
+                )
+            except ValidationError as e:
+                self.message_user(
+                    request,
+                    "; ".join(e.messages),
+                    messages.ERROR,
+                )
+                return redirect(
+                    reverse(
+                        "admin:dictionary_vocabrequest_change",
+                        args=[obj.pk],
+                    )
+                )
+            if is_success:
+                self.message_user(
+                    request,
+                    f"Vocab request approved by {request.user}",
+                    messages.SUCCESS,
+                )
+            else:
+                self.message_user(
+                    request,
+                    f"Vocab request reviewed by {request.user}",
+                    messages.WARNING,
+                )
+            
             return redirect(
                 reverse(
                     "admin:dictionary_vocabrequest_changelist"
                 )
             )
         if "_reject" in request.POST:
-            VocabRequestService.rejectVocabRequest(
+            is_success = VocabRequestService.rejectVocabRequest(
                 vocab_request=obj,
                 reviewed_by=request.user,
             )
-            self.message_user(
-                request,
-                f"Vocab request rejected by {request.user}",
-                messages.WARNING,
-            )
+            if is_success:
+                self.message_user(
+                    request,
+                    f"Vocab request rejected by {request.user}",
+                    messages.WARNING,
+                )
+            else:
+                self.message_user(
+                    request,
+                    f"Vocab request reviewed by {request.user}",
+                    messages.WARNING,
+                )
             return redirect(
                 reverse(
                     "admin:dictionary_vocabrequest_changelist"

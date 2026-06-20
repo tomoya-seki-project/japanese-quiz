@@ -283,3 +283,79 @@ Commit: `d65b3df`
 理由：
 
 學到咩：
+
+## 2026-06-18 - Project documentation and development tracking
+
+Commit: `1167023`
+
+整理 project development records，同時重整 TODO tracking，將已發現嘅 bug、logic risk、未完成功能同之後想研究嘅方向分開記錄。
+
+比較重要嘅 updated code：
+
+- `PROJECT_HISTORY.md`：整理 project 由初始 setup 到目前為止嘅主要改動。
+- `TODO.md`：重整 fix tracking、future features、quiz logic、event system 同 data import/export 規劃。
+
+理由：
+
+學到咩：
+
+## 2026-06-19 - Custom User Admin and learning notes
+
+Commit: `c1979dc`
+
+改善 custom User Admin 架構，開始將 admin add/change user flow 分開處理。  
+同時新增 project README 同 learning questions，記錄 password hashing、Django UserAdmin、CBV object ID 傳遞等需要再深入理解嘅概念，並準備 vocab action service。
+
+比較重要嘅 updated code：
+
+- `accounts/admin.py`：改用 Django `UserAdmin`，分開 add form 同 change form 設定。
+- `accounts/forms.py`：加入 admin user creation/change forms，保護 password hash。
+- `dictionary/service/vocab_action.py`：建立 vocab action service 檔案基礎。
+- `LEARNING_QUESTIONS.md`：記錄 Django Custom User Admin 同 CBV object ID 等研究問題。
+- `README.md`：整理 project 介紹、目前功能、架構同開發方向。
+- `PROJECT_HISTORY.md`：統一 project history 檔名同內容。
+- `TODO.md`：補充 quiz、event、user message 同後續功能規劃。
+
+理由：
+
+學到咩：
+
+## 2026-06-20 - Admin user creation and VocabActionService
+
+Commit: `913e765`
+
+完成較完整嘅 admin user creation form，加入 password validation 同 password hashing。  
+Dictionary 方面建立 `VocabActionService`，準備集中處理 vocab create、update、deactivate 同 restore，並調整 vocab detail models 同暫時放寬 `word_slug`。
+
+比較重要嘅 updated code：
+
+- `accounts/forms.py`：加入 `UserCreationAdminForm`、password confirmation、Django password validation 同 `set_password()`。
+- `accounts/admin.py`：將 admin Add User flow 接去專用 creation form。
+- `dictionary/service/vocab_action.py`：加入 vocab create、update、deactivate、restore actions。
+- `dictionary/service/vocab_request.py`：加入由 `VocabRequest` 整理 vocab data 嘅 mapper。
+- `dictionary/models.py`：調整 vocab detail structure，暫時將 `word_slug` 設為可空。
+- `dictionary/migrations/0014_cut_similar_word.py`：調整 similar word schema。
+- `dictionary/migrations/0015_two_vocab_detail_base_normal.py`：調整兩種 vocab detail model。
+- `dictionary/migrations/0016_word_slug_able_blank_now.py`：暫時容許 `word_slug` 為空。
+- `TODO.md`：記錄之後要實作 slug 產生、同步同舊資料 backfill。
+
+理由：
+
+學到咩：
+
+## 2026-06-20 - Quiz filtering and kana keyboard planning
+
+狀態：未 commit，記錄目前設計決定。
+
+補充 quiz 出題範圍同 UI 規劃。Quiz 將來會按 user 選擇嘅 vocab type、level、category 篩選 question pool；另外計劃喺 quiz answer 畫面提供 50 音 keyboard。
+
+比較重要嘅 updated code：
+
+- `TODO.md`：加入按 `type`、`level`、`category` 篩選 quiz question pool 嘅規劃。
+- `TODO.md`：加入只供 quiz 作答使用嘅 50 音假名 keyboard 規劃。
+- Filter 後嘅 question pool 會再套用 weighted random、最近題目排除同 overdue weight boost。
+- 50 音 keyboard 唔會用喺 vocab search 或 request forms，嗰啲位置繼續使用一般 keyboard。
+
+理由：
+
+學到咩：

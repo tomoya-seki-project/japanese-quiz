@@ -1,6 +1,8 @@
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 
+from .vocab_action import VocabActionService
+
 from ..models import (
     VocabType,
     VocabCategory,
@@ -17,6 +19,32 @@ from ..models import (
 )
 
 class VocabRequestService():
+
+    @staticmethod
+    def validate_for_approval(vocab_request):
+        errors = {}
+
+        required_fields = {
+            "proposed_word": "Word is required.",
+            "proposed_kana": "Kana is required.",
+            "proposed_vocab_type": "Vocab type is required.",
+            "proposed_meaning": "Meaning is required.",
+            "proposed_level": "Level is required.",
+            "proposed_category": "Category is required.",
+        }
+        for field_name, error_msg in required_fields.items():
+            if not getattr(vocab_request, field_name):
+                errors[field_name] = error_msg
+        match vocab_request.proposed_vocab_type:
+            case VocabType.VOCAB:
+                pass
+            case VocabType.KATAKANA:
+                if not vocab_request.proposed_native_japanese:
+                    errors["proposed_native_japanese"] = (
+                        "Native Japanese is required for Katakana"
+                    )
+        if errors:
+            raise ValidationError(errors)
 
     @staticmethod
     def build_vocab_data(vocab_request):
@@ -50,14 +78,6 @@ class VocabRequestService():
         word = form.cleaned_data["word"]
         kana = form.cleaned_data["kana"]
         vocab_type = form.cleaned_data["vocab_type"]
-        # request = VocabRequest.objects.filter(
-        #     #request_type = VocabRequestType.CREATE,
-        #     status = VocabRequestStatus.PENDING,
-        #     proposed_word = word,
-        #     proposed_kana = kana,
-        # ).exists()
-        # if request:
-        #     pass
         if VocabRequestService.hasPendingRequest(word = word, kana = kana):
             is_created = False
         else:
@@ -73,7 +93,7 @@ class VocabRequestService():
                         proposed_kana = kana,
                         proposed_level = form.cleaned_data["level"],
                         proposed_category = form.cleaned_data["category"],
-                        proposed_similar_word = form.cleaned_data["similar_word"],
+                        #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     match vocab_type:
                         case VocabType.VOCAB:
@@ -89,13 +109,6 @@ class VocabRequestService():
     @staticmethod
     def genUpdateVocabRequest(user, form):
         is_created = False
-        # request = VocabRequest.objects.filter(
-        #     status = VocabRequestStatus.PENDING,
-        #     proposed_word = form.target_vocab.word,
-        #     proposed_kana = form.target_vocab.kana
-        # ).exists()
-        # if request:
-        #     pass
         if VocabRequestService.hasPendingRequest(target_vocab = form.target_vocab):
             #add log
             is_created = False
@@ -113,7 +126,7 @@ class VocabRequestService():
                         proposed_level = form.cleaned_data["level"],
                         proposed_category = form.cleaned_data["category"],
                         original_vocab = form.target_vocab,
-                        proposed_similar_word = form.cleaned_data["similar_word"],
+                        #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     
                     update_request.original_data = {
@@ -123,7 +136,7 @@ class VocabRequestService():
                         "type" : form.target_vocab.type,
                         "level" : form.target_vocab.level,
                         "category": form.target_vocab.category,
-                        "similar_word": form.target_vocab.similar_word,
+                        #"similar_word": form.target_vocab.similar_word,
                     }
                     
                     match form.cleaned_data["vocab_type"]:
@@ -142,14 +155,6 @@ class VocabRequestService():
     @staticmethod
     def genRestoreVocabRequest(user, vocab):
         is_created = False
-        # request = VocabRequest.objects.filter(
-        #     #request_type = VocabRequestType.RESTORE,
-        #     status = VocabRequestStatus.PENDING,
-        #     proposed_word = vocab.word,
-        #     proposed_kana = vocab.kana,
-        # ).exists()
-        # if request:
-        #     pass
         if VocabRequestService.hasPendingRequest(target_vocab = vocab):
             # add log
             is_created = False
@@ -167,7 +172,7 @@ class VocabRequestService():
                         proposed_level = vocab.level,
                         proposed_category = vocab.category,
                         original_vocab = vocab,
-                        proposed_similar_word = vocab.similar_word,
+                        #proposed_similar_word = vocab.similar_word,
                     )
                     match vocab.type:
                         case VocabType.VOCAB:
@@ -185,11 +190,6 @@ class VocabRequestService():
     @staticmethod
     def genDeleteVocabRequest(user, vocab):
         is_created = False
-        # request = VocabRequest.objects.filter(
-        #     status = VocabRequestStatus.PENDING,
-        #     original_vocab = vocab,
-        # ).exists()
-        # if request:
         if VocabRequestService.hasPendingRequest(target_vocab = vocab):
             #add log
             is_created = False
@@ -210,8 +210,61 @@ class VocabRequestService():
 
     @staticmethod
     def approveVocabRequest(vocab_request, reviewed_by):
-        print('approveVocabRequest')
+        with transaction.atomic():
+            locked_request = (
+                VocabRequest.objects
+                .select_for_update()
+                .get(pk=vocab_request.pk)
+            )
+            if locked_request.status != VocabRequestStatus.PENDING:
+                return False
+            
+            match locked_request.request_type:
+                case VocabRequestType.CREATE:
+                    VocabRequestService.validate_for_approval(locked_request)
+                    vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
+                    VocabActionService.createVocab(
+                        vocab_data=vocab_data, 
+                        approved_by=reviewed_by
+                    )
+                case VocabRequestType.UPDATE:
+                    VocabRequestService.validate_for_approval(locked_request)
+                    vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
+                    VocabActionService.updateVocab(
+                        vocab_data=vocab_data, 
+                        target_vocab=locked_request.original_vocab, 
+                        approved_by=reviewed_by
+                    )
+                case VocabRequestType.RESTORE:
+                    VocabActionService.restoreVocab(
+                        target_vocab=locked_request.original_vocab, 
+                        approved_by=reviewed_by
+                    )
+                case VocabRequestType.DELETE:
+                    VocabActionService.deactivateVocab(
+                        target_vocab=locked_request.original_vocab,
+                        approved_by=reviewed_by
+                    )
+            locked_request.status = VocabRequestStatus.APPROVED
+            locked_request.reviewed_by = reviewed_by
+            locked_request.save(
+                update_fields=["status","reviewed_by","update_at"]
+            )
+        return True
 
     @staticmethod
     def rejectVocabRequest(vocab_request, reviewed_by):
-        print('rejectVocabRequest')
+        with transaction.atomic():
+            locked_request = (
+                VocabRequest.objects
+                .select_for_update()
+                .get(pk=vocab_request.pk)
+            )
+            if locked_request.status != VocabRequestStatus.PENDING:
+                return False
+            locked_request.status = VocabRequestStatus.REJECTED
+            locked_request.reviewed_by = reviewed_by
+            locked_request.save(
+                update_fields=["status","reviewed_by","update_at"]
+            )
+        return True

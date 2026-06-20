@@ -84,6 +84,212 @@ password2
 
 - 
 
+## [ ] `[DJANGO-ADMIN-MESSAGE-USER]` `ModelAdmin.message_user()` 係咩
+
+### 問題背景
+
+目前喺 `dictionary/admin.py` approve / reject flow 使用：
+
+```python
+self.message_user(
+    request,
+    "Message content",
+    messages.SUCCESS,
+)
+```
+
+但仲未理解 `self.message_user()` 係邊個 class 提供、訊息儲存喺邊、點樣顯示，同 Django messages framework 有咩關係。
+
+### 研究方向
+
+- `self` 點解係 `VocabRequestAdmin` instance，而唔係 Django view。
+- `ModelAdmin.message_user()` 同 `django.contrib.messages` 嘅關係。
+- `request` 參數點解必須傳入。
+- `messages.SUCCESS`、`WARNING`、`ERROR` 等 level 有咩作用。
+- 訊息係暫存在 session、cookie，定係 database。
+- 點解 redirect 去另一個 admin page 後，訊息仍然可以顯示一次。
+- `message_user()` 同直接使用 `messages.success(request, ...)` 有咩分別。
+
+### 概念整理與解答
+
+#### 1. `self.message_user()` 係邊度嚟
+
+`VocabRequestAdmin` 繼承自：
+
+```python
+admin.ModelAdmin
+```
+
+所以 admin class method 入面嘅 `self`，係目前 `VocabRequestAdmin` object。`message_user()` 係 `ModelAdmin` 提供嘅 method：
+
+```python
+self.message_user(
+    request,
+    "Vocab request approved.",
+    messages.SUCCESS,
+)
+```
+
+佢用嚟將一個短暫訊息加入目前 request，等下一個 Django Admin page 顯示。
+
+#### 2. 點解一定要傳入 `request`
+
+訊息係屬於目前進行操作嘅 user/request，而唔係屬於 `VocabRequest` model。
+
+`request` 可以令 Django messages framework 知道：
+
+- 邊一個 user/browser 應該收到訊息。
+- 應該將訊息暫存喺邊個 session 或 cookie。
+- Redirect 後下一個頁面應該顯示邊啲訊息。
+
+#### 3. Message level 有咩作用
+
+第三個參數係訊息級別：
+
+```python
+messages.DEBUG
+messages.INFO
+messages.SUCCESS
+messages.WARNING
+messages.ERROR
+```
+
+例如：
+
+```python
+self.message_user(request, "Approved.", messages.SUCCESS)
+self.message_user(request, "Already reviewed.", messages.WARNING)
+self.message_user(request, "Invalid data.", messages.ERROR)
+```
+
+Level 主要用嚟表達訊息語意，同俾 template/admin CSS 顯示唔同樣式。
+
+#### 4. 點解 redirect 後仲見到訊息
+
+一般 HTTP response redirect 之後，原本 response body 唔會繼續存在。Django messages framework 會先將訊息暫存，再由下一個 request 取出。
+
+大概流程：
+
+```text
+Admin 按 Approve
+-> message_user() 加入 SUCCESS message
+-> redirect 去 VocabRequest list
+-> browser 發出新 GET request
+-> Django Admin template 讀取 messages
+-> 顯示訊息一次
+```
+
+訊息顯示及讀取後通常會被清除，所以 refresh 下一次未必再見到。
+
+實際儲存位置取決於 Django `MESSAGE_STORAGE` 設定，可以使用 session、cookie，或者 fallback storage；唔會預設永久寫入 project database 做歷史紀錄。
+
+因此 `message_user()` 適合即時 UI feedback，唔適合代替 event、notification 或 audit log model。
+
+#### 5. 同 `messages.success()` 有咩分別
+
+以下兩種寫法目的相近：
+
+```python
+self.message_user(request, "Approved.", messages.SUCCESS)
+```
+
+```python
+messages.success(request, "Approved.")
+```
+
+`message_user()` 係 `ModelAdmin` 提供嘅方便接口，適合 admin class 內使用；`messages.success()` 係通用 messages framework API，可以喺一般 Django view 使用。
+
+#### 6. `"; ".join(...)` 係咩
+
+`join()` 係 Python string method，用指定字串將一組 strings 連接成一條 string。
+
+例如：
+
+```python
+errors = [
+    "Meaning is required",
+    "Level is required",
+    "Category is required",
+]
+
+message = "; ".join(errors)
+```
+
+結果係：
+
+```text
+Meaning is required; Level is required; Category is required
+```
+
+呢度：
+
+```python
+"; "
+```
+
+係每一項之間使用嘅分隔符號。可以理解成：
+
+```text
+第一項 + "; " + 第二項 + "; " + 第三項
+```
+
+常見例子：
+
+```python
+", ".join(["A", "B", "C"])
+# "A, B, C"
+
+"\n".join(["line 1", "line 2"])
+# "line 1\nline 2"
+
+"".join(["日", "本", "語"])
+# "日本語"
+```
+
+`join()` 要求 iterable 入面全部都係 string。如果有 integer：
+
+```python
+"; ".join([1, 2, 3])
+```
+
+會出現 `TypeError`。需要先轉換：
+
+```python
+"; ".join(str(value) for value in [1, 2, 3])
+```
+
+#### 7. 用嚟顯示 `ValidationError`
+
+如果捕捉到：
+
+```python
+except ValidationError as exc:
+```
+
+`exc.messages` 通常係一個 message list，所以可以：
+
+```python
+self.message_user(
+    request,
+    "; ".join(exc.messages),
+    messages.ERROR,
+)
+```
+
+將多個 validation errors 合併成一條適合 Admin 顯示嘅訊息。
+
+但如果 `ValidationError` 使用 field error dictionary 建立，亦可能需要處理 `exc.message_dict`，唔一定所有情況都只靠 `exc.messages` 呈現得最好。
+
+官方參考：
+
+- [ModelAdmin.message_user()](https://docs.djangoproject.com/en/6.0/ref/contrib/admin/#django.contrib.admin.ModelAdmin.message_user)
+- [Django messages framework](https://docs.djangoproject.com/en/6.0/ref/contrib/messages/)
+- [Python `str.join()`](https://docs.python.org/3/library/stdtypes.html#str.join)
+
+### 理解內容
+
+- 
+
 ## [ ] `[DJANGO-CBV-OBJECT-ID]` Detail／Update／Delete View 點樣取得目標 Object
 
 ### 問題背景
