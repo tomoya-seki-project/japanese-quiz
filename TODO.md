@@ -52,6 +52,13 @@
 - [x] **第 8 點：公開 vocab list 只 show active vocab。**
   - 喺適合位置加 `is_active=True` filter。
 
+- [ ] **將 vocab category 改成最多可以選擇三個 category。**
+  - 目前 `Vocab.category` 係單一 `CharField`，只可以保存一個 category。
+  - 之後改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
+  - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
+  - CSV import 暫定使用 `category1`、`category2`、`category3` 欄位；空白 category 欄位要安全跳過，亦要檢查每個值是否合法。
+  - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
+
 - [x] **第 4 點補充：決定改 vocab type 時，validation 同 related detail 要點處理。**
   - 目前決定：喺 `VocabUpdateRequestForm` 將 vocab type set 做 readonly。
 
@@ -78,7 +85,7 @@
   - 要 validate CSV headers、required fields、vocab type 同各類 detail data。
   - 遇到 duplicate vocab 或 invalid row 時，要決定 skip、update、停止 import，定係輸出 error report。
   - Import 過程應該用 transaction，避免行到一半失敗後留低 incomplete data。
-  - 完成後要 show imported / skipped / failed rows summary。
+  - 完成後要 show imported / skipped / failed rows summary，同時保留每個 failed row 嘅行數及錯誤原因。
 
 - [ ] **實作 whole database export command，方便 backup 同日後轉 DB。**
   - 暫定 command name：`python manage.py export_whole <output_folder>`。

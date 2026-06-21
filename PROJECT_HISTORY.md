@@ -284,6 +284,10 @@ Commit: `d65b3df`
 
 學到咩：
 
+- `transaction.atomic()` 會將區塊入面嘅 database 操作放入同一個 transaction：全部成功先一齊 commit；中途發生 exception 就會 rollback。
+- 將建立 `VocabRequest` 嘅檢查同寫入包喺 transaction 入面，可以避免流程只完成一半，留下唔完整嘅資料。
+- database unique constraint 仍然係防止重複 request 嘅最後防線；service 可以捕捉 `IntegrityError`，將 database error 轉成較清楚嘅業務結果。
+
 ## 2026-06-18 - Project documentation and development tracking
 
 Commit: `1167023`
@@ -324,7 +328,7 @@ Commit: `c1979dc`
 
 Commit: `913e765`
 
-完成較完整嘅 admin user creation form，加入 password validation 同 password hashing。  
+完成 admin user creation form 嘅基本流程，加入 password validation 同 password hashing。
 Dictionary 方面建立 `VocabActionService`，準備集中處理 vocab create、update、deactivate 同 restore，並調整 vocab detail models 同暫時放寬 `word_slug`。
 
 比較重要嘅 updated code：
@@ -359,3 +363,31 @@ Dictionary 方面建立 `VocabActionService`，準備集中處理 vocab create�
 理由：
 
 學到咩：
+
+## 2026-06-21 - Transactional VocabRequest approve and reject workflow
+
+Commit: `b483c51`
+
+將 admin 嘅 `VocabRequest` approve / reject 正式接到 vocab action flow，加入 approval 前資料驗證、row locking、request status 更新同 admin feedback，令覆核流程可以完整處理成功、失敗同重複操作。
+
+比較重要嘅 updated code：
+
+- `dictionary/service/vocab_request.py`：用 transaction 處理 approve / reject，重新讀取並 lock request、檢查 pending 狀態、驗證 proposed fields，再呼叫 `VocabActionService`。
+- `dictionary/admin.py`：接收 service 處理結果，透過 `message_user()` 顯示成功、失敗或 validation error 訊息。
+- `dictionary/models.py`：整理 `VocabRequest` type / status 同相關欄位設定。
+- `dictionary/migrations/0017_disable_field_and_requeststatua.py`：記錄今次 request model schema 調整。
+- `TODO.md`：更新已完成嘅 workflow、logic risk 同仍需改善嘅項目。
+- `LEARNING_QUESTIONS.md`：補充 `message_user()` 同 `"; ".join(...)` 等學習內容。
+
+理由：
+
+- Approve / reject 會改動多筆相關資料，需要確保整個流程成功先一齊保存，避免 request status 同 vocab 狀態唔一致。
+- 同一個 request 有機會因 double click 或兩個 admin 同時操作而被重複處理，所以要喺 transaction 入面鎖定最新 database row，再檢查佢係咪仍然處於 `PENDING`。
+
+學到咩：
+
+- `select_for_update()` 會鎖住查詢到嘅 database row，直到目前 transaction 完結，其他 transaction 要修改同一筆資料時需要等候。
+- `select_for_update()` 應該放喺 `transaction.atomic()` 入面使用；鎖定後再檢查 `PENDING` 狀態，可以避免同一個 request 同時被 approve / reject。
+- SQLite 對 row-level locking 支援有限；使用 PostgreSQL 等支援 row lock 嘅 database 時，`select_for_update()` 嘅效果先會完整反映出來。
+- Service 回傳成功或失敗結果後，admin 可以用 `self.message_user()` 將處理結果顯示俾管理員。
+- `"; ".join(e.messages)` 會用 `"; "` 將多個 validation error 字串連接成一段訊息，方便一次過顯示。

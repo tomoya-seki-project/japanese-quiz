@@ -21,7 +21,7 @@ class VocabActionService():
     @staticmethod
     def createVocab(vocab_data, approved_by):
         with transaction.atomic():
-            vocab = Vocab.objects.create(
+            vocab = Vocab(
                 word=vocab_data["word"],
                 kana=vocab_data["kana"],
                 meaning=vocab_data["meaning"],
@@ -31,8 +31,9 @@ class VocabActionService():
                 is_active=True,
                 created_by=vocab_data["created_by"],
                 approved_by=approved_by,
-
             )
+            vocab.full_clean()
+            vocab.save()
             match vocab_data["type"]:
                 case VocabType.VOCAB:
                     VocabDetail.objects.create(
