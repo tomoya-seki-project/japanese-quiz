@@ -91,3 +91,16 @@ class VocabSearchForm(forms.Form):
         choices=[("","-----")] + list(VocabCategory.choices),
         required=False,
     )
+
+class UserVocabSelectForm(forms.Form):
+    vocabs = forms.ModelMultipleChoiceField(
+        queryset=Vocab.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+    )
+
+    def __init__(self, *args, vocab_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if vocab_queryset is not None:
+            self.fields["vocabs"].queryset = vocab_queryset

@@ -67,7 +67,7 @@ class Command(BaseCommand):
 
                 for row_number, data in enumerate(reader, start=2):
                     try:
-                        VocabActionService.createVocab(
+                        VocabActionService.create_vocab(
                             {
                                 "word": data["word"],
                                 "kana": data["kana"],

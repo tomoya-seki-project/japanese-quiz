@@ -41,11 +41,26 @@
   - Review 時更新 `VocabRequest` 同執行 vocab action 會放喺同一個 transaction 入面。
 
 - [x] **第 7 點：防止同時建立多筆 duplicate pending request。**
-  - 目前方向：喺 `Vocab` 加 field，當有 pending request 時 mark / lock 住嗰個 vocab。
-  - 亦要考慮 database constraint 或 row lock，因為淨係 check Boolean field，遇到 concurrent request 時仍然可能有 race condition。
+  - Service 會先檢查有冇 pending request，提供較清楚嘅正常 flow feedback。
+  - Database 已加入 conditional unique constraints，防止 concurrent requests 同時通過 application check。
 
 - [x] **第 11 點：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
   - CREATE / UPDATE Katakana request 喺 approve 時必須有 `proposed_native_japanese`。
+
+- [ ] **處理建立 `VocabRequest` 時 service 拋出嘅 `ValidationError`。**
+  - Create / update / restore / delete request 遇到 concurrent duplicate 時，service 會將 `IntegrityError` 轉成 `ValidationError`。
+  - 目前相關 views 未捕捉呢個 exception，極端情況會直接回傳 server error。
+  - View 應將錯誤轉成 form error 或 user message，而唔係令 exception 穿出 request flow。
+
+- [ ] **擴大 admin review concurrency protection 範圍。**
+  - `response_change()` 執行 approve / reject service 前，Django Admin 已經先保存咗 change form data。
+  - Service 入面嘅 `select_for_update()` 只鎖住之後嘅 approve / reject action，未保護前面嗰次 admin form save。
+  - 要研究點樣令「保存 review data + 執行 approve / reject」處於同一個 transaction／row lock 範圍，避免兩個 admin 同時 review 時互相覆蓋 proposed data。
+
+- [ ] **統一 request form required fields 同 submission 設計。**
+  - TODO 原本決定 user submit CREATE request 時可以將 `meaning`、`level`、`category` 留空，由 admin review 時補返。
+  - 目前 `BaseVocabRequestForm` 仍將以上 fields 設為 required，實際上 user 無法留空提交。
+  - 要決定保留 required form，定係按照原設計放寬 form，再只喺 approve 階段執行完整 validation。
 
 ### Vocab
 
@@ -66,6 +81,17 @@
   - 正常 delete vocab 嘅方式係 soft delete / disable，而唔係 database 入面永久 delete。
   - 如果 vocab 真係被永久 delete，目前接受相關 review record 一齊消失。
 
+- [ ] **確保 `Vocab.type` 同對應 detail model 保持一致。**
+  - `vocab` type 應該有 `VocabDetail`；`katakana` type 應該有 `KatakanaDetail`。
+  - 目前 service create flow 會建立 detail，但 Django Admin 仍可以直接建立／修改 `Vocab`，造成 type 同 detail 缺失或不一致。
+  - 要決定限制 admin direct edit、加入 model/admin validation，定係統一要求所有 mutation 經 service。
+  - 讀取 `katakana_detail` 等 reverse relation 前亦要考慮異常舊資料，避免直接出現 `RelatedObjectDoesNotExist`。
+
+- [ ] **清理已移除嘅 `similar_word` form 設計。**
+  - `Vocab.similar_word` 已經移除，但 `BaseVocabRequestForm` 仲保留 `similar_word` input。
+  - 目前提交值唔會保存入 request 或 vocab，會令 user 以為輸入有效但實際被忽略。
+  - 要決定正式移除個 field，定係將 similar word 功能重新設計後再接返。
+
 ### Account Admin
 
 - [x] **第 6 點：檢查 custom User Admin 寫法。**
@@ -77,14 +103,17 @@
     - Public registration 建立 `is_active=False` 的 user，等待 email activation。
     - Admin 建立 user 時可以直接設定 `is_active=True`。
 
+- [x] **移除 login flow 入面冇實際作用嘅 `user.save()`。**
+  - Django `LoginView` 已經會透過 authentication flow 更新 `last_login`。
+  - 已移除 login 成功後無欄位改動嘅額外 `user.save()`，避免多餘 database write。
+
 ## Data Import / Export / Database Migration
 
-- [ ] **實作由 CSV import vocab list 嘅 management command。**
+- [ ] **完善由 CSV import vocab list 嘅 management command。**
   - 預計用法：`python manage.py import_vocab list.csv`。
-  - `import_vocab.py` 目前只係 command skeleton，仲要加入 CSV file path argument 同真正嘅 import logic。
-  - 要 validate CSV headers、required fields、vocab type 同各類 detail data。
-  - 遇到 duplicate vocab 或 invalid row 時，要決定 skip、update、停止 import，定係輸出 error report。
-  - Import 過程應該用 transaction，避免行到一半失敗後留低 incomplete data。
+  - 已加入 CSV path、superuser authentication、header validation、row-level validation 同 `VocabActionService` creation flow。
+  - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
+  - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
   - 完成後要 show imported / skipped / failed rows summary，同時保留每個 failed row 嘅行數及錯誤原因。
 
 - [ ] **實作 whole database export command，方便 backup 同日後轉 DB。**
@@ -220,6 +249,11 @@
   - 如果 `original_vocab` 係 `None`、已被刪除，或者資料狀態唔符合 request type，應停止處理並回傳清楚 error result。
 
 ## VocabRequest Result / UserVocab Flow
+
+- [ ] **穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
+  - 選擇頁每次 request 都重新計算最新 50 個 user 未擁有嘅 vocab。
+  - 如果 GET 顯示後候選資料有變，原本畫面上嘅 vocab 可能喺 POST validation 時跌出允許 queryset，變成 invalid choice。
+  - 要決定使用固定 batch/token、保留候選 IDs，定係接受變動後提示 user 重新選擇。
 
 - [ ] **Approve / reject request 後建立 user event。**
   - Vocab request review 完成後，唔會即時寄 email。

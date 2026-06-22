@@ -39,8 +39,6 @@ class UserLoginView(LoginView):
         remember = form.cleaned_data['remember_me']
         user = self.request.user
 
-        user.last_login = timezone.localtime()
-        user.save()
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:

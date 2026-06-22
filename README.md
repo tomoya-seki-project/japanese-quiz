@@ -33,7 +33,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Request creation flow 使用 `transaction.atomic()`。
 - Django Admin 已經有 custom approve / reject UI。
 
-> **未完善：** `approveVocabRequest()` 同 `rejectVocabRequest()` 目前仍然係 placeholder，未有真正更新 vocab/request data。
+> **未完善：** `approve_vocab_request()` 同 `reject_vocab_request()` 目前仍然係 placeholder，未有真正更新 vocab/request data。
 
 ### Admin
 

@@ -19,7 +19,7 @@ from ..models import (
 class VocabActionService():
 
     @staticmethod
-    def createVocab(vocab_data, approved_by):
+    def create_vocab(vocab_data, approved_by):
         with transaction.atomic():
             vocab = Vocab(
                 word=vocab_data["word"],
@@ -47,7 +47,7 @@ class VocabActionService():
         return vocab if vocab else None
 
     @staticmethod
-    def updateVocab(vocab_data, target_vocab, approved_by):
+    def update_vocab(vocab_data, target_vocab, approved_by):
         update_success = False
         with transaction.atomic():
             target_vocab.word=vocab_data["word"]
@@ -58,6 +58,7 @@ class VocabActionService():
             target_vocab.approved_by=approved_by
             # think about should update the create_by to which update the vocab
             #target_vocab.created_by=vocab_data["created_by"]
+            target_vocab.full_clean()
             target_vocab.save()
             match vocab_data["type"]:
                 case VocabType.VOCAB:
@@ -72,13 +73,13 @@ class VocabActionService():
         
 
     @staticmethod
-    def deactivateVocab(target_vocab, approved_by):
+    def deactivate_vocab(target_vocab, approved_by):
         target_vocab.is_active = False
         target_vocab.approved_by = approved_by
         target_vocab.save(update_fields=['is_active', 'approved_by', 'update_at'])
     
     @staticmethod
-    def restoreVocab(target_vocab, approved_by):
+    def restore_vocab(target_vocab, approved_by):
         target_vocab.is_active = True
         target_vocab.approved_by = approved_by
         target_vocab.save(update_fields=['is_active', 'approved_by', 'update_at'])

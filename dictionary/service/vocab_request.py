@@ -60,7 +60,7 @@ class VocabRequestService():
         }
     
     @staticmethod
-    def hasPendingRequest(*, target_vocab=None, word=None, kana=None):
+    def has_pending_request(*, target_vocab=None, word=None, kana=None):
         qs = VocabRequest.objects.filter(status = VocabRequestStatus.PENDING)
 
         if target_vocab is not None:
@@ -73,12 +73,12 @@ class VocabRequestService():
         return qs.exists()
     
     @staticmethod
-    def genCreateVocabRequest(user, form):
+    def gen_create_vocab_request(user, form):
         is_created = False
         word = form.cleaned_data["word"]
         kana = form.cleaned_data["kana"]
         vocab_type = form.cleaned_data["vocab_type"]
-        if VocabRequestService.hasPendingRequest(word = word, kana = kana):
+        if VocabRequestService.has_pending_request(word = word, kana = kana):
             is_created = False
         else:
             try:
@@ -107,9 +107,9 @@ class VocabRequestService():
         return is_created
     
     @staticmethod
-    def genUpdateVocabRequest(user, form):
+    def gen_update_vocab_request(user, form):
         is_created = False
-        if VocabRequestService.hasPendingRequest(target_vocab = form.target_vocab):
+        if VocabRequestService.has_pending_request(target_vocab = form.target_vocab):
             #add log
             is_created = False
         else:
@@ -153,9 +153,9 @@ class VocabRequestService():
         return is_created
 
     @staticmethod
-    def genRestoreVocabRequest(user, vocab):
+    def gen_restore_vocab_request(user, vocab):
         is_created = False
-        if VocabRequestService.hasPendingRequest(target_vocab = vocab):
+        if VocabRequestService.has_pending_request(target_vocab = vocab):
             # add log
             is_created = False
         else:
@@ -188,9 +188,9 @@ class VocabRequestService():
         return is_created
 
     @staticmethod
-    def genDeleteVocabRequest(user, vocab):
+    def gen_delete_vocab_request(user, vocab):
         is_created = False
-        if VocabRequestService.hasPendingRequest(target_vocab = vocab):
+        if VocabRequestService.has_pending_request(target_vocab = vocab):
             #add log
             is_created = False
         else:
@@ -209,7 +209,7 @@ class VocabRequestService():
 
 
     @staticmethod
-    def approveVocabRequest(vocab_request, reviewed_by):
+    def approve_vocab_request(vocab_request, reviewed_by):
         with transaction.atomic():
             locked_request = (
                 VocabRequest.objects
@@ -223,25 +223,25 @@ class VocabRequestService():
                 case VocabRequestType.CREATE:
                     VocabRequestService.validate_for_approval(locked_request)
                     vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
-                    VocabActionService.createVocab(
+                    VocabActionService.create_vocab(
                         vocab_data=vocab_data, 
                         approved_by=reviewed_by
                     )
                 case VocabRequestType.UPDATE:
                     VocabRequestService.validate_for_approval(locked_request)
                     vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
-                    VocabActionService.updateVocab(
+                    VocabActionService.update_vocab(
                         vocab_data=vocab_data, 
                         target_vocab=locked_request.original_vocab, 
                         approved_by=reviewed_by
                     )
                 case VocabRequestType.RESTORE:
-                    VocabActionService.restoreVocab(
+                    VocabActionService.restore_vocab(
                         target_vocab=locked_request.original_vocab, 
                         approved_by=reviewed_by
                     )
                 case VocabRequestType.DELETE:
-                    VocabActionService.deactivateVocab(
+                    VocabActionService.deactivate_vocab(
                         target_vocab=locked_request.original_vocab,
                         approved_by=reviewed_by
                     )
@@ -253,7 +253,7 @@ class VocabRequestService():
         return True
 
     @staticmethod
-    def rejectVocabRequest(vocab_request, reviewed_by):
+    def reject_vocab_request(vocab_request, reviewed_by):
         with transaction.atomic():
             locked_request = (
                 VocabRequest.objects

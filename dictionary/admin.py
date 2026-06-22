@@ -99,6 +99,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'status',
         'proposed_vocab_type',
         'reviewed_by',
+        'original_vocab',
     )
 
     fields = (
@@ -120,7 +121,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
     def response_change(self, request, obj):
         if "_approve" in request.POST:
             try:
-                is_success = VocabRequestService.approveVocabRequest(
+                is_success = VocabRequestService.approve_vocab_request(
                     vocab_request=obj,
                     reviewed_by=request.user,
                 )
@@ -155,7 +156,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
                 )
             )
         if "_reject" in request.POST:
-            is_success = VocabRequestService.rejectVocabRequest(
+            is_success = VocabRequestService.reject_vocab_request(
                 vocab_request=obj,
                 reviewed_by=request.user,
             )
@@ -224,7 +225,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
     #         pk = object_id,
     #     )
         
-    #     VocabRequestService.approveVocabRequest(
+    #     VocabRequestService.approve_vocab_request(
     #         vocab_request=vocab_request,
     #         reviewed_by=request.user
     #     )
@@ -248,7 +249,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
     #         pk = object_id,
     #     )
 
-    #     VocabRequestService.rejectVocabRequest(
+    #     VocabRequestService.reject_vocab_request(
     #         vocab_request=vocab_request,
     #         reviewed_by=request.user
     #     )
@@ -265,5 +266,4 @@ class VocabRequestAdmin(admin.ModelAdmin):
     #         )
     #     )
     ########################################################
-
 

@@ -1,393 +1,399 @@
 # Project History
 
-呢份記錄係用 git commit history 整理返出嚟，主要記低 project 到目前為止每次大改動做過啲乜。
+呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
-每個記錄下面會列出比較重要嘅 updated code。
-
-「理由」同「學到咩」會留空，方便之後自己補返當時嘅 decision 同 learning。
-
-## 2026-05-20 - Project initial setup
+## 2026-05-20 - Project foundation
 
 Commit: `ad4deee`
 
-一開始建立 project 基礎結構，準備好主要 apps 同基本 models，令 Japanese Quiz 呢個 project 有第一個可以繼續發展落去嘅 base。
+### 主要改動
 
-比較重要嘅 updated code：
+- 建立 Django project 基礎架構，加入 `accounts`、`dictionary`、`quiz` 同 `core` apps。
+- 開始設計 custom user、user profile、vocab、user vocab relationship 同 vocab detail models。
 
-- `config/settings.py`、`config/urls.py`：建立 Django project 基本 settings 同 routing。
-- `accounts/models.py`：建立 user / profile 基礎 models。
-- `dictionary/models.py`：建立 dictionary domain 嘅基本 models。
-- `quiz/models.py`：準備 quiz app 嘅 model structure。
-- `manage.py`：加入 Django management entry point。
+### Database 改動
 
-理由：
+- 建立 custom `User` 同 `UserProfile` tables。
+- `UserProfile` 以 One-to-One relationship 連接 user，並保存建立／更新時間。
 
-學到咩：
+### 理由
 
-## 2026-05-20 - First migrate 同 custom user manager
+### 學到咩
+
+## 2026-05-20 - Initial schema and custom user manager
 
 Commit: `adf7f9e`
 
-做咗第一次 migration 之後，加入 user manager 相關設定，開始將 accounts app 嘅 user handling 整得完整啲。
+### 主要改動
 
-比較重要嘅 updated code：
+- 建立以 email 為登入識別嘅 custom user 架構。
+- 加入 custom `UserManager`，統一一般 user 同 superuser 嘅建立流程。
 
-- `accounts/models.py`：加入 custom user manager 相關設定。
-- `accounts/migrations/0002_alter_user_managers.py`：記錄 user manager schema change。
-- `dictionary/models.py`：整理第一版 vocab model。
-- `dictionary/migrations/0001_first_ver_vocab_model.py`：建立第一版 dictionary database schema。
+### Database 改動
 
-理由：
+- 建立 `Vocab`、`UserVocab`、`KanjiDetail` 同 `KatakanaDetail` tables。
+- 建立 user-vocab Many-to-Many through relationship。
+- 為 vocab 加入 `(word, answer)` unique constraint。
+- 將 `User` model manager 切換成 custom `UserManager`。
 
-學到咩：
+### 理由
 
-## 2026-05-25 - Login system
+### 學到咩
+
+## 2026-05-25 - Authentication flow
 
 Commit: `be08b3d`
 
-加入 login system，開始有 user login/logout/register 相關 flow，令 project 唔再只係 model level，而係開始有 user 可以實際用嘅入口。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 user registration、login 同 logout 基本流程。
+- 建立共用 authentication forms，令 project 開始支援實際 user session。
 
-- `accounts/forms.py`：加入 account login / register 相關 forms。
-- `accounts/views.py`：處理 user authentication flow。
-- `core/templates/core/base.html`：建立共用 page layout 同 navigation 基礎。
+### Database 改動
 
-理由：
+- 無 schema 變更。
 
-學到咩：
+### 理由
 
-## 2026-05-29 - User pages, AdminMessage, create vocab flow
+### 學到咩
+
+## 2026-05-29 - User area and initial vocab creation flow
 
 Commit: `c67a9d0`
 
-加咗 accounts 相關 templates，例如 user detail、home、login、logout、regist。  
-同時加入 `AdminMessage` model，調整 core view/template，dictionary 方面亦開始加入 forms、model field changes，同 create vocab flow 嘅基礎。
+### 主要改動
 
-比較重要嘅 updated code：
+- 建立 user account pages，並開始實作 vocab creation flow。
+- 加入 `AdminMessage`，準備保存 user 與 admin 之間嘅訊息關係。
+- 整理 vocab 與 quiz tracking 欄位命名。
 
-- `accounts/views.py`、`accounts/forms.py`：完善 account pages 同 form handling。
-- `accounts/templates/accounts/`：加入 login、logout、register、home 同 user detail pages。
-- `core/models.py`：加入 `AdminMessage` model。
-- `dictionary/forms.py`、`dictionary/views.py`：開始建立 create vocab flow。
-- `dictionary/models.py`：調整 vocab fields、language choices 同 streak data。
+### Database 改動
 
-理由：
+- 建立 `AdminMessage` table，並連接 custom user。
+- `UserVocab` 加入 `weight`、答對／答錯次數同 `last_quiz_at`，準備記錄 quiz 表現。
+- `Vocab.answer` rename 為 `kana`。
+- `UserVocab` 答題統計欄位 rename 為 `correct_count`、`incorrect_count`，並加入 `streak`。
+- Detail models 加入 `similar_kanji`、`native_japanese` 等 type-specific fields。
+- 調整 vocab type/category choices，統一使用程式可處理嘅 value。
+- 建立 `(word, kana)` 同 `(user, vocab)` unique constraints。
 
-學到咩：
+### 理由
 
-## 2026-06-02 - Prepare VocabRequest create/update/delete
+### 學到咩
+
+## 2026-06-02 - VocabRequest foundation
 
 Commit: `e8b7bb8`
 
-開始準備 `VocabRequest` 機制，將 create、update、delete vocab 呢啲行為包成 request flow，而唔係直接改 vocab data。
+### 主要改動
 
-比較重要嘅 updated code：
+- 將 vocab create、update、delete 改成 request-based workflow，避免 user 直接修改正式 vocab data。
+- 建立 request forms 同初步處理流程。
 
-- `dictionary/models.py`：建立 / 調整 `VocabRequest` data structure。
-- `dictionary/forms.py`：準備 create、update、delete request forms。
-- `dictionary/views.py`：開始處理 vocab request flow。
-- `dictionary/urls.py`：加入 request 相關 URL routes。
+### Database 改動
 
-理由：
+- 無已套用 migration；`VocabRequest` schema 仍處於設計階段。
 
-學到咩：
+### 理由
 
-## 2026-06-02 - Finish VocabCreateRequestView and improve VocabRequest
+### 學到咩
+
+## 2026-06-02 - Create request completion and account metadata
 
 Commit: `cdcd761`
 
-完成 `VocabCreateRequestView` 相關處理，改善 `VocabRequest` model/form/view。  
-同時 accounts 加入 `last_login` migration，令 user data 記錄更完整。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 create vocab request 嘅主要提交及 validation flow。
+- 改善 request proposed fields 同 model relationships。
 
-- `dictionary/views.py`：完成 `VocabCreateRequestView` 嘅主要 logic。
-- `dictionary/forms.py`：改善 create request validation 同 input handling。
-- `dictionary/models.py`：改善 `VocabRequest` fields 同 model relationship。
-- `dictionary/migrations/0004_improve_vocab_request.py`：套用 request model schema change。
-- `accounts/models.py`：加入 / 修正 `last_login` support。
+### Database 改動
 
-理由：
+- 調整 `User.last_login` 欄位設定。
+- 建立 `VocabRequest` table，保存 request type、review status、proposed data、申請人、reviewer 同原始 vocab 關係。
+- 從 `Vocab` 移除舊 `status`，改由 `VocabRequest.status` 管理審批狀態。
+- `Vocab` 暫時加入 `has_submission`，標示是否存在 submission。
 
-學到咩：
+### 理由
 
-## 2026-06-04 - Restore vocab request flow and split dictionary views
+### 學到咩
+
+## 2026-06-04 - Restore request and request module separation
 
 Commit: `bc37573`
 
-加入 restore vocab request flow，修正 model field name。  
-同時將原本單一 `dictionary/views.py` 拆成 `dictionary/views/request.py` 同 `dictionary/views/vocab.py`，令 request logic 同 vocab page logic 分開管理。
+### 主要改動
 
-比較重要嘅 updated code：
+- 加入 restore vocab request flow。
+- 將一般 vocab views 同 request views 分開，降低兩類流程嘅耦合。
 
-- `dictionary/views/request.py`：集中處理 vocab request / restore flow。
-- `dictionary/views/vocab.py`：集中處理一般 vocab pages。
-- `dictionary/urls.py`：配合 views 拆分更新 routes。
-- `dictionary/models.py`、`dictionary/forms.py`：修正 field name 同相關 form handling。
-- `dictionary/migrations/0005_correct_field_name.py`：套用 field rename。
+### Database 改動
 
-理由：
+- 修正 `VocabRequest` proposed category/similar field 命名。
+- `request_type` 加入 `RESTORE` choice。
 
-學到咩：
+### 理由
 
-## 2026-06-06 - Vocab update flow and basic vocab templates
+### 學到咩
+
+## 2026-06-06 - Update request workflow
 
 Commit: `259ce8e`
 
-建立 vocab update flow，移除 `Vocab` 入面唔需要嘅 field。  
-同時加咗 vocab create/delete/detail/edit/home/list templates，令 vocab CRUD 頁面開始完整成形。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 vocab update request flow。
+- 開始保存 update 前嘅 vocab snapshot，方便 review 時比較 proposed data。
 
-- `dictionary/views/vocab.py`：加入 vocab update 同其他 CRUD page logic。
-- `dictionary/views/request.py`：配合 update request flow。
-- `dictionary/forms.py`、`dictionary/models.py`：調整 update fields 同移除冇用 field。
-- `dictionary/templates/dictionary/`：加入 create、delete、detail、edit、home、list pages。
+### Database 改動
 
-理由：
+- 無已套用 migration；相關 model changes 喺下一個 commit 正式寫入 schema。
 
-學到咩：
+### 理由
 
-## 2026-06-07 - Vocab list flow, page detail, login/register check
+### 學到咩
+
+## 2026-06-07 - Vocab browsing and request schema refinement
 
 Commit: `0280a4d`
 
-改善 vocab list flow，同 detail page / template 呈現。  
-檢查 user register 同 login flow，亦將 `vocab_edit.html` rename 做 `vocab_update.html`，令命名同 update 行為更加一致。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 vocab list、detail 同 update pages 嘅主要瀏覽流程。
+- 整合 authentication 後嘅 vocab navigation。
 
-- `dictionary/views/vocab.py`：改善 vocab list / detail / update flow。
-- `dictionary/views/request.py`：改善 request handling。
-- `dictionary/templates/dictionary/`：補完整各 vocab pages 嘅 HTML。
-- `dictionary/templates/dictionary/vocab_update.html`：由 `vocab_edit.html` rename，統一 naming。
-- `accounts/templates/accounts/`：檢查同調整 login / register pages。
-- `core/templates/core/index.html`：加入 core index page。
+### Database 改動
 
-理由：
+- `approved_by` rename 為 `reviewed_by`，令 request reviewer 語意更準確。
+- 移除 `Vocab.has_submission`。
+- `VocabRequest` 加入 `original_data` JSON field。
+- 將 request type `edit` 統一為 `update`。
 
-學到咩：
+### 理由
 
-## 2026-06-09 - HTML fixes and user vocab list
+### 學到咩
+
+## 2026-06-09 - User vocab list and nullable request data
 
 Commit: `99e7214`
 
-修正 typo 同 HTML 細節，加入 `user_vocab_list.html`。  
-同時調整 `VocabRequest` nullable 設定，令 request data 喺唔同狀態下可以更穩定咁保存。
+### 主要改動
 
-比較重要嘅 updated code：
+- 加入 user 專屬 vocab list。
+- 改善 request validation，支援唔同 request type 只保存相關 proposed data。
 
-- `dictionary/templates/dictionary/user_vocab_list.html`：加入 user 自己嘅 vocab list page。
-- `dictionary/views/vocab.py`：加入 user vocab list 同相關 page handling。
-- `dictionary/views/request.py`、`dictionary/forms.py`：改善 request flow 同 validation。
-- `dictionary/models.py`：調整 `VocabRequest` nullable fields。
-- `dictionary/migrations/0007_set_vocab_request_null_ok.py`：套用 nullable schema change。
+### Database 改動
 
-理由：
+- 多個 `VocabRequest.proposed_*` fields 改成 nullable/blank，容許 request submission 階段保存未完整資料。
 
-學到咩：
+### 理由
 
-## 2026-06-10 - URL cleanup, temp HTML, table rename, create/delete request flow
+### 學到咩
+
+## 2026-06-10 - Create/delete request completion
 
 Commit: `144c719`
 
-整理 URL routing，同時加咗 temporary version HTML。  
-將 vocab request table rename，並完成 create/delete vocab request flow，令 user 對 vocab 嘅新增同刪除可以透過 request 機制處理。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 create 同 delete vocab request 嘅 user flow。
+- 統一 dictionary request routing 同頁面流程。
 
-- `dictionary/views/request.py`：完成 create / delete vocab request flow。
-- `dictionary/views/vocab.py`：配合 request flow 更新 vocab pages。
-- `dictionary/urls.py`：整理 dictionary routes。
-- `accounts/urls.py`、`accounts/views.py`：整理 account routing 同 page flow。
-- `dictionary/migrations/0008_rename_table_vocab_request.py`：rename vocab request database table。
+### Database 改動
 
-理由：
+- 將 `VocabRequest` database table 明確命名為 `vocab_request`。
 
-學到咩：
+### 理由
 
-## 2026-06-12 - Admin page preparation and similar_kanji role change
+### 學到咩
+
+## 2026-06-12 - Dictionary admin foundation and vocab detail redesign
 
 Commit: `d16bdd6`
 
-開始準備 admin page，調整 accounts/core/dictionary admin 設定。  
-加入 `import_vocab` management command 基礎，並改動 `similar_kanji` field 嘅 role / structure。
+### 主要改動
 
-比較重要嘅 updated code：
+- 建立 accounts、core 同 dictionary 嘅 admin 管理基礎。
+- 開始準備 CSV import command。
+- 將一般 vocab detail 同 katakana-specific detail 分開處理。
 
-- `dictionary/admin.py`：開始建立 dictionary admin management UI。
-- `accounts/admin.py`、`core/admin.py`：調整其他 apps 嘅 admin registration / display。
-- `dictionary/management/commands/import_vocab.py`：加入 vocab CSV import command 基礎。
-- `dictionary/models.py`、`dictionary/forms.py`：改動 `similar_kanji` field 同相關 input handling。
-- `dictionary/migrations/0009_similar_kanji_field_change.py`：套用 `similar_kanji` schema change。
+### Database 改動
 
-理由：
+- `Vocab.type` 由 `kanji` 調整為較通用嘅 `vocab`。
+- `KanjiDetail` 改為 `VocabDetail`。
+- `similar_word` 移到 `Vocab`，並同步調整 request proposed field。
 
-學到咩：
+### 理由
 
-## 2026-06-14 - CSV import/export and admin setting
+### 學到咩
+
+## 2026-06-14 - Admin data cleanup and schema labels
 
 Commit: `80c655f`
 
-準備從 CSV import vocab，同時加入 export vocab to CSV command。  
-調整 admin page、accounts model/admin、dictionary model/form，並加咗 verbose name 相關 migration，令 admin 顯示同資料匯入匯出更易用。
+### 主要改動
 
-比較重要嘅 updated code：
+- 改善 dictionary admin 顯示同資料管理設定。
+- 準備 vocab CSV import/export commands。
+- 清理已經唔再使用嘅 original word 設計。
 
-- `dictionary/management/commands/import_vocab.py`：完善 vocab CSV import。
-- `dictionary/management/commands/export_vocab_to_csv.py`：加入 vocab CSV export。
-- `dictionary/admin.py`：改善 dictionary admin settings 同 display。
-- `dictionary/models.py`、`dictionary/forms.py`：整理 fields、labels 同 form handling。
-- `dictionary/migrations/0012_add_verbose_name.py`：加入 model / field verbose names。
-- `accounts/admin.py`、`accounts/models.py`：同步調整 account admin 同 model。
+### Database 改動
 
-理由：
+- 移除 `VocabRequest.proposed_original_word` 同 `KatakanaDetail.original_word`。
+- 為主要 vocab、request 同 quiz tracking fields 加入 `verbose_name`。
+- 整理 `VocabRequest` foreign key related names。
 
-學到咩：
+### 理由
 
-## 2026-06-15 - VocabRequest review flow in admin
+### 學到咩
+
+## 2026-06-15 - Admin VocabRequest review architecture
 
 Commit: `244c793`
 
-修 bug 同改善 dictionary admin page，完成 `VocabRequest` review flow。  
-將 request 相關 logic 移去 `dictionary/service/vocab_request.py`，新增 admin custom change form template，並清理舊有 `dictionary/views/request.py`。
+### 主要改動
 
-比較重要嘅 updated code：
+- 建立 admin approve/reject review interface。
+- 將 request business logic 抽到 `VocabRequestService`，減少 admin/view 直接處理 domain logic。
+- 建立 custom admin change form，讓 reviewer 可以逐筆檢查 request。
 
-- `dictionary/service/vocab_request.py`：抽出 vocab request business logic 做 service。
-- `dictionary/admin.py`：加入 admin approve / reject review handling。
-- `dictionary/templates/admin/dictionary/vocabrequest/change_form.html`：加入 custom review actions UI。
-- `dictionary/forms.py`、`dictionary/models.py`：配合 review workflow 更新 form 同 status data。
-- `dictionary/views.py`、`dictionary/urls.py`：整理一般 vocab views 同 routes。
-- `dictionary/views/request.py`：刪除舊 request view module，將 responsibility 搬去 service / admin。
+### Database 改動
 
-理由：
+- 無 schema 變更。
 
-學到咩：
+### 理由
 
-## 2026-06-17 - Safer vocab request create flow and more vocab categories
+### 學到咩
+
+## 2026-06-17 - Transaction-safe request creation
 
 Commit: `d65b3df`
 
-將 vocab request create flow 改到更安全，加入更多 vocab category。  
-同時加咗 `VocabRequest` unique setting migration，更新 `dictionary/models.py` 同 `dictionary/service/vocab_request.py`，並新增 `TODO.md` 記錄之後要做嘅嘢。
+### 主要改動
 
-比較重要嘅 updated code：
+- 使用 `transaction.atomic()` 保護 request creation，避免流程中途失敗留下不完整資料。
+- 擴充 vocab categories 同 level choices。
+- 加入 database-level duplicate pending request protection。
 
-- `dictionary/service/vocab_request.py`：改善 request creation safety 同 transaction handling。
-- `dictionary/models.py`：加入更多 vocab categories 同 duplicate pending request protection。
-- `dictionary/migrations/0013_vocabrequest_unique_setting.py`：加入 `VocabRequest` unique constraint。
-- `TODO.md`：記低未完成 workflow、風險同之後要改善嘅項目。
+### Database 改動
 
-理由：
+- 擴充 `Vocab.category`／`proposed_category` choices，並加入未定義 level。
+- 為有 `original_vocab` 嘅 pending request 建立 conditional unique constraint。
+- 為 create request 嘅 `(proposed_word, proposed_kana)` 建立 conditional unique constraint。
 
-學到咩：
+### 技術重點
 
-- `transaction.atomic()` 會將區塊入面嘅 database 操作放入同一個 transaction：全部成功先一齊 commit；中途發生 exception 就會 rollback。
-- 將建立 `VocabRequest` 嘅檢查同寫入包喺 transaction 入面，可以避免流程只完成一半，留下唔完整嘅資料。
-- database unique constraint 仍然係防止重複 request 嘅最後防線；service 可以捕捉 `IntegrityError`，將 database error 轉成較清楚嘅業務結果。
+- `transaction.atomic()` 令區塊內操作全部成功先 commit；發生 exception 時會 rollback。
+- Application check 可以提供清楚 feedback，database constraint 則負責最後一道 concurrency protection。
 
-## 2026-06-18 - Project documentation and development tracking
+### 理由
 
-Commit: `1167023`
+### 學到咩
 
-整理 project development records，同時重整 TODO tracking，將已發現嘅 bug、logic risk、未完成功能同之後想研究嘅方向分開記錄。
-
-比較重要嘅 updated code：
-
-- `PROJECT_HISTORY.md`：整理 project 由初始 setup 到目前為止嘅主要改動。
-- `TODO.md`：重整 fix tracking、future features、quiz logic、event system 同 data import/export 規劃。
-
-理由：
-
-學到咩：
-
-## 2026-06-19 - Custom User Admin and learning notes
+## 2026-06-19 - Custom UserAdmin and vocab action preparation
 
 Commit: `c1979dc`
 
-改善 custom User Admin 架構，開始將 admin add/change user flow 分開處理。  
-同時新增 project README 同 learning questions，記錄 password hashing、Django UserAdmin、CBV object ID 傳遞等需要再深入理解嘅概念，並準備 vocab action service。
+### 主要改動
 
-比較重要嘅 updated code：
+- 將 custom user admin 改為建基於 Django `UserAdmin`。
+- 分開 user add/change form，避免 password hash 被當成普通文字欄位處理。
+- 建立 `VocabActionService` 架構，準備集中管理正式 vocab mutation。
 
-- `accounts/admin.py`：改用 Django `UserAdmin`，分開 add form 同 change form 設定。
-- `accounts/forms.py`：加入 admin user creation/change forms，保護 password hash。
-- `dictionary/service/vocab_action.py`：建立 vocab action service 檔案基礎。
-- `LEARNING_QUESTIONS.md`：記錄 Django Custom User Admin 同 CBV object ID 等研究問題。
-- `README.md`：整理 project 介紹、目前功能、架構同開發方向。
-- `PROJECT_HISTORY.md`：統一 project history 檔名同內容。
-- `TODO.md`：補充 quiz、event、user message 同後續功能規劃。
+### Database 改動
 
-理由：
+- 無 schema 變更；主要完成 admin/form architecture 同 service preparation。
 
-學到咩：
+### 理由
+
+### 學到咩
 
 ## 2026-06-20 - Admin user creation and VocabActionService
 
 Commit: `913e765`
 
-完成 admin user creation form 嘅基本流程，加入 password validation 同 password hashing。
-Dictionary 方面建立 `VocabActionService`，準備集中處理 vocab create、update、deactivate 同 restore，並調整 vocab detail models 同暫時放寬 `word_slug`。
+### 主要改動
 
-比較重要嘅 updated code：
+- 完成 admin 專用 user creation form，包括 password confirmation、Django password validation 同 `set_password()`。
+- 實作 `VocabActionService`，集中處理 vocab create、update、deactivate 同 restore。
+- 建立 request data mapper，將 `VocabRequest` proposed data 轉成 service input。
 
-- `accounts/forms.py`：加入 `UserCreationAdminForm`、password confirmation、Django password validation 同 `set_password()`。
-- `accounts/admin.py`：將 admin Add User flow 接去專用 creation form。
-- `dictionary/service/vocab_action.py`：加入 vocab create、update、deactivate、restore actions。
-- `dictionary/service/vocab_request.py`：加入由 `VocabRequest` 整理 vocab data 嘅 mapper。
-- `dictionary/models.py`：調整 vocab detail structure，暫時將 `word_slug` 設為可空。
-- `dictionary/migrations/0014_cut_similar_word.py`：調整 similar word schema。
-- `dictionary/migrations/0015_two_vocab_detail_base_normal.py`：調整兩種 vocab detail model。
-- `dictionary/migrations/0016_word_slug_able_blank_now.py`：暫時容許 `word_slug` 為空。
-- `TODO.md`：記錄之後要實作 slug 產生、同步同舊資料 backfill。
+### Database 改動
 
-理由：
+- 移除暫時未使用嘅 `Vocab.similar_word`。
+- 移除 detail tables 不必要嘅 timestamp fields。
+- `Vocab.word_slug` 暫時改成 nullable/blank，等待正式 slug strategy。
 
-學到咩：
+### 理由
 
-## 2026-06-20 - Quiz filtering and kana keyboard planning
+### 學到咩
 
-狀態：未 commit，記錄目前設計決定。
+## 2026-06-20 - Quiz filtering and kana keyboard design
 
-補充 quiz 出題範圍同 UI 規劃。Quiz 將來會按 user 選擇嘅 vocab type、level、category 篩選 question pool；另外計劃喺 quiz answer 畫面提供 50 音 keyboard。
+Status: Design planning
 
-比較重要嘅 updated code：
+### 主要決定
 
-- `TODO.md`：加入按 `type`、`level`、`category` 篩選 quiz question pool 嘅規劃。
-- `TODO.md`：加入只供 quiz 作答使用嘅 50 音假名 keyboard 規劃。
-- Filter 後嘅 question pool 會再套用 weighted random、最近題目排除同 overdue weight boost。
-- 50 音 keyboard 唔會用喺 vocab search 或 request forms，嗰啲位置繼續使用一般 keyboard。
+- Quiz question pool 將按 vocab type、level 同 category 篩選。
+- Filter 後再套用 weighted random、recent-question exclusion 同 overdue weight boost。
+- 50 音 keyboard 只會用於 quiz 作答；search 同 vocab request 繼續使用一般輸入法。
 
-理由：
+### Database 改動
 
-學到咩：
+- 無；目前屬設計階段。
 
-## 2026-06-21 - Transactional VocabRequest approve and reject workflow
+### 理由
+
+### 學到咩
+
+## 2026-06-21 - Transactional request review workflow
 
 Commit: `b483c51`
 
-將 admin 嘅 `VocabRequest` approve / reject 正式接到 vocab action flow，加入 approval 前資料驗證、row locking、request status 更新同 admin feedback，令覆核流程可以完整處理成功、失敗同重複操作。
+### 主要改動
 
-比較重要嘅 updated code：
+- 將 admin approve/reject 正式接駁到 `VocabActionService`。
+- Approve 前驗證最終 proposed data，成功後同步更新 request status 同 reviewer。
+- 使用 row locking 同最新 `PENDING` 狀態檢查，防止 double click 或 concurrent review 重複處理。
+- Admin 會收到成功、已處理或 validation failure feedback。
 
-- `dictionary/service/vocab_request.py`：用 transaction 處理 approve / reject，重新讀取並 lock request、檢查 pending 狀態、驗證 proposed fields，再呼叫 `VocabActionService`。
-- `dictionary/admin.py`：接收 service 處理結果，透過 `message_user()` 顯示成功、失敗或 validation error 訊息。
-- `dictionary/models.py`：整理 `VocabRequest` type / status 同相關欄位設定。
-- `dictionary/migrations/0017_disable_field_and_requeststatua.py`：記錄今次 request model schema 調整。
-- `TODO.md`：更新已完成嘅 workflow、logic risk 同仍需改善嘅項目。
-- `LEARNING_QUESTIONS.md`：補充 `message_user()` 同 `"; ".join(...)` 等學習內容。
+### Database 改動
 
-理由：
+- 移除未使用嘅 `VocabRequest.proposed_similar_word`。
+- 將 level database values 統一為 `0` 至 `5`。
+- 移除未實作嘅 `REVIEW` request type。
+- 修正 `User.last_login` field metadata。
 
-- Approve / reject 會改動多筆相關資料，需要確保整個流程成功先一齊保存，避免 request status 同 vocab 狀態唔一致。
-- 同一個 request 有機會因 double click 或兩個 admin 同時操作而被重複處理，所以要喺 transaction 入面鎖定最新 database row，再檢查佢係咪仍然處於 `PENDING`。
+### 技術重點
 
-學到咩：
+- `select_for_update()` 會鎖定 request row 直到 transaction 完結；必須配合 `transaction.atomic()` 使用。
+- SQLite 對 row-level locking 支援有限，正式使用 PostgreSQL 時先會完整發揮效果。
+- Approve/reject 嘅 vocab mutation 同 request status update 放喺同一 transaction，避免兩邊狀態不一致。
 
-- `select_for_update()` 會鎖住查詢到嘅 database row，直到目前 transaction 完結，其他 transaction 要修改同一筆資料時需要等候。
-- `select_for_update()` 應該放喺 `transaction.atomic()` 入面使用；鎖定後再檢查 `PENDING` 狀態，可以避免同一個 request 同時被 approve / reject。
-- SQLite 對 row-level locking 支援有限；使用 PostgreSQL 等支援 row lock 嘅 database 時，`select_for_update()` 嘅效果先會完整反映出來。
-- Service 回傳成功或失敗結果後，admin 可以用 `self.message_user()` 將處理結果顯示俾管理員。
-- `"; ".join(e.messages)` 會用 `"; "` 將多個 validation error 字串連接成一段訊息，方便一次過顯示。
+### 理由
+
+### 學到咩
+
+## 2026-06-22 - Admin-authenticated CSV vocab import
+
+Commit: `567adc4`
+
+### 主要改動
+
+- 實作 CSV vocab import 核心流程，要求 superuser authentication。
+- Import 前驗證必要 headers，逐行將資料交俾 `VocabActionService.create_vocab()`。
+- Invalid row 或 database integrity error 會顯示 CSV 行數並跳過；檔案不存在或結構錯誤會停止 command。
+- `VocabActionService` 會先執行 `full_clean()`，再保存 vocab 同對應 detail。
+
+### Database 改動
+
+- 無 schema 變更。
+- Import 寫入會沿用 `VocabActionService` transaction，確保 `Vocab` 同 detail 一同成功或 rollback。
+
+### 技術重點
+
+- `CommandError` 用於整份 command 無法繼續嘅問題；單一 row error 會寫入 stderr 後繼續下一行。
+
+### 理由
+
+### 學到咩

@@ -18,6 +18,7 @@ from .forms import (
     VocabUpdateRequestForm,
     VocabDeleteRequestForm,
     VocabSearchForm,
+    UserVocabSelectForm,
 )
 from .models import (
     VocabType,
@@ -35,6 +36,7 @@ from .models import (
 )
 
 from .service.vocab_request import VocabRequestService
+from .service.user_vocab_action import UserVocabService
 
 class VocabHomeView(TemplateView):
     template_name = "dictionary/vocab_home.html"
@@ -48,7 +50,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
         self.has_restore_vocab = False
         if hasattr(form, "deactived_vocab"):
             self.has_restore_vocab = True
-            created = VocabRequestService.genRestoreVocabRequest(
+            created = VocabRequestService.gen_restore_vocab_request(
                 user=self.request.user,
                 vocab=form.deactived_vocab,
             )
@@ -58,7 +60,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 messages.info(self.request, "There was the same word on the list and We got the review request already, waiting for admin review")
             return redirect(self.get_success_url())
         else:
-            created = VocabRequestService.genCreateVocabRequest(
+            created = VocabRequestService.gen_create_vocab_request(
                 user=self.request.user,
                 form=form,
             )
@@ -102,7 +104,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
             "kana" : vocab.kana,
             "level" : vocab.level,
             "category" : vocab.category, 
-            "similar_word" : vocab.similar_word
+            #"similar_word" : vocab.similar_word
         })
         match vocab.type:
             case VocabType.VOCAB:
@@ -114,7 +116,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
         return initial_data
     
     def form_valid(self, form):
-        VocabRequestService.genUpdateVocabRequest(
+        VocabRequestService.gen_update_vocab_request(
             user=self.request.user,
             form=form
         )
@@ -140,7 +142,7 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         return context
     
     def form_valid(self, form):
-        VocabRequestService.genDeleteVocabRequest(
+        VocabRequestService.gen_delete_vocab_request(
             user=self.request.user,
             vocab=self.target_vocab
         )
@@ -233,3 +235,24 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(vocab__category=category)
 
         return qs
+
+class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
+    template_name = "dictionary/select_vocab.html"
+    form_class = UserVocabSelectForm
+    success_url = reverse_lazy("dictionary:user_vocab_list")
+
+    def get_new_vocab(self):
+        return UserVocabService.get_new_vocab(user=self.request.user,limit=50)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["vocab_queryset"] = self.get_new_vocab()
+        return kwargs
+    
+    def form_valid(self, form):
+        UserVocabService.create_user_vocabs(
+            user=self.request.user,
+            vocabs=form.cleaned_data["vocabs"],
+        )
+        return super().form_valid(form)
+    
