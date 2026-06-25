@@ -41,10 +41,16 @@ class VocabAdmin(admin.ModelAdmin):
         'native_japanese',
         'create_at',
     )
+    readonly_fields = (
+        "type",
+    )
     ordering = ('id',)
     list_display_links = ('id',)
     search_fields = ('word', 'level', 'type')
     list_editable = ('level',)
+
+    def has_add_permission(self, request):
+        return False
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -117,6 +123,34 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'created_by',
         #'review_buttons',
     )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if (request.method == "POST"
+            and ("_approve" in request.POST 
+                or "_reject" in request.POST
+                )
+        ):
+            qs = qs.select_for_update()
+        return qs
+    
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+
+        if obj is not None and obj.status != VocabRequestStatus.PENDING:
+            return [field.name for field in self.model._meta.fields]
+        return readonly_fields
+    
+    def save_model(self, request, obj, form, change):
+        if change and obj.status != VocabRequestStatus.PENDING:
+            self.message_user(
+                request,
+                "Reviewed request cannot be changed",
+                messages.ERROR,
+            )
+            return
+        super().save_model(request, obj, form, change)
 
     def response_change(self, request, obj):
         if "_approve" in request.POST:

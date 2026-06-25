@@ -84,6 +84,283 @@ password2
 
 -
 
+## [ ] `[DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW]` Admin approve / reject 點樣處理 form save 同 row lock
+
+### 問題背景
+
+`VocabRequestAdmin` 目前喺 admin change form 入面用 custom buttons 做 approve / reject，並喺 `response_change()` 入面判斷：
+
+```python
+if "_approve" in request.POST:
+    ...
+if "_reject" in request.POST:
+    ...
+```
+
+但 `response_change()` 係 Django Admin 保存 change form 之後先呼叫嘅 hook。即係如果 admin 同一次 POST 又修改 proposed data、又撳 approve，Django Admin 可能已經先保存咗 form data，然後先進入 approve service。
+
+目前 service 入面雖然使用 `transaction.atomic()` 同 `select_for_update()`，但個 row lock 主要保護 approve / reject 階段，未必保護到 admin form save proposed data 嗰一下。
+
+### 研究方向
+
+- `ModelAdmin.response_change()` 喺 Django Admin save lifecycle 入面幾時被呼叫。
+- 點樣偵測 admin 撳 approve / reject 時，form 有冇 unsaved changes。
+- 點解簡單解法可以先要求 admin save changes，再 approve / reject。
+- 如果要真正將「form validation + save + approve / reject」放入同一個 transaction / row lock，點樣 override `changeform_view()`。
+- `select_for_update()` 必須放喺 `transaction.atomic()` 裡面先有意義。
+
+### 概念整理與解答
+
+#### 1. 簡單解法：approve / reject 前擋住 unsaved changes
+
+短期比較易理解嘅做法係將 review 分成兩步：
+
+1. Admin 先修改 proposed data，撳普通 Save。
+2. Save 完確認資料正確，再撳 Approve / Reject。
+
+為咗避免純靠 admin 自覺，可以喺 approve / reject branch 入面檢查 submitted form 有冇改動。如果有改動，就停止 approve / reject，提示 admin 先 Save。
+
+概念：
+
+```python
+def response_change(self, request, obj):
+    if "_approve" in request.POST or "_reject" in request.POST:
+        form_class = self.get_form(request, obj)
+        form = form_class(request.POST, request.FILES, instance=obj)
+
+        if form.is_valid() and form.has_changed():
+            self.message_user(
+                request,
+                "Please save changes before approve/reject.",
+                messages.ERROR,
+            )
+            return redirect(
+                reverse(
+                    "admin:dictionary_vocabrequest_change",
+                    args=[obj.pk],
+                )
+            )
+
+    ...
+```
+
+重點：
+
+- 如果 admin 無改資料，只係撳 approve / reject，就照常執行 service。
+- 如果 admin 改咗資料又直接 approve / reject，就擋住佢，叫佢先 Save。
+- 呢個做法唔係完整 concurrency lock，但可以避免「同一次 POST 同時改資料同 approve」呢種容易混亂嘅情況。
+
+#### 2. 呢個簡單解法未解決咩
+
+簡單解法只係流程保護，唔係真正 database-level solution。
+
+例如兩個 admin 同時打開同一個 request：
+
+1. Admin A save proposed data。
+2. Admin B 用舊畫面 save proposed data。
+3. 後 save 嗰個可能覆蓋前一個。
+
+如果要完整處理呢類 concurrency，就要喺更早位置控制 transaction boundary。
+
+#### 3. 長遠解法：override `changeform_view()`
+
+`changeform_view()` 係 Django Admin 處理 add / change form request 嘅更外層 hook。相比 `response_change()`，佢包住更完整嘅 admin form lifecycle。
+
+長遠可以研究喺 `changeform_view()` 入面偵測 `_approve` / `_reject`，然後：
+
+1. 進入 `transaction.atomic()`。
+2. 用 `select_for_update()` 鎖住目標 `VocabRequest` row。
+3. 讓 admin form validation / save 使用被鎖住嘅 object。
+4. save proposed data。
+5. 執行 approve / reject service。
+6. commit transaction。
+
+概念方向：
+
+```python
+from django.db import transaction
+
+def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+    is_review_action = (
+        request.method == "POST"
+        and object_id is not None
+        and ("_approve" in request.POST or "_reject" in request.POST)
+    )
+
+    if not is_review_action:
+        return super().changeform_view(
+            request,
+            object_id,
+            form_url,
+            extra_context,
+        )
+
+    with transaction.atomic():
+        locked_obj = (
+            VocabRequest.objects
+            .select_for_update()
+            .get(pk=object_id)
+        )
+
+        # 之後要研究點樣令 Django Admin 使用 locked_obj
+        # 去完成原本嘅 form validation / save flow，
+        # 再喺同一個 transaction 內 approve / reject。
+
+        return super().changeform_view(
+            request,
+            object_id,
+            form_url,
+            extra_context,
+        )
+```
+
+上面只係概念骨架，唔係可以直接完成所有問題嘅最終 code。真正實作時要研究 Django Admin 內部點樣取得 object、建立 form、save model、save related objects，否則可能只係鎖咗 row，但 admin 仍然用自己重新查出嚟嘅 object。
+
+#### 4. 點解呢個比 `response_change()` 更適合長遠解法
+
+`response_change()` 適合做「save 完之後 redirect 去邊、顯示咩 message、額外做咩 action」。
+
+但如果目標係控制：
+
+- form validation
+- object save
+- approve / reject action
+- row lock
+- transaction boundary
+
+就需要喺更外層嘅 lifecycle 介入，所以 `changeform_view()` 會係更值得研究嘅 hook。
+
+#### 5. 目前建議
+
+短期：
+
+- 先喺 `response_change()` approve / reject branch 偵測 `form.has_changed()`。
+- 如果 admin 有 unsaved changes，就要求先 Save。
+- 保留目前 service 入面嘅 `transaction.atomic()` + `select_for_update()` 保護 approve / reject 階段。
+
+長期：
+
+- 研究 `changeform_view()` 同 Django Admin save lifecycle。
+- 再考慮將 form save + approve / reject 放入同一個 locked transaction。
+
+#### 6. 今次 project 實際採用嘅處理手法
+
+今次最後採用嘅做法唔係 override `changeform_view()`，而係用較簡單、較貼近現有 admin flow 嘅方式處理。
+
+核心思路：
+
+- 喺 admin approve / reject POST 時，盡早鎖住 `VocabRequest` row。
+- Service 入面仍然保留自己嘅 status check 同 row lock。
+- Request 一旦 reviewed，就唔再俾 admin 改 proposed data。
+
+##### 6.1 Admin POST 時 early lock
+
+喺 `VocabRequestAdmin.get_queryset()` 入面，只喺 approve / reject POST 時加 `select_for_update()`：
+
+```python
+def get_queryset(self, request):
+    qs = super().get_queryset(request)
+
+    if (
+        request.method == "POST"
+        and ("_approve" in request.POST or "_reject" in request.POST)
+    ):
+        qs = qs.select_for_update()
+
+    return qs
+```
+
+呢個做法嘅目的係：當 Django Admin 處理 approve / reject submit 時，取得 object 嗰刻已經鎖住 row，令 admin change form save proposed data 前先有 row lock。
+
+唔應該無條件喺所有 `get_queryset()` 都加 `select_for_update()`，因為 admin list page、GET change page 都會用 `get_queryset()`；如果唔喺 transaction 入面使用 `select_for_update()`，某啲 database / Django 設定下可能會出錯。
+
+##### 6.2 Service 仍然保留 self-lock
+
+雖然 admin 已經 early lock，但 `VocabRequestService.approve_vocab_request()` / `reject_vocab_request()` 仍然保留：
+
+```python
+locked_request = (
+    VocabRequest.objects
+    .select_for_update()
+    .get(pk=vocab_request.pk)
+)
+```
+
+原因：
+
+- Admin layer 只係其中一個 caller。
+- 日後可能有 management command、API、tests 或其他 view 直接 call service。
+- Service 自己保留 lock，可以作為 domain logic 最後防線。
+- 同一個 transaction 入面再次 lock 同一 row 通常唔係問題，反而令 service contract 更安全。
+
+##### 6.3 Reviewed request 變 readonly
+
+如果 request 已經唔係 `PENDING`，admin change form 會將欄位變 readonly：
+
+```python
+def get_readonly_fields(self, request, obj=None):
+    readonly_fields = list(super().get_readonly_fields(request, obj))
+
+    if obj is not None and obj.status != VocabRequestStatus.PENDING:
+        return [field.name for field in self.model._meta.fields]
+
+    return readonly_fields
+```
+
+目的：
+
+- Approved / rejected request 可以入去睇。
+- 但唔應該再修改 proposed data、status、reviewer 等 review record。
+- 減少舊頁面 submit 覆蓋 reviewed record 嘅風險。
+
+##### 6.4 `save_model()` 做最後防線
+
+Readonly 主要係 admin form / UI 層防護。為咗更保險，`save_model()` 再擋住非 pending request 被保存：
+
+```python
+def save_model(self, request, obj, form, change):
+    if change and obj.status != VocabRequestStatus.PENDING:
+        self.message_user(
+            request,
+            "Reviewed request cannot be changed",
+            messages.ERROR,
+        )
+        return
+
+    super().save_model(request, obj, form, change)
+```
+
+重點係：如果 override `save_model()`，最後一定要喺允許保存嘅情況 call：
+
+```python
+super().save_model(request, obj, form, change)
+```
+
+否則 pending request 都會變成無法保存。
+
+##### 6.5 呢個做法解決咗咩
+
+今次做法主要處理：
+
+- Admin approve / reject POST 時，form save 前盡早 lock row。
+- Service approve / reject 階段仍然有 transaction + row lock + pending status check。
+- Reviewed request 唔再俾 admin 修改，避免舊頁面或第二個 admin 覆蓋已 review record。
+
+##### 6.6 仲有咩要之後驗證
+
+呢個做法比純粹喺 `response_change()` 做 service call 穩陣好多，但之後仍然值得用 tests 驗證：
+
+- 兩個 admin 同時打開同一個 pending request。
+- Admin A approve 後，Admin B 用舊頁面 submit。
+- Admin A / B 幾乎同時 approve。
+- Reviewed request 是否確實無法再 save proposed data。
+
+如果之後發現 admin lifecycle 仍然有更深層嘅 race condition，再研究 override `changeform_view()` 或獨立 custom admin view。
+
+### 理解內容
+
+-
+
 ## [ ] `[DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC]` 點解要喺 `transaction.atomic()` 外面捕捉 `IntegrityError`
 
 ### 問題背景

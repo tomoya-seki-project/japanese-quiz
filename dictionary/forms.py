@@ -25,7 +25,7 @@ class BaseVocabRequestForm(forms.Form):
     kana = forms.CharField(max_length=255, label='Kana')
     level = forms.ChoiceField(choices=VocabLevel.choices)
     category = forms.ChoiceField(choices=VocabCategory.choices)
-    similar_word = forms.CharField(max_length=255, required=False)
+    #similar_word = forms.CharField(max_length=255, required=False)
 
     #--- kanji detail table ---#
     #nothing special right now
@@ -34,6 +34,12 @@ class BaseVocabRequestForm(forms.Form):
     native_japanese = forms.CharField(max_length=255, required=False)
 
 class VocabCreateRequestForm(BaseVocabRequestForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["meaning"].required = False
+        self.fields["level"].required = False
+        self.fields["category"].required = False
+    
     def clean(self):
         cleaned_data = super().clean()
         word = cleaned_data.get('word')

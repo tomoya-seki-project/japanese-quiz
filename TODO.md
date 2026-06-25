@@ -3,98 +3,105 @@
 呢份 TODO 主要記低之後要補嘅位，同埋已經處理咗嘅 decision。  
 寫法會盡量用廣東話 + English technical terms，方便自己返嚟睇嗰陣快啲入腦。
 
+## 目錄
+
+- [已 Check 到嘅問題 / Fix Tracking](#已-check-到嘅問題--fix-tracking)
+- [Vocab Future Work](#vocab-future-work)
+- [Data Import / Export / Database Migration](#data-import--export--database-migration)
+- [User Message to Admin](#user-message-to-admin)
+- [Quiz Question Logic](#quiz-question-logic)
+- [Event Notification System](#event-notification-system)
+- [General Improvements](#general-improvements)
+- [VocabRequest Result / UserVocab Flow](#vocabrequest-result--uservocab-flow)
+- [Account Email Activation](#account-email-activation)
+- [UI / UX](#ui--ux)
+
 ## 已 Check 到嘅問題 / Fix Tracking
 
 呢部分係之前檢查 project 時搵到嘅問題，同埋相關 fix progress。
 
 - `[ ]`：仲係待 fix / 待決定。
 - `[x]`：已經 fix 或已有明確 decision。
+- 必要 fix 用 `第 X 點` 編號追蹤。
+- 改善項目用 `改善 A`、`改善 B`...，去到 `改善 Z` 之後用 `改善 AA`、`改善 AB`...。
+- 新功能／之後想做嘅功能保持按 category 分類，唔納入 fix / 改善編號。
 
-### VocabRequest / Admin Review Flow
-
-- [x] **第 1 點：真正實作 approve / reject request 嘅處理 flow。**
+- [x] **第 1 點（VocabRequest / Admin Review）：真正實作 approve / reject request 嘅處理 flow。**
   - Approve 已按 CREATE / UPDATE / RESTORE / DELETE request type 呼叫對應 vocab action。
   - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
   - Admin 會根據 service 回傳結果顯示成功或已處理 warning。
 
-- [x] **第 2 點：Admin 入面嘅 approve / reject action 由 GET link 改做 POST。**
+- [x] **第 2 點（VocabRequest / Admin Review）：Admin 入面嘅 approve / reject action 由 GET link 改做 POST。**
   - 避免誤 click、refresh page 時重複執行，或者連續 click 造成重複處理。
   - 當 request 已經唔係 `PENDING` 狀態，就唔可以再處理多次。
 
-- [ ] **第 3 點：幫 admin custom approve / reject view 加 permission check。**
-  - 等學清楚 Django admin permission flow 之後再補。
-  - 要 check reviewer 係咪有 permission 去 change `VocabRequest`。
+- [ ] **第 3 點（VocabRequest / Admin Review）：確認 admin approve / reject flow 嘅 permission boundary。**
+  - 目前 approve / reject 已改為喺 admin change form 入面經 `response_change()` 處理，而唔係獨立 custom URL。
+  - 正常入到 admin change page 已經會受 Django admin permission 控制。
+  - 之後要再確認呢個 permission boundary 是否足夠，定係需要喺 approve / reject branch 入面額外 call `has_change_permission()`。
 
-- [x] **第 4 點：將 `VocabUpdateRequestForm` 入面嘅 `vocab_type` set 做 readonly。**
+- [x] **第 4 點（VocabRequest Form）：將 `VocabUpdateRequestForm` 入面嘅 `vocab_type` set 做 readonly。**
   - 避免 user 喺 update vocab request 期間改咗 vocab type，令 detail model 關係變亂。
 
-- [x] **第 9 點：Admin 入面由 workflow 控制嘅 fields 要 set 做 readonly。**
-  - 例如：`status`、`request_type`、`reviewed_by`，同埋適合 readonly 嘅 proposed data。
-  - 狀態變更應該經 approve / reject service 處理，唔應該喺 admin form 直接亂改。
-
-- [x] **第 5A 點：建立 `VocabRequest` 嘅操作要有 transaction atomic。**
+- [x] **第 5 點（VocabRequest Transaction）：建立 `VocabRequest` 嘅操作要有 transaction atomic。**
   - 避免 create request 中途 exception、server stop，或者其中一部分 save 咗但另一部分冇 save。
   - 目前 create / update / restore / delete request creation 已經用咗 `transaction.atomic()`。
 
-- [x] **第 5B 點：approve / reject review flow 都要有 transaction atomic。**
+- [x] **第 6 點（VocabRequest / Admin Review）：approve / reject review flow 都要有 transaction atomic。**
   - Approve / reject 已使用 `transaction.atomic()`、`select_for_update()` 同 `PENDING` status check。
   - Review 時更新 `VocabRequest` 同執行 vocab action 會放喺同一個 transaction 入面。
 
-- [x] **第 7 點：防止同時建立多筆 duplicate pending request。**
+- [x] **第 7 點（VocabRequest Duplicate Check）：防止同時建立多筆 duplicate pending request。**
   - Service 會先檢查有冇 pending request，提供較清楚嘅正常 flow feedback。
   - Database 已加入 conditional unique constraints，防止 concurrent requests 同時通過 application check。
 
-- [x] **第 11 點：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
-  - CREATE / UPDATE Katakana request 喺 approve 時必須有 `proposed_native_japanese`。
-
-- [ ] **處理建立 `VocabRequest` 時 service 拋出嘅 `ValidationError`。**
+- [ ] **第 8 點（VocabRequest View Error Handling）：處理建立 `VocabRequest` 時 service 拋出嘅 `ValidationError`。**
   - Create / update / restore / delete request 遇到 concurrent duplicate 時，service 會將 `IntegrityError` 轉成 `ValidationError`。
   - 目前相關 views 未捕捉呢個 exception，極端情況會直接回傳 server error。
   - View 應將錯誤轉成 form error 或 user message，而唔係令 exception 穿出 request flow。
 
-- [ ] **擴大 admin review concurrency protection 範圍。**
-  - `response_change()` 執行 approve / reject service 前，Django Admin 已經先保存咗 change form data。
-  - Service 入面嘅 `select_for_update()` 只鎖住之後嘅 approve / reject action，未保護前面嗰次 admin form save。
-  - 要研究點樣令「保存 review data + 執行 approve / reject」處於同一個 transaction／row lock 範圍，避免兩個 admin 同時 review 時互相覆蓋 proposed data。
+- [x] **第 9 點（VocabRequest / Admin Review）：擴大 admin review concurrency protection 範圍。**
+  - `VocabRequestAdmin.get_queryset()` 會喺 approve / reject POST 時使用 `select_for_update()`，令 admin change form save 前先鎖住目標 request row。
+  - `VocabRequestService.approve_vocab_request()` / `reject_vocab_request()` 仍保留 service-level `select_for_update()`，避免日後其他 caller 繞過 admin protection。
+  - Reviewed request 會經 `get_readonly_fields()` 設為 readonly，並由 `save_model()` 擋住非 pending request 被再次保存。
+  - 之後可以再用 tests 驗證兩個 admin 同時 review 同舊頁面 submit 嘅情況。
 
-- [ ] **統一 request form required fields 同 submission 設計。**
+- [x] **第 10 點（VocabRequest / Admin Review）：Admin 入面由 workflow 控制嘅 fields 要 set 做 readonly。**
+  - 例如：`status`、`request_type`、`reviewed_by`，同埋適合 readonly 嘅 proposed data。
+  - 狀態變更應該經 approve / reject service 處理，唔應該喺 admin form 直接亂改。
+
+- [x] **第 11 點（VocabRequest Form）：統一 request form required fields 同 submission 設計。**
   - TODO 原本決定 user submit CREATE request 時可以將 `meaning`、`level`、`category` 留空，由 admin review 時補返。
-  - 目前 `BaseVocabRequestForm` 仍將以上 fields 設為 required，實際上 user 無法留空提交。
-  - 要決定保留 required form，定係按照原設計放寬 form，再只喺 approve 階段執行完整 validation。
+  - `VocabCreateRequestForm` 已將 `meaning`、`level`、`category` 設為 optional。
+  - Approve 前會再經 `validate_for_approval()` 檢查最終 proposed data 是否足夠。
+  - `VocabUpdateRequestForm` 仍保留較嚴格 required fields，因為 update form 會由原本 vocab data 提供 initial value。
 
-### Vocab
+- [x] **第 12 點（VocabRequest Validation）：決定唔同 vocab type 專屬 fields 嘅 validation rule。**
+  - CREATE / UPDATE Katakana request 喺 approve 時必須有 `proposed_native_japanese`。
 
-- [x] **第 8 點：公開 vocab list 只 show active vocab。**
+- [x] **第 13 點（Vocab List）：公開 vocab list 只 show active vocab。**
   - 喺適合位置加 `is_active=True` filter。
 
-- [ ] **將 vocab category 改成最多可以選擇三個 category。**
-  - 目前 `Vocab.category` 係單一 `CharField`，只可以保存一個 category。
-  - 之後改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
-  - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
-  - CSV import 暫定使用 `category1`、`category2`、`category3` 欄位；空白 category 欄位要安全跳過，亦要檢查每個值是否合法。
-  - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
-
-- [x] **第 4 點補充：決定改 vocab type 時，validation 同 related detail 要點處理。**
+- [x] **第 14 點（Vocab Type）：決定改 vocab type 時，validation 同 related detail 要點處理。**
   - 目前決定：喺 `VocabUpdateRequestForm` 將 vocab type set 做 readonly。
 
-- [x] **第 10 點：保留 `VocabRequest.original_vocab` 目前嘅 `CASCADE` 行為。**
+- [x] **第 15 點（VocabRequest Model）：保留 `VocabRequest.original_vocab` 目前嘅 `CASCADE` 行為。**
   - 正常 delete vocab 嘅方式係 soft delete / disable，而唔係 database 入面永久 delete。
   - 如果 vocab 真係被永久 delete，目前接受相關 review record 一齊消失。
 
-- [ ] **確保 `Vocab.type` 同對應 detail model 保持一致。**
+- [x] **第 16 點（Vocab Model Integrity）：確保 `Vocab.type` 同對應 detail model 保持一致。**
   - `vocab` type 應該有 `VocabDetail`；`katakana` type 應該有 `KatakanaDetail`。
-  - 目前 service create flow 會建立 detail，但 Django Admin 仍可以直接建立／修改 `Vocab`，造成 type 同 detail 缺失或不一致。
-  - 要決定限制 admin direct edit、加入 model/admin validation，定係統一要求所有 mutation 經 service。
-  - 讀取 `katakana_detail` 等 reverse relation 前亦要考慮異常舊資料，避免直接出現 `RelatedObjectDoesNotExist`。
+  - 正式 create vocab path 交由 `VocabActionService` 處理，確保 create 主表時同時建立對應 detail model。
+  - `VocabAdmin.has_add_permission()` 已禁止 admin 直接新增 vocab，避免繞過 service create flow。
+  - `VocabAdmin.readonly_fields` 已將 `type` 設為 readonly，避免 admin 直接改 existing vocab type 造成 type/detail mismatch。
+  - 舊資料或 future bypass service 嘅情況仍要靠之後 data audit / tests 留意。
 
-- [ ] **清理已移除嘅 `similar_word` form 設計。**
+- [x] **第 17 點（VocabRequest Form）：清理已移除嘅 `similar_word` form 設計。**
   - `Vocab.similar_word` 已經移除，但 `BaseVocabRequestForm` 仲保留 `similar_word` input。
-  - 目前提交值唔會保存入 request 或 vocab，會令 user 以為輸入有效但實際被忽略。
-  - 要決定正式移除個 field，定係將 similar word 功能重新設計後再接返。
+  - `BaseVocabRequestForm` 入面嘅 `similar_word` field 已停用。
+  - Vocab request creation / update flow 入面 related save code 亦已停用，避免 user 以為提交咗但實際被忽略。
 
-### Account Admin
-
-- [x] **第 6 點：檢查 custom User Admin 寫法。**
+- [x] **第 18 點（Account Admin）：檢查 custom User Admin 寫法。**
   - `CustomizedUserAdmin` 已繼承 Django standard `UserAdmin`。
   - Add form 會用 `set_password()`，change form 會用 readonly password hash field。
   - 相關原理同之後想深入研究的問題記錄喺 `LEARNING_QUESTIONS.md`。
@@ -103,18 +110,23 @@
     - Public registration 建立 `is_active=False` 的 user，等待 email activation。
     - Admin 建立 user 時可以直接設定 `is_active=True`。
 
-- [x] **移除 login flow 入面冇實際作用嘅 `user.save()`。**
+- [x] **第 19 點（Account Login）：移除 login flow 入面冇實際作用嘅 `user.save()`。**
   - Django `LoginView` 已經會透過 authentication flow 更新 `last_login`。
   - 已移除 login 成功後無欄位改動嘅額外 `user.save()`，避免多餘 database write。
 
-## Data Import / Export / Database Migration
+- [ ] **第 20 點（UserVocab Flow）：穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
+  - 選擇頁每次 request 都重新計算最新 50 個 user 未擁有嘅 vocab。
+  - 如果 GET 顯示後候選資料有變，原本畫面上嘅 vocab 可能喺 POST validation 時跌出允許 queryset，變成 invalid choice。
+  - 要決定使用固定 batch/token、保留候選 IDs，定係接受變動後提示 user 重新選擇。
 
-- [ ] **完善由 CSV import vocab list 嘅 management command。**
-  - 預計用法：`python manage.py import_vocab list.csv`。
-  - 已加入 CSV path、superuser authentication、header validation、row-level validation 同 `VocabActionService` creation flow。
-  - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
-  - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
-  - 完成後要 show imported / skipped / failed rows summary，同時保留每個 failed row 嘅行數及錯誤原因。
+## Vocab Future Work
+
+- [ ] **實作 `Vocab.word_slug` 嘅產生同同步規則。**
+  - 目前 `word_slug` 暫時容許 `blank=True, null=True`，create / update vocab 時未處理 slug。
+  - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
+  - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
+
+## Data Import / Export / Database Migration
 
 - [ ] **實作 whole database export command，方便 backup 同日後轉 DB。**
   - 暫定 command name：`python manage.py export_whole <output_folder>`。
@@ -232,28 +244,33 @@
 - [ ] **改善 E：** 加 `requirements.txt` 或 `pyproject.toml`，正式記低 project dependencies。
 - [ ] **改善 F：** 正式 deploy 前，將 `SECRET_KEY`、`DEBUG` 等 settings 搬去 environment variables。
 - [ ] **改善 G：** 清理 `git diff --check` 報告嘅 trailing whitespace。
-- [ ] **改善 H：** 實作 `Vocab.word_slug` 嘅產生同同步規則。
-  - 目前 `word_slug` 暫時容許 `blank=True, null=True`，create / update vocab 時未處理 slug。
-  - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
-  - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
 
-- [x] **改善 I：** Approve request 時驗證 review 後嘅最終 proposed data 是否足夠。
+- [x] **改善 H：** Approve request 時驗證 review 後嘅最終 proposed data 是否足夠。
   - User submit CREATE request 時，容許 `meaning`、`level`、`category` 等 proposed fields 留空，由 admin review 時補返或修改。
   - UPDATE request 會由原本 vocab 放 initial data；如果原本資料係空，admin review 時同樣可以補返。
   - Nullable proposed fields 係 request submission / review workflow 嘅設計，唔代表 user submit 時必須填齊。
   - 只係 admin 撳 Approve 嗰刻，先要驗證最終 proposed data 能否安全寫入 `Vocab` 同相關 detail model。
   - 資料仍然不足時，應留喺 review page 顯示清楚錯誤，唔執行 vocab action，亦唔將 request 標成 approved。
 
-- [ ] **改善 J：** Approve UPDATE / RESTORE / DELETE request 前驗證 `original_vocab`。
+- [ ] **改善 I：** Approve UPDATE / RESTORE / DELETE request 前驗證 `original_vocab`。
   - 呢三種 request 都依賴 `original_vocab` 作為目標。
   - 如果 `original_vocab` 係 `None`、已被刪除，或者資料狀態唔符合 request type，應停止處理並回傳清楚 error result。
 
-## VocabRequest Result / UserVocab Flow
+- [ ] **改善 J：** 將 vocab category 改成最多可以選擇三個 category。
+  - 目前 `Vocab.category` 係單一 `CharField`，只可以保存一個 category。
+  - 之後改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
+  - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
+  - CSV import 暫定使用 `category1`、`category2`、`category3` 欄位；空白 category 欄位要安全跳過，亦要檢查每個值是否合法。
+  - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
 
-- [ ] **穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
-  - 選擇頁每次 request 都重新計算最新 50 個 user 未擁有嘅 vocab。
-  - 如果 GET 顯示後候選資料有變，原本畫面上嘅 vocab 可能喺 POST validation 時跌出允許 queryset，變成 invalid choice。
-  - 要決定使用固定 batch/token、保留候選 IDs，定係接受變動後提示 user 重新選擇。
+- [ ] **改善 K：** 完善由 CSV import vocab list 嘅 management command。
+  - 預計用法：`python manage.py import_vocab list.csv`。
+  - 已加入 CSV path、superuser authentication、header validation、row-level validation 同 `VocabActionService` creation flow。
+  - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
+  - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
+  - 完成後要 show imported / skipped / failed rows summary，同時保留每個 failed row 嘅行數及錯誤原因。
+
+## VocabRequest Result / UserVocab Flow
 
 - [ ] **Approve / reject request 後建立 user event。**
   - Vocab request review 完成後，唔會即時寄 email。

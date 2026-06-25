@@ -397,3 +397,32 @@ Commit: `567adc4`
 ### 理由
 
 ### 學到咩
+
+## 2026-06-23 - UserVocab selection foundation and service naming cleanup
+
+Commit: `595ad0b`
+
+### 主要改動
+
+- 建立 `UserVocabService`，集中處理候選 vocab 查詢同建立 user-vocab relationship。
+- 加入 `UserVocabSelectForm` 同 selection view，開始建立 user 從候選 vocab 批量加入個人清單嘅流程。
+- 候選查詢會排除 user 已經擁有嘅 vocab，並限制每批最多 50 筆。
+- 使用 `get_or_create()` 建立 `UserVocab`，令重複提交唔會建立 duplicate relationship。
+- 將 vocab action、request 同 UserVocab service methods 統一由 camelCase 改成 Python 慣用嘅 snake_case。
+- `update_vocab()` 保存前加入 `full_clean()`，令 model validation 同 unique constraint 問題可以喺寫入前被發現。
+- Admin 將 `VocabRequest.original_vocab` 設為 readonly，避免 review 時改變 request 真正操作嘅目標。
+- 移除 login flow 入面冇實際資料改動嘅額外 `user.save()`。
+
+### Database 改動
+
+- 無 schema 變更。
+- 沿用 `UserVocab` 現有 `(user, vocab)` unique constraint，配合 `get_or_create()` 保持建立流程 idempotent。
+
+### 技術重點
+
+- 先限制候選 vocab IDs，再用 `id__in` 建立未 sliced QuerySet，避免 `ModelMultipleChoiceField` POST validation 無法再次 filter sliced QuerySet。
+- Service method naming 統一使用 snake_case，並同步更新所有 call sites。
+
+### 理由
+
+### 學到咩

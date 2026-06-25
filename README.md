@@ -6,7 +6,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。部分頁面同 data flow 已經建立，但 quiz、request approval、notification、CSV import/export 等功能仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import 同部分 `UserVocab` data flow 已經建立，但 quiz、notification、完整 import/export 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -31,14 +31,19 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - 可以為現有 vocab 建立 update、delete 或 restore request。
 - 使用 database constraints 防止 duplicate pending requests。
 - Request creation flow 使用 `transaction.atomic()`。
-- Django Admin 已經有 custom approve / reject UI。
+- Django Admin 已經有 approve / reject UI，經 POST request 處理。
+- Approve 會按 request type 執行 create、update、restore 或 deactivate vocab。
+- Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
+- Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
-> **未完善：** `approve_vocab_request()` 同 `reject_vocab_request()` 目前仍然係 placeholder，未有真正更新 vocab/request data。
+> **未完善：** 建立 request 時嘅極端 duplicate race condition 仍要喺 view layer 捕捉 `ValidationError`，admin review concurrency boundary 亦仲有待再收緊。
 
 ### Admin
 
 - 管理 `Vocab`、`UserVocab` 同 `VocabRequest`。
 - VocabRequest admin page 有 custom approve / reject buttons。
+- Vocab admin 禁止直接新增 vocab，正式 creation path 會經 `VocabActionService`。
+- Vocab type 喺 admin change form 入面設為 readonly，避免 type/detail mismatch。
 - 可以查看 user learning stats，例如 weight、correct count、incorrect count 同 streak。
 
 ## Planned Features
@@ -192,21 +197,39 @@ python manage.py runserver
 
 ## Management Commands
 
-以下 commands 已經有 file structure，但 implementation 尚未完成：
+### Import Vocab
+
+`import_vocab` 已開始實作，用嚟俾 admin 由 CSV 匯入 vocab：
 
 ```bash
-python manage.py import_vocab
-python manage.py export_vocab_to_csv
+python manage.py import_vocab list.csv
 ```
 
-目前兩個 commands 只會輸出 `success`，未會讀取或寫出 CSV。
+目前 command 會：
+
+- 要求輸入 admin email / password。
+- 只容許 superuser 執行。
+- 檢查必要 CSV headers。
+- 逐行呼叫 `VocabActionService.create_vocab()` 建立 vocab 同對應 detail model。
+- row-level validation / integrity error 會輸出錯誤並繼續處理下一行。
+
+預期 CSV headers：
+
+```bash
+word,kana,meaning,type,level,category1,category2,category3,native_japanese
+```
+
+> **未完善：** 目前只實際使用 `category1`；`category2` / `category3` 係之後支援多 category 時預留。Command 仍未輸出 imported / skipped / failed summary。
+
+### Export / Restore
 
 計劃中嘅 command interface：
 
 ```bash
-python manage.py import_vocab list.csv
 python manage.py export_whole <output_folder>
 ```
+
+`export_vocab_to_csv` 目前只係 placeholder；完整 database export / restore flow 尚未實作。
 
 ## Testing
 
@@ -232,10 +255,10 @@ python manage.py test
 ## Current Limitations
 
 - Quiz app 暫時只係 placeholder。
-- VocabRequest approve/reject 未真正實作。
+- VocabRequest approve/reject 已有基本 service flow，但 view-level `ValidationError` handling 同 admin review concurrency boundary 仍要完善。
 - Event notification system 未建立。
 - User-to-admin message flow 未建立。
-- CSV import/export commands 未實作。
+- CSV import 已有初步 admin-only command；summary、多 category 同完整 export / restore 尚未完成。
 - Requirements file 未建立。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。
