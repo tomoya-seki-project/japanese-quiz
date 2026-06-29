@@ -501,3 +501,39 @@ Status: Work in progress
 - 一個頁面可以同時有 GET search form 同 POST bulk update form；ListView 亦可以加 `post()` 處理批量狀態更新。
 - `ModelMultipleChoiceField` 除咗 render checkbox，亦可以作為 submitted ids 嘅 validation layer。
 - 舊 flow 即使暫時不用，只要整理成 learning note，就可以保留成之後 project 可重用嘅 pattern。
+
+## 2026-06-29 - Dictionary normal flow stabilization and pre-test checkpoint
+
+Status: Ready for manual flow testing
+
+### 主要改動
+
+- Register flow 亦加入 `UserVocabService.sync_new_vocab()`，令新 user 建立後即時獲得現有 vocab 嘅 `UserVocab` records。
+- `UserVocabListView` 同 template 已形成較完整嘅 in-use management flow：user 可以透過 list checkbox 批量啟用或停用個人 vocab。
+- `UserVocab` 新字派發設計由手動選字，調整成 login / register sync 後預設加入個人 list，再由 user 決定是否 `in_use=True`。
+- `import_vocab` management command 加入 import summary，會記錄成功筆數、失敗筆數、failed row number 同錯誤原因。
+- 開始為之後 logging / audit trail 預留資料形態，import command 已整理出可重用嘅 `success_count`、`failed_rows`、`row_number` 同 `error_message`。
+- Dictionary 相關正常流程已接近可實際試用，下一步會以真實操作方式跑一次完整 flow，確認行為是否符合預期。
+
+### Database 改動
+
+- 無新增 schema 變更。
+- 目前沿用 `Vocab`、`VocabRequest`、`UserVocab(in_use)`、detail tables 同 existing unique constraints 支撐 dictionary normal flow。
+
+### 技術重點
+
+- Register 後 sync 應使用 `self.object`，因為 `CreateView` save 完 user 後不代表 request 已經自動 login。
+- Import command 嘅 row-level error handling 可以先整理成 structured data，再決定輸出到 terminal、log file、database import history 或 event system。
+- Dictionary flow 由單純 CRUD 逐步變成完整 workflow：user request、admin review、vocab action、UserVocab 派發、user activation 同 import support。
+- 實際 manual testing 會成為下一個重要 checkpoint，用嚟驗證目前設計唔只係 code path 成立，而係使用起來符合原本想像。
+
+### 理由
+
+- Dictionary module 已經包含多個互相連動嘅核心流程，繼續加新功能前需要先實際跑一次，確認正常使用場景、error handling 同 user/admin 分工都合理。
+- 先完成可運作嘅 normal flow，再進入 quiz、event notification、logging 等後續功能，可以減少後面建喺不穩基礎上嘅風險。
+
+### 學到咩
+
+- 一個看似簡單嘅 dictionary，其實一旦加入 user-specific state、admin review、import、concurrency 同 data integrity，就會變成完整 domain workflow。
+- 開發到一個階段後，manual flow testing 同 code review 一樣重要；前者驗證「用起來係咪啱」，後者驗證「寫法同責任分工係咪清楚」。
+- 文檔唔只係記錄已完成事項，亦可以幫自己標示 project 由「功能建設」進入「實際驗證」嘅節點。

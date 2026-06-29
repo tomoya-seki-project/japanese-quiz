@@ -30,6 +30,11 @@ class RegistUserView(CreateView):
     template_name = 'accounts/user_regist.html'
     form_class = RegistForm
     success_url = reverse_lazy('accounts:user_home')
+    
+    def form_valid(self, form):
+        result = super().form_valid(form)
+        UserVocabService.sync_new_vocab(user=self.object)
+        return result
 
 class UserLoginView(LoginView):
     template_name = 'accounts/user_login.html'
@@ -39,9 +44,8 @@ class UserLoginView(LoginView):
     def form_valid(self, form):
         result = super().form_valid(form)
         remember = form.cleaned_data['remember_me']
-        user = self.request.user
 
-        UserVocabService.sync_new_vocab(user=user)
+        UserVocabService.sync_new_vocab(user=self.request.user)
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:

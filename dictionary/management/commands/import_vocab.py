@@ -45,6 +45,8 @@ class Command(BaseCommand):
         try:
             with open(csv_file, encoding="utf-8") as file:
                 reader = csv.DictReader(file)
+                success_count = 0
+                failed_rows = []
 
                 required_headers = {
                     "word",
@@ -80,7 +82,16 @@ class Command(BaseCommand):
                             },
                             approved_by=user
                         )
+                        success_count += 1
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"Row {row_number}: imported {data['word']}:{data['kana']}"
+                            )
+                        )
                     except IntegrityError as e:
+                        failed_rows.append(
+                            (row_number, "database integrity error")
+                        )
                         self.stderr.write(
                             self.style.ERROR(
                                 f"Row {row_number}: database integrity error"
@@ -88,11 +99,25 @@ class Command(BaseCommand):
                         )
                         continue
                     except ValidationError as e:
+                        error_message = "; ".join(e.messages)
+                        failed_rows.append(
+                            (row_number, error_message)
+                        )
                         self.stderr.write(
                             self.style.ERROR(
-                                f"Row {row_number}: {'; '.join(e.messages)}"
+                                f"Row {row_number}: {error_message}"
                             )
                         )
                         continue
+
+                self.stdout.write("")
+                self.stdout.write(self.style.SUCCESS(f"Imported rows: {success_count}"))
+                self.stdout.write(self.style.WARNING(f"Failed rows: {len(failed_rows)}"))
+                for row_number, error_message in failed_rows:
+                    self.stderr.write(
+                        self.style.ERROR(
+                            f"Failed row {row_number}: {error_message}"
+                        )
+                    )
         except FileNotFoundError as e:
             raise CommandError(f"CSV file not found: {csv_file}")

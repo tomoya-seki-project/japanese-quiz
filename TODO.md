@@ -11,6 +11,7 @@
 - [User Message to Admin](#user-message-to-admin)
 - [Quiz Question Logic](#quiz-question-logic)
 - [Event Notification System](#event-notification-system)
+- [Logging / Audit Trail](#logging--audit-trail)
 - [General Improvements](#general-improvements)
 - [VocabRequest Result / UserVocab Flow](#vocabrequest-result--uservocab-flow)
 - [Account Email Activation](#account-email-activation)
@@ -149,9 +150,10 @@
     - 已經經 `VocabActionService` creation flow 建立 vocab。
     - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
     - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
+    - 完成後會 show imported / failed rows count。
+    - 已保留每個 failed row 嘅行數及錯誤原因。
   - 未完成：
-    - 完成後要 show imported / skipped / failed rows count。
-    - 要保留每個 failed row 嘅行數及錯誤原因。
+    - 如之後需要更細分，可以再加 skipped rows count。
     - 之後可以再考慮輸出 summary log file，方便大量 import 後 review。
 
 - [ ] **實作 whole database export command，方便 backup 同日後轉 DB。**
@@ -269,6 +271,15 @@
   - User 可以 mark as read、mark all as read，同查看之前嘅 notification history。
   - Vocab request result 唔會經 email notification，會統一經 site 入面嘅 event system 處理。
 
+## Logging / Audit Trail
+
+- [ ] **為 CSV vocab import command 加正式 log / import report。**
+  - 目前 `import_vocab` 已開始整理 import 結果資料，例如 `success_count`、`failed_rows`、`row_number` 同 `error_message`。
+  - 之後可以基於呢批 structured data 輸出正式 log，而唔只係即時 print terminal message。
+  - Log 應記低 import file、執行 admin、執行時間、成功筆數、失敗筆數、每個 failed row 嘅 row number 同錯誤原因。
+  - 可以先做成 terminal summary + log file，之後再考慮 database import history model。
+  - 如果 user message / admin inbox 之後會觸發 CSV import，可以用 import report 回寫處理結果，再經 event system 通知相關 user。
+
 ## General Improvements
 
 - [x] **改善 A：** 幫 `Vocab`、`VocabRequest` 等 model 加 `__str__()`，admin 同 debug 時會易睇好多。
@@ -310,9 +321,10 @@
     - `UserVocabListView` 已可以按 `in_use=True / False` filter。
     - 新 `UserVocab` relationship 可先建立，但未必即時加入 quiz pool。
     - Login 成功後會呼叫 `UserVocabService.sync_new_vocab()`，自動為 user 建立未擁有 vocab 嘅 `UserVocab` records。
-    - `UserVocabListView` 已開始加入 POST bulk update flow，用 `selectable_ids` / `selected_ids` 更新當前顯示項目嘅 `in_use` 狀態。
+    - Register 成功後亦會呼叫 `UserVocabService.sync_new_vocab()`，為新 user 建立現有 vocab 嘅 `UserVocab` records。
+    - `UserVocabListView` 已加入 POST bulk update flow，用 `selectable_ids` / `selected_ids` 更新當前顯示項目嘅 `in_use` 狀態。
+    - UserVocab list template 已加入 checkbox UI，提交 `selectable_ids` 同 `selected_ids`。
   - 未完成：
-    - UserVocab list template 要加入 checkbox UI，提交 `selectable_ids` 同 `selected_ids`。
     - Bulk update flow 要同 pagination / filter query string 實際測試。
     - Quiz question pool 要只使用 `in_use=True` 嘅 `UserVocab`。
     - EventNotice system 要通知 user 有新字已加入個人 list，但仍未啟用。
