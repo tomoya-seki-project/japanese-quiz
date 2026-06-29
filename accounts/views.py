@@ -21,6 +21,8 @@ from .forms import (
     UserLoginForm,
 )
 
+from dictionary.service.user_vocab_action import UserVocabService
+
 class HomeView(TemplateView):
     template_name = 'accounts/user_home.html'
 
@@ -39,6 +41,7 @@ class UserLoginView(LoginView):
         remember = form.cleaned_data['remember_me']
         user = self.request.user
 
+        UserVocabService.sync_new_vocab(user=user)
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:

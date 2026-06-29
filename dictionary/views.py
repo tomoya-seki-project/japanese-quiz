@@ -1,6 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 
+from django.utils import timezone
+
+from django.core.exceptions import ValidationError
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -13,12 +17,17 @@ from django.views.generic import (
     ListView,
 )
 
+
+
 from .forms import (
     VocabCreateRequestForm,
     VocabUpdateRequestForm,
     VocabDeleteRequestForm,
     VocabSearchForm,
+    UserVocabSearchForm,
     UserVocabSelectForm,
+    UserVocabInUseUpdateForm,
+    UserVocabInUse,
 )
 from .models import (
     VocabType,
@@ -50,20 +59,28 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
         self.has_restore_vocab = False
         if hasattr(form, "deactived_vocab"):
             self.has_restore_vocab = True
-            created = VocabRequestService.gen_restore_vocab_request(
-                user=self.request.user,
-                vocab=form.deactived_vocab,
-            )
+            try:
+                created = VocabRequestService.gen_restore_vocab_request(
+                    user=self.request.user,
+                    vocab=form.deactived_vocab,
+                )
+            except ValidationError as e:
+                form.add_error(None, e)
+                return self.form_invalid(form)
             if created:
                 messages.success(self.request, "There was the same word on the list, passed to admin to review")
             else:
                 messages.info(self.request, "There was the same word on the list and We got the review request already, waiting for admin review")
             return redirect(self.get_success_url())
         else:
-            created = VocabRequestService.gen_create_vocab_request(
-                user=self.request.user,
-                form=form,
-            )
+            try:
+                created = VocabRequestService.gen_create_vocab_request(
+                    user=self.request.user,
+                    form=form,
+                )
+            except ValidationError as e:
+                form.add_error(None, e)
+                return self.form_invalid(form)
             if created:
                 messages.success(self.request, "Created New Word request to admin, waiting for confirm")
             else:
@@ -116,10 +133,14 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
         return initial_data
     
     def form_valid(self, form):
-        VocabRequestService.gen_update_vocab_request(
-            user=self.request.user,
-            form=form
-        )
+        try:
+            VocabRequestService.gen_update_vocab_request(
+                user=self.request.user,
+                form=form
+            )
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
         return super().form_valid(form)
 
 class VocabDeleteRequestView(LoginRequiredMixin, FormView):
@@ -142,10 +163,14 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         return context
     
     def form_valid(self, form):
-        VocabRequestService.gen_delete_vocab_request(
-            user=self.request.user,
-            vocab=self.target_vocab
-        )
+        try:
+            VocabRequestService.gen_delete_vocab_request(
+                user=self.request.user,
+                vocab=self.target_vocab
+            )
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
         return super().form_valid(form)
     
 
@@ -201,13 +226,47 @@ class VocabListView(ListView):
 class UserVocabListView(LoginRequiredMixin, ListView):
     model = UserVocab
     template_name = 'dictionary/user_vocab_list.html'
-    context_object_name = 'vocabs'
+    context_object_name = 'user_vocabs'
     ordering = ['pk',]
+    paginate_by = 30
+
+    def post(self, request, *args, **kwargs):
+        user_vocab_queryset = self.get_queryset()
+
+        form = UserVocabInUseUpdateForm(
+            request.POST,
+            user_vocab_queryset=user_vocab_queryset,
+        )
+
+        if form.is_valid():
+            selectable_ids = form.cleaned_data["selectable_ids"]
+            selected_ids = form.cleaned_data["selected_ids"]
+
+            selectable_qs = UserVocab.objects.filter(
+                user=request.user,
+                id__in=selectable_ids,
+            )
+
+            get_unselect_qs = selectable_qs.filter(
+                in_use=True,
+            ).exclude(
+                id__in=selected_ids,
+            )
+            get_select_qs = selectable_qs.filter(
+                in_use=False,
+                id__in=selected_ids,
+            )
+            now = timezone.now()
+            get_unselect_qs.update(in_use=False, update_at=now)
+            get_select_qs.update(in_use=True, update_at=now)
+
+        return redirect(request.get_full_path())
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context['search_form'] = VocabSearchForm(
+        context['search_form'] = UserVocabSearchForm(
             self.request.GET
         )
         return context
@@ -217,9 +276,15 @@ class UserVocabListView(LoginRequiredMixin, ListView):
 
         if self.request.user.is_authenticated:
             qs = UserVocab.objects.filter(user=self.request.user).select_related("vocab")
-        form = VocabSearchForm(self.request.GET)
+        form = UserVocabSearchForm(self.request.GET)
 
         if form.is_valid():
+            
+            is_use = form.cleaned_data.get("in_use")
+            if is_use == UserVocabInUse.YES:
+                qs = qs.filter(in_use=True)
+            elif is_use == UserVocabInUse.NO:
+                qs = qs.filter(in_use=False)
 
             word = form.cleaned_data.get("word")
             if word:

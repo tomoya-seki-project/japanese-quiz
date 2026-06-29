@@ -73,7 +73,10 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
         existing_vocab = Vocab.objects.filter(word=word, kana=kana).exclude(pk=self.target_vocab.pk).first()
 
         if existing_vocab:
-            self.add_error('word', 'There is the same word on the list and active')
+            if existing_vocab.is_active:
+                self.add_error('word', 'There is the same word on the list and active')
+            else:
+                self.add_error('word', 'There is the same word on the list but it been deactived')
 
         return cleaned_data
 
@@ -97,6 +100,31 @@ class VocabSearchForm(forms.Form):
         choices=[("","-----")] + list(VocabCategory.choices),
         required=False,
     )
+class UserVocabInUse:
+    NO_MATTER = ""
+    YES = "yes"
+    NO = "no"
+    choices = [
+        (NO_MATTER, "No Matter"),
+        (YES, "Yes"),
+        (NO, "No"),
+    ]
+
+class UserVocabSearchForm(forms.Form):
+    in_use = forms.ChoiceField(
+        choices=UserVocabInUse.choices,
+        required=False,
+    )
+    word = forms.CharField(max_length=50, required=False)
+    kana = forms.CharField(max_length=255, required=False)
+    level = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabLevel.choices),
+        required=False,
+    )
+    category = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabCategory.choices),
+        required=False,
+    )
 
 class UserVocabSelectForm(forms.Form):
     vocabs = forms.ModelMultipleChoiceField(
@@ -110,3 +138,20 @@ class UserVocabSelectForm(forms.Form):
 
         if vocab_queryset is not None:
             self.fields["vocabs"].queryset = vocab_queryset
+
+class UserVocabInUseUpdateForm(forms.Form):
+    selectable_ids = forms.ModelMultipleChoiceField(
+        queryset=UserVocab.objects.none(),
+        required=False,
+    )
+    selected_ids = forms.ModelMultipleChoiceField(
+        queryset=UserVocab.objects.none(),
+        required=False,
+    )
+
+    def __init__(self, *args, user_vocab_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if user_vocab_queryset is not None:
+            self.fields["selectable_ids"].queryset = user_vocab_queryset
+            self.fields["selected_ids"].queryset = user_vocab_queryset

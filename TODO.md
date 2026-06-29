@@ -55,10 +55,10 @@
   - Service 會先檢查有冇 pending request，提供較清楚嘅正常 flow feedback。
   - Database 已加入 conditional unique constraints，防止 concurrent requests 同時通過 application check。
 
-- [ ] **第 8 點（VocabRequest View Error Handling）：處理建立 `VocabRequest` 時 service 拋出嘅 `ValidationError`。**
+- [x] **第 8 點（VocabRequest View Error Handling）：處理建立 `VocabRequest` 時 service 拋出嘅 `ValidationError`。**
   - Create / update / restore / delete request 遇到 concurrent duplicate 時，service 會將 `IntegrityError` 轉成 `ValidationError`。
-  - 目前相關 views 未捕捉呢個 exception，極端情況會直接回傳 server error。
-  - View 應將錯誤轉成 form error 或 user message，而唔係令 exception 穿出 request flow。
+  - `VocabCreateRequestView`、`VocabUpdateRequestView` 同 `VocabDeleteRequestView` 已喺 call service 時捕捉 `ValidationError`。
+  - View 會將錯誤加入 form non-field errors，並回到 `form_invalid()`，避免 exception 穿出 request flow。
 
 - [x] **第 9 點（VocabRequest / Admin Review）：擴大 admin review concurrency protection 範圍。**
   - `VocabRequestAdmin.get_queryset()` 會喺 approve / reject POST 時使用 `select_for_update()`，令 admin change form save 前先鎖住目標 request row。
@@ -114,10 +114,10 @@
   - Django `LoginView` 已經會透過 authentication flow 更新 `last_login`。
   - 已移除 login 成功後無欄位改動嘅額外 `user.save()`，避免多餘 database write。
 
-- [ ] **第 20 點（UserVocab Flow）：穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
-  - 選擇頁每次 request 都重新計算最新 50 個 user 未擁有嘅 vocab。
-  - 如果 GET 顯示後候選資料有變，原本畫面上嘅 vocab 可能喺 POST validation 時跌出允許 queryset，變成 invalid choice。
-  - 要決定使用固定 batch/token、保留候選 IDs，定係接受變動後提示 user 重新選擇。
+- [x] **第 20 點（UserVocab Flow）：穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
+  - 原本嘅 `UserVocabSelectVocabView` 會每次 request 重新計算候選 vocab，GET / POST 之間可能出現候選範圍變動。
+  - 目前加字主流程已改成 login 後自動 sync 新 vocab，先建立 `UserVocab(in_use=False)`。
+  - 舊 selection flow 暫時唔作為主要加字入口，相關 `ModelMultipleChoiceField` pattern 已移入 `LEARNING_QUESTIONS.md` 保留做之後參考。
 
 ## Vocab Future Work
 
@@ -126,7 +126,33 @@
   - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
   - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
 
+- [ ] **將 vocab category 改成最多可以選擇三個 category。**
+  - 已完成：
+    - 已決定之後支援一個 vocab 最多三個 categories。
+    - CSV import header 已暫定使用 `category1`、`category2`、`category3`。
+  - 未完成：
+    - 目前 `Vocab.category` 仍係單一 `CharField`，只可以保存一個 category。
+    - 之後要改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
+    - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
+    - CSV import 要安全跳過空白 category 欄位，亦要檢查每個 category value 是否合法。
+    - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
+
 ## Data Import / Export / Database Migration
+
+- [ ] **完善由 CSV import vocab list 嘅 management command。**
+  - 預計用法：`python manage.py import_vocab list.csv`。
+  - 已完成：
+    - 已加入 CSV path argument。
+    - 已加入 superuser authentication。
+    - 已加入 header validation。
+    - 已加入 row-level validation / error handling。
+    - 已經經 `VocabActionService` creation flow 建立 vocab。
+    - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
+    - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
+  - 未完成：
+    - 完成後要 show imported / skipped / failed rows count。
+    - 要保留每個 failed row 嘅行數及錯誤原因。
+    - 之後可以再考慮輸出 summary log file，方便大量 import 後 review。
 
 - [ ] **實作 whole database export command，方便 backup 同日後轉 DB。**
   - 暫定 command name：`python manage.py export_whole <output_folder>`。
@@ -163,24 +189,28 @@
   - Import 時要記低成功加入咗邊啲 vocab、邊啲已存在、邊啲失敗。
   - 系統根據原本 message 建立 user event，等 user 下次 login 時收到結果。
   - 如果同一批 vocab 由多個 users 提出，要確保每個相關 user 都收到自己嘅 event。
-  - 要再決定 user 按 OK 後，係一次過將所有成功 vocab 加入 `UserVocab`，定係俾 user 自己揀想加入邊啲。
+  - 成功加入嘅 vocab 會先建立 `UserVocab(in_use=False)`，之後由 user 自己喺 list 入面啟用想練嘅字。
 
 ## Quiz Question Logic
 
 - [ ] **按 vocab type / level / category 篩選 quiz 出題範圍。**
   - Quiz 開始前，user 可以選擇今次想練習嘅 `type`、`level` 同 `category`。
-  - Filter 條件應套用喺目前 user 擁有嘅 `UserVocab` question pool，而唔係全站所有 vocab。
+  - Filter 條件應套用喺目前 user 擁有且 `in_use=True` 嘅 `UserVocab` question pool，而唔係全站所有 vocab。
   - 要支援單一條件、複數條件，以及唔設定條件時使用全部可用 vocab。
   - 如果 filter 後冇任何可出題 vocab，要顯示清楚提示，唔應直接抽題失敗。
   - Weighted random、最近 10 題排除同 overdue boost，都應該喺 filter 後嘅 question pool 上運作。
 
 - [ ] **用 weighted random 揀下一條 vocab question。**
-  - Question pool 會來自目前 user 嘅 `UserVocab`。
-  - 每個 `UserVocab` 已經有 `weight` field，抽題時 weight 越高，被抽中嘅機會就越高。
-  - 每次答完題後，會根據答題結果、用咗幾多個 tips 同目前 `streak`，計算今次要加定減幾多 weight。
-  - 用越多 tips 先答中，得到嘅 weight reduction 應該越少；詳細 formula 之後再決定。
-  - 答錯時亦要結合 tips used 同 streak，決定 weight 要增加幾多。
-  - Weight 要設定合理 min / max，避免某啲 vocab 永遠抽唔到，或者長期霸住大部分出題機會。
+  - 已完成：
+    - `UserVocab` 已有 `weight` field。
+    - 已決定 question pool 會來自目前 user 嘅 `UserVocab`。
+    - 已決定抽題時 weight 越高，被抽中嘅機會越高。
+  - 未完成：
+    - 未實作 weighted random selection logic。
+    - 每次答完題後，要根據答題結果、tips used 同目前 `streak`，計算今次要加定減幾多 weight。
+    - 用越多 tips 先答中，得到嘅 weight reduction 應該越少；詳細 formula 之後再決定。
+    - 答錯時亦要結合 tips used 同 streak，決定 weight 要增加幾多。
+    - Weight 要設定合理 min / max，避免某啲 vocab 永遠抽唔到，或者長期霸住大部分出題機會。
 
 - [ ] **最近出過嘅 10 題要暫時 skip。**
   - 每次抽下一題前，先排除最近 10 次出現過嘅 vocab，避免同一個字太快重出。
@@ -189,13 +219,17 @@
   - 如果 user 擁有嘅 vocab 少過或接近 10 個，要設計 fallback，避免排除後完全冇題可以抽。
 
 - [ ] **實作 `UserVocab.streak` 更新規則。**
-  - Default streak 係 `0`。
-  - Streak 大過或等於 `0` 時答中：`streak + 1`。
-  - Streak 細過或等於 `0` 時答錯：`streak - 1`。
-  - 正 streak 無論去到幾高，第一次答錯只會 reset 做 `0`；再答錯先變 `-1`。
-  - 負 streak 無論去到幾低，第一次答中只會 reset 做 `0`；再答中先變 `+1`。
-  - 例子：`0 -> 1 -> 2 -> 3 -> 0 -> -1 -> -2`。
-  - 相反例子：`0 -> -1 -> -2 -> -3 -> 0 -> 1 -> 2`。
+  - 已完成：
+    - `UserVocab` 已有 `streak` field，default 係 `0`。
+    - 已決定 streak 更新規則。
+  - 未完成：
+    - 未實作答題後更新 streak 嘅 service / logic。
+    - Streak 大過或等於 `0` 時答中：`streak + 1`。
+    - Streak 細過或等於 `0` 時答錯：`streak - 1`。
+    - 正 streak 無論去到幾高，第一次答錯只會 reset 做 `0`；再答錯先變 `-1`。
+    - 負 streak 無論去到幾低，第一次答中只會 reset 做 `0`；再答中先變 `+1`。
+    - 例子：`0 -> 1 -> 2 -> 3 -> 0 -> -1 -> -2`。
+    - 相反例子：`0 -> -1 -> -2 -> -3 -> 0 -> 1 -> 2`。
 
 - [ ] **每次答題後更新 `UserVocab` quiz stats。**
   - 答中要增加 `correct_count`；答錯要增加 `incorrect_count`。
@@ -256,32 +290,33 @@
   - 呢三種 request 都依賴 `original_vocab` 作為目標。
   - 如果 `original_vocab` 係 `None`、已被刪除，或者資料狀態唔符合 request type，應停止處理並回傳清楚 error result。
 
-- [ ] **改善 J：** 將 vocab category 改成最多可以選擇三個 category。
-  - 目前 `Vocab.category` 係單一 `CharField`，只可以保存一個 category。
-  - 之後改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
-  - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
-  - CSV import 暫定使用 `category1`、`category2`、`category3` 欄位；空白 category 欄位要安全跳過，亦要檢查每個值是否合法。
-  - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
-
-- [ ] **改善 K：** 完善由 CSV import vocab list 嘅 management command。
-  - 預計用法：`python manage.py import_vocab list.csv`。
-  - 已加入 CSV path、superuser authentication、header validation、row-level validation 同 `VocabActionService` creation flow。
-  - Duplicate vocab 或 invalid row 目前會輸出錯誤並繼續處理下一行。
-  - 每筆 vocab creation 已經由 service transaction 保護，避免只建立主表但冇建立 detail。
-  - 完成後要 show imported / skipped / failed rows summary，同時保留每個 failed row 嘅行數及錯誤原因。
+- [ ] **改善 J：** 收窄 `UserVocab` bulk in-use update 嘅 POST validation 範圍。
+  - 目前 `UserVocabInUseUpdateForm` 使用 `UserVocabListView.get_queryset()` 作為 validation queryset。
+  - 呢個 queryset 會限制喺目前 user 同 filter 條件內，但未必只限當前 pagination page 顯示嘅 rows。
+  - 正常 browser submit 只會提交當前 page 嘅 `selectable_ids`，而且 update 時有 `user=request.user` 保護，暫時唔會改到其他 user 資料。
+  - 之後如要更嚴謹，可以喺 POST 時重新 paginate queryset，將當前 page `object_list` 傳入 form 作 validation queryset。
 
 ## VocabRequest Result / UserVocab Flow
 
 - [ ] **Approve / reject request 後建立 user event。**
   - Vocab request review 完成後，唔會即時寄 email。
   - 系統會建立一個對應 user 嘅 event record，記低 request 係 approved 定 rejected，同埋發生咗咩事。
-  - User 下次 login 時先 show 呢個未處理 event。
+  - Approved / imported 新字會先建立 `UserVocab` record，但預設 `in_use=False`。
+  - User 下次 login 時先 show event notice，提醒有新字可查看／啟用。
 
-- [ ] **User 確認 approved request 後，先將 vocab 加入 `UserVocab`。**
-  - Approved 唔代表即時將 vocab 加入 user 嘅 `UserVocab`。
-  - User login 後先睇 request result，按 OK / confirm 之後，系統先完成 `UserVocab` relationship。
-  - 要確保重複 click OK 唔會建立 duplicate `UserVocab` record。
-  - Confirm action 應該同 event read / handled status 一齊放入 transaction。
+- [ ] **UserVocab 新字預設 `in_use=False`，由 user 自己啟用。**
+  - 已完成：
+    - `UserVocab` 已加入 `in_use` field，default 為 `False`。
+    - `UserVocabListView` 已可以按 `in_use=True / False` filter。
+    - 新 `UserVocab` relationship 可先建立，但未必即時加入 quiz pool。
+    - Login 成功後會呼叫 `UserVocabService.sync_new_vocab()`，自動為 user 建立未擁有 vocab 嘅 `UserVocab` records。
+    - `UserVocabListView` 已開始加入 POST bulk update flow，用 `selectable_ids` / `selected_ids` 更新當前顯示項目嘅 `in_use` 狀態。
+  - 未完成：
+    - UserVocab list template 要加入 checkbox UI，提交 `selectable_ids` 同 `selected_ids`。
+    - Bulk update flow 要同 pagination / filter query string 實際測試。
+    - Quiz question pool 要只使用 `in_use=True` 嘅 `UserVocab`。
+    - EventNotice system 要通知 user 有新字已加入個人 list，但仍未啟用。
+    - 可以再整理 `sync_new_vocab()` 是否每次 login sync 全部未擁有 vocab，定係之後改成 event-driven / batch flow。
 
 - [ ] **處理 rejected request event。**
   - User login 後可以睇到 request 被 reject，同埋之後可能加入 reviewer reason。

@@ -15,7 +15,7 @@ class UserVocabService():
             Vocab.objects
             .exclude(user_vocab__user=user)
             .order_by("-id")
-            .values_list("id", flat=True)[:limit]
+            .values_list("id", flat=True)#[:limit]
         )
         return Vocab.objects.filter(id__in=vocab_ids)
     
@@ -27,4 +27,10 @@ class UserVocabService():
                     user=user,
                     vocab=vocab
                 )
+
+    @staticmethod
+    def sync_new_vocab(*, user):
+        new_vocabs = UserVocabService.get_new_vocab(user=user)
+        UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
+        
 

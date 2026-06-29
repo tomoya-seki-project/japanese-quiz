@@ -5,23 +5,66 @@
     {{ search_form.as_p }}
     <button type="submit">confirm</button>
 </form>
-<table>
-    <thead>
-        <tr>
-            <th>id</th>
-            <th>word</th>
-            <th>kana</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for vocab in vocabs %}
-        <tr>
-            <td>{{ vocab.vocab.pk }}</td>
-            <td>{{ vocab.vocab.word }}</td>
-            <td>{{ vocab.vocab.kana }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<form method="POST" action="{{ request.get_full_path }}">
+    {% csrf_token %}
+    <table>
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="select-all">
+                    <label for="select-all">All</label>
+                </th>
+                <th>word</th>
+                <th>kana</th>
+                <th>meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_vocab in user_vocabs %}
+            <tr>
+                <td>
+                    <input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
+                    <input 
+                        type="checkbox" 
+                        name="selected_ids" 
+                        class="in-use-checkbox"
+                        value="{{ user_vocab.id }}" 
+                        {% if user_vocab.in_use %}checked{% endif %}>
+                </td>
+                <td>{{ user_vocab.vocab.word }}</td>
+                <td>{{ user_vocab.vocab.kana }}</td>
+                <td>{{ user_vocab.vocab.meaning }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Update</button>
+</form>
+{% endblock %}
+{% block javascript %}
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+        const selectAll = document.getElementById("select-all");
+        const checkboxes = document.querySelectorAll(".in-use-checkbox");
 
+        selectAll.addEventListener("change", function(){
+            checkboxes.forEach(function(checkbox){
+                checkbox.checked = selectAll.checked;
+            });
+        });
+        checkboxes.forEach(function(checkbox) {
+            checkbox.addEventListener("change", function(){
+                const allChecked = Array.from(checkboxes).every(function(box){
+                    return box.checked;
+                });
+                const noneChecked = Array.from(checkboxes).every(function(box){
+                    return !box.checked;
+                });
+
+                selectAll.checked = allChecked;
+                selectAll.indeterminate = !allChecked && !noneChecked;
+            });
+        });
+    });
+</script>
 {% endblock %}

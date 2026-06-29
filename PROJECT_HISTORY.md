@@ -426,3 +426,78 @@ Commit: `595ad0b`
 ### 理由
 
 ### 學到咩
+
+## 2026-06-27 - UserVocab activation model and admin review hardening
+
+Status: Work in progress
+
+### 主要改動
+
+- `UserVocab` 加入 `in_use` 狀態，用嚟分開「已加入 user 個人 list」同「目前 quiz 會使用」嘅 vocab。
+- `UserVocabListView` 改用專用 search form，支援按 `in_use`、word、kana、level 同 category 篩選 user 個人 vocab。
+- 建立新設計方向：新 vocab 可以先建立 `UserVocab(in_use=False)`，之後由 user 自己決定是否啟用。
+- `VocabRequest` create / restore / update / delete view 會捕捉 service 拋出嘅 `ValidationError`，並轉成 form non-field error。
+- `VocabRequestAdmin` approve / reject POST 時會 early `select_for_update()`，並保留 service-level row lock。
+- Reviewed request 會變成 readonly，`save_model()` 會擋住非 pending request 被再次保存。
+- `VocabAdmin` 禁止 admin direct add vocab，並將 `type` 設為 readonly，避免繞過 service create flow 或造成 type/detail mismatch。
+- 清理 admin 入面舊嘅 commented approve/reject custom URL approach，相關概念改以學習筆記保存。
+- 進行一次較全面嘅 code flow review，重新檢查 request、admin review、service、UserVocab 同 import flow，確認自己理解每個主要流程。
+
+### Database 改動
+
+- `UserVocab` 新增 `in_use` boolean field，default 為 `False`。
+- 呢個欄位代表 user 是否啟用該 vocab 進入 quiz pool，而唔影響全站 `Vocab` 是否存在。
+
+### 技術重點
+
+- `UserVocab` 由單純 relationship 進一步變成 user 對 vocab 嘅個人 learning state，包括 `in_use`、weight、streak 同答題統計。
+- Admin change form custom action 要注意 `response_change()` 係 form save 後先執行；今次用 admin early lock、service self-lock、readonly reviewed state 同 `save_model()` guard 組成多層防線。
+- View layer 要捕捉 service-level `ValidationError`，避免 race condition 或 database constraint error 直接穿出 request flow。
+- 定期做 full coding review 可以防止 project 快速累積後，出現「功能寫咗但自己已經唔清楚 flow」嘅情況。
+
+### 理由
+
+- `Vocab` 應代表全站共用 vocabulary pool；單一 user 暫時唔想練某個字，唔應該刪除 `Vocab`。
+- `UserVocab.in_use=False` 可以保留「已派到 user、但未啟用」嘅狀態，方便之後 EventNotice 通知 user 有新字可處理。
+- Quiz question pool 之後只應使用 `in_use=True` 嘅 `UserVocab`，避免未啟用 vocab 突然出題。
+
+### 學到咩
+
+- Django Admin custom action 唔只係加 button，仲要理解 form save lifecycle、transaction boundary、row lock 同 stale page submit。
+- `select_for_update()` 應放喺 transaction 入面；admin POST change form 通常有 atomic wrapper，但 service 仍應保留自己嘅 transaction / lock 作最後防線。
+- Domain model 可以用現實比喻幫助釐清責任：`Vocab` 似總公司 menu，`UserVocab` 似分店 menu，`in_use` 代表該分店目前是否提供該 item。
+- 全面 review 自己寫過嘅 flow，可以幫助重新確認 URL、view、form、service、transaction、error handling 同 data model 之間嘅責任分工。
+
+## 2026-06-28 - Login-time UserVocab sync and in-use bulk update draft
+
+Status: Work in progress
+
+### 主要改動
+
+- `UserLoginView.form_valid()` 於成功 login 後呼叫 `UserVocabService.sync_new_vocab()`，自動為 user 建立尚未擁有 vocab 嘅 `UserVocab` records。
+- `UserVocabService.sync_new_vocab()` 會重用候選查詢同 `get_or_create()` 建立 relationship，配合 `UserVocab.in_use=False` default。
+- `UserVocabListView` 開始加入 POST bulk update flow，使用 `selectable_ids` 表示目前畫面顯示項目，`selected_ids` 表示 user 勾選為 in-use 嘅項目。
+- `UserVocabInUseUpdateForm` 使用 `ModelMultipleChoiceField` 驗證 submitted ids 必須屬於目前 user 可操作嘅 `UserVocab` queryset。
+- 舊 `UserVocabSelectVocabView` / `UserVocabSelectForm` flow 暫時不再作為主要加字入口，但保留為之後可重用嘅批量選擇 pattern。
+
+### Database 改動
+
+- 無新增 schema 變更；沿用 `UserVocab.in_use` 同 `(user, vocab)` unique constraint。
+
+### 技術重點
+
+- Checkbox UI 不能單靠位置對應資料，因為未勾選嘅 checkbox 不會 submit；需要用 id 明確表示「畫面顯示過」同「user 勾選咗」嘅項目。
+- Bulk update 應只更新狀態真正改變嘅 rows，避免每次 submit 都刷新所有 visible rows 嘅 `update_at`。
+- `request.get_full_path()` 可以保留 path + query string，方便 POST 後 redirect 回原本 filter / pagination 狀態。
+- `.update()` 不會觸發 `auto_now`，如使用 bulk update 需要手動設定 `update_at`。
+
+### 理由
+
+- Login-time sync 令 user 每次登入後都可以收到最新 vocab relationship，配合 `in_use=False` 保持 quiz pool 由 user 自己控制。
+- `selectable_ids` / `selected_ids` 設計可以同 pagination、filter 一起使用，只更新目前畫面顯示嘅項目。
+
+### 學到咩
+
+- 一個頁面可以同時有 GET search form 同 POST bulk update form；ListView 亦可以加 `post()` 處理批量狀態更新。
+- `ModelMultipleChoiceField` 除咗 render checkbox，亦可以作為 submitted ids 嘅 validation layer。
+- 舊 flow 即使暫時不用，只要整理成 learning note，就可以保留成之後 project 可重用嘅 pattern。

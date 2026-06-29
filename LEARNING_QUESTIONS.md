@@ -84,6 +84,800 @@ password2
 
 -
 
+## [ ] `[DJANGO-HANDWRITTEN-CHECKBOX-POST-FORM]` 手寫 checkbox HTML，再用 Django Form 接 POST data
+
+### 問題背景
+
+`UserVocabListView` 想用 table 形式顯示 user vocab：
+
+```text
+[checkbox] word / kana / meaning
+```
+
+UI 需要自己排 table，所以唔適合直接用 `{{ form.as_p }}` render 成個 form。
+但 submit 後仍然想用 Django Form 驗證 POST data。
+
+### 研究方向
+
+- 點解唔一定要喺 `get_context_data()` pass form 出去先可以用 form validate。
+- Template 手寫 input 時，點樣同 Django Form field name 對應。
+- `selectable_ids` 同 `selected_ids` 分別代表咩。
+- 點解 checkbox 未勾選時唔會 submit。
+- 點解要用 hidden input 記低畫面顯示過嘅 rows。
+
+### 概念整理與解答
+
+#### 1. Form render 同 Form validation 可以分開
+
+Django Form 有兩個常見用途：
+
+- render HTML fields
+- validate submitted data
+
+平時可以用：
+
+```django
+{{ form.as_p }}
+```
+
+但如果 UI 要自訂 table layout，就可以手寫 HTML input，然後喺 view 入面用 Django Form 接 `request.POST` 做 validation。
+
+重點係：Django Form 接收嘅係 `request.POST` 入面嘅 key/value。
+只要 HTML input 嘅 `name` 對得上 form field name，form 就可以接到。
+
+#### 2. Template 手寫 input
+
+每一行 `UserVocab` 可以寫：
+
+```django
+<input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
+<input
+    type="checkbox"
+    class="in-use-checkbox"
+    name="selected_ids"
+    value="{{ user_vocab.id }}"
+    {% if user_vocab.in_use %}checked{% endif %}
+>
+```
+
+意思：
+
+- `selectable_ids`：今次畫面顯示過嘅 `UserVocab.id`
+- `selected_ids`：user 勾選咗、想設為 `in_use=True` 嘅 `UserVocab.id`
+
+Hidden input 一定會 submit。
+Checkbox 只有 checked 先會 submit。
+
+#### 3. POST data 會變成點
+
+如果畫面有三行：
+
+```text
+10 checked
+11 unchecked
+12 checked
+```
+
+POST 後會收到：
+
+```text
+selectable_ids = ["10", "11", "12"]
+selected_ids = ["10", "12"]
+```
+
+所以：
+
+- 10：畫面有 show，而且 checked -> `in_use=True`
+- 11：畫面有 show，但無 checked -> `in_use=False`
+- 12：畫面有 show，而且 checked -> `in_use=True`
+
+唔喺 `selectable_ids` 入面嘅 rows，代表今次畫面無顯示，通常唔應該被更新。
+
+#### 4. 用 Django Form 接住 POST data
+
+Form 可以寫：
+
+```python
+class UserVocabInUseUpdateForm(forms.Form):
+    selectable_ids = forms.ModelMultipleChoiceField(
+        queryset=UserVocab.objects.none(),
+        required=False,
+    )
+    selected_ids = forms.ModelMultipleChoiceField(
+        queryset=UserVocab.objects.none(),
+        required=False,
+    )
+
+    def __init__(self, *args, user_vocab_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if user_vocab_queryset is not None:
+            self.fields["selectable_ids"].queryset = user_vocab_queryset
+            self.fields["selected_ids"].queryset = user_vocab_queryset
+```
+
+View 入面：
+
+```python
+form = UserVocabInUseUpdateForm(
+    request.POST,
+    user_vocab_queryset=user_vocab_queryset,
+)
+```
+
+呢個 form 唔一定負責 render UI，而係負責：
+
+- 驗證 submitted ids 必須屬於 `user_vocab_queryset`
+- 將 raw ids 轉成 `UserVocab` objects
+
+#### 5. 點解可以唔 pass form 去 context
+
+如果 template 用手寫 input：
+
+```django
+<input name="selected_ids" ...>
+```
+
+就唔需要：
+
+```python
+context["update_form"] = UserVocabInUseUpdateForm(...)
+```
+
+因為 browser submit 時只理 HTML input 嘅 `name` / `value`，唔理 input 係 Django Form render 出嚟，定係手寫出嚟。
+
+只有當 template 想用：
+
+```django
+{{ update_form.selected_ids }}
+```
+
+先需要 pass `update_form` 入 context。
+
+### 理解內容
+
+-
+
+## [ ] `[HTML-JS-CHECKBOX-SELECT-ALL]` Checkbox 全選 / 全取消點樣用 JavaScript 做
+
+### 問題背景
+
+`UserVocab` list 想加一個額外 checkbox，控制目前畫面所有 `selected_ids` checkbox：
+
+- tick all：當前頁全部設為 checked
+- untick all：當前頁全部設為 unchecked
+- 如果部分 checked，all checkbox 顯示 indeterminate
+
+### 研究方向
+
+- `id`、`class`、`name` 喺 HTML input 入面分別負責咩。
+- 點樣用同一個 class group 起所有 row checkbox。
+- `querySelectorAll()` 點樣一次搵晒同一 class 嘅 elements。
+- checkbox 嘅 `checked` 同 `indeterminate` 狀態點樣更新。
+- 「All」應該只代表當前 page / 當前 filter 顯示嘅 rows。
+
+### 概念整理與解答
+
+#### 1. `name` 俾 form submit 用，`class` 俾 JavaScript group 用
+
+每個 row checkbox 可以同時有：
+
+```html
+name="selected_ids"
+class="in-use-checkbox"
+```
+
+用途：
+
+- `name="selected_ids"`：submit POST 時俾 Django 收資料。
+- `class="in-use-checkbox"`：俾 JavaScript 一次搵晒所有 row checkbox。
+
+可以記：
+
+- `id`：一頁通常一個，用 `getElementById()`
+- `class`：一頁可以好多個，用 `querySelectorAll()`
+- `name`：form submit 時用，Django 會喺 `request.POST` 收到呢個 key
+
+#### 2. Template 例子
+
+```django
+<input type="checkbox" id="select-all">
+
+{% for user_vocab in user_vocabs %}
+    <input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
+    <input
+        type="checkbox"
+        class="in-use-checkbox"
+        name="selected_ids"
+        value="{{ user_vocab.id }}"
+        {% if user_vocab.in_use %}checked{% endif %}
+    >
+{% endfor %}
+```
+
+`id="select-all"` 用嚟搵全選 checkbox。
+`class="in-use-checkbox"` 用嚟搵所有 row checkboxes。
+
+#### 3. JavaScript 例子
+
+```html
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selectAll = document.getElementById("select-all");
+    const checkboxes = document.querySelectorAll(".in-use-checkbox");
+
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+        });
+    });
+
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener("change", function () {
+            const allChecked = Array.from(checkboxes).every(function (box) {
+                return box.checked;
+            });
+
+            const noneChecked = Array.from(checkboxes).every(function (box) {
+                return !box.checked;
+            });
+
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = !allChecked && !noneChecked;
+        });
+    });
+});
+</script>
+```
+
+#### 4. 點解要用 `querySelectorAll(".in-use-checkbox")`
+
+因為每個 row checkbox 都有同一個 class：
+
+```html
+class="in-use-checkbox"
+```
+
+所以：
+
+```javascript
+document.querySelectorAll(".in-use-checkbox")
+```
+
+會搵晒所有 row checkbox，之後可以用 `forEach()` 逐個改 `checked` 狀態。
+
+#### 5. All 只代表當前畫面
+
+如果有 pagination / filter，All checkbox 通常只代表目前頁面顯示嘅 rows。
+
+原因係 POST 只會提交目前頁面嘅：
+
+```text
+selectable_ids
+selected_ids
+```
+
+所以 all checked / unchecked 只應影響當前 page / 當前 filter，而唔係全 database 所有 `UserVocab`。
+
+### 理解內容
+
+-
+
+## [ ] `[DJANGO-MODEL-MULTIPLE-CHOICE-BULK-SELECT-FLOW]` 用 `ModelMultipleChoiceField` 做批量選擇 object 嘅處理流程
+
+### 問題背景
+
+之前為 `UserVocabSelectVocabView` 設計過一個 flow：
+
+- View 顯示一批 user 未擁有嘅 `Vocab`。
+- User 用 checkbox 選擇想加入自己 list 嘅 vocab。
+- Submit 後 view 將選中 vocab 交俾 service 建立 `UserVocab` relationship。
+
+目前新設計改成 login 後自動建立 `UserVocab(in_use=False)`，所以暫時唔用呢個 flow 做加字。
+但呢個 pattern 之後仍然可能用喺其他「從一批 model objects 入面勾選多個」嘅功能，所以保留做學習筆記。
+
+### 研究方向
+
+- `ModelMultipleChoiceField` 點樣將 POST ids 轉成 model objects。
+- 點解 field 初始 queryset 要用 `Model.objects.none()`。
+- 點解要喺 form `__init__()` 動態注入 queryset。
+- `FormView.get_form_kwargs()` 點樣將 view context 傳入 form。
+- `cleaned_data["vocabs"]` 點解唔係 raw ids，而係 queryset / model objects。
+- 點解 sliced queryset 可能令 `ModelMultipleChoiceField` POST validation 出問題。
+
+### 概念整理與解答
+
+#### 1. Form 負責接收一批可選 vocab
+
+原本 form：
+
+```python
+class UserVocabSelectForm(forms.Form):
+    vocabs = forms.ModelMultipleChoiceField(
+        queryset=Vocab.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+    )
+
+    def __init__(self, *args, vocab_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if vocab_queryset is not None:
+            self.fields["vocabs"].queryset = vocab_queryset
+```
+
+`queryset=Vocab.objects.none()` 係安全 default：
+
+- Form class 定義時未知道目前 user 係邊個。
+- 唔應該喺 class level 放全站所有 vocab。
+- 真正可選範圍應由 view 根據 `request.user` 動態傳入。
+
+#### 2. View 決定目前 user 可選邊批 vocab
+
+原本 view：
+
+```python
+class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
+    template_name = "dictionary/select_vocab.html"
+    form_class = UserVocabSelectForm
+    success_url = reverse_lazy("dictionary:user_vocab_list")
+
+    def get_new_vocab(self):
+        return UserVocabService.get_new_vocab(
+            user=self.request.user,
+            limit=50,
+        )
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["vocab_queryset"] = self.get_new_vocab()
+        return kwargs
+
+    def form_valid(self, form):
+        UserVocabService.create_user_vocabs(
+            user=self.request.user,
+            vocabs=form.cleaned_data["vocabs"],
+        )
+        return super().form_valid(form)
+```
+
+流程：
+
+1. `get_new_vocab()` 取得目前 user 未擁有嘅 vocab。
+2. `get_form_kwargs()` 將 `vocab_queryset` 傳入 form。
+3. Form `__init__()` 將 field queryset 改成呢批 vocab。
+4. Template render checkbox。
+5. POST submit 後，`ModelMultipleChoiceField` 驗證 submitted ids 必須屬於 field queryset。
+6. `form.cleaned_data["vocabs"]` 會係通過驗證嘅 `Vocab` objects。
+7. View 將 objects 交俾 service 建立 `UserVocab`。
+
+#### 3. `ModelMultipleChoiceField` 做緊咩
+
+如果 checkbox submit：
+
+```text
+vocabs = [1, 2, 5]
+```
+
+`ModelMultipleChoiceField` 會：
+
+- 用 field queryset 檢查 `1, 2, 5` 是否都係合法選項。
+- 將 ids 轉成對應 model objects。
+- 如果有 id 唔喺 queryset 入面，就 form invalid。
+
+所以 service 收到嘅：
+
+```python
+form.cleaned_data["vocabs"]
+```
+
+唔係純 list of ids，而係一批已經 validate 過嘅 `Vocab` objects / queryset。
+
+#### 4. Service 負責建立 relationship
+
+原本 service：
+
+```python
+@staticmethod
+def create_user_vocabs(*, user, vocabs):
+    for vocab in vocabs:
+        with transaction.atomic():
+            user_vocab, created = UserVocab.objects.get_or_create(
+                user=user,
+                vocab=vocab,
+            )
+```
+
+`get_or_create()` 令重複提交唔會建立 duplicate relationship。
+
+之後如果沿用 `UserVocab.in_use=False` 設計，建立時可以依靠 model default，或者明確寫：
+
+```python
+defaults={"in_use": False}
+```
+
+#### 5. 點解要小心 sliced queryset
+
+如果 service 用：
+
+```python
+Vocab.objects.exclude(...).order_by("-id")[:50]
+```
+
+呢個係 sliced queryset。
+`ModelMultipleChoiceField` 喺 POST validation 時可能需要再對 queryset 做 filter，例如檢查 submitted ids 是否屬於 queryset。
+
+Sliced queryset 再 filter 可能會出現問題。
+
+較穩陣寫法係先取 ids：
+
+```python
+vocab_ids = (
+    Vocab.objects
+    .exclude(user_vocab__user=user)
+    .order_by("-id")
+    .values_list("id", flat=True)[:limit]
+)
+
+return Vocab.objects.filter(id__in=vocab_ids)
+```
+
+外層 `Vocab.objects.filter(id__in=vocab_ids)` 係未 sliced queryset，較適合交俾 form field 做 validation。
+
+#### 6. 呢個 pattern 之後可以用喺邊
+
+呢個 flow 適合：
+
+- 從候選 vocab 入面批量加入 user list。
+- 從候選 users 入面批量 assign permission / group。
+- 從候選 items 入面批量建立 relationship。
+- 任何「畫面 show 一批合法 objects，user checkbox 選多個，submit 後建立關係」嘅情境。
+
+如果 UI 係一個 list table，每行要顯示 word / kana / meaning，再手寫 checkbox，仍然可以保留同一個核心概念：
+
+- 用 hidden / checkbox value 提交 object id。
+- 用 form field 或 view queryset 驗證 ids 屬於目前 user 可操作範圍。
+- service 只處理通過 validation 嘅 objects。
+
+### 理解內容
+
+-
+
+## [ ] `[DOMAIN-VOCAB-USERVOCAB-IN-USE]` `Vocab` 同 `UserVocab.in_use` 嘅設計心智模型
+
+### 問題背景
+
+目前 `Vocab` 代表全站共用嘅 vocabulary pool，而 `UserVocab` 代表某個 user 同某個 vocab 之間嘅個人 learning relationship。
+
+新增設計：
+
+- 新 vocab 可以自動加入 user 嘅 `UserVocab`。
+- 但新建立嘅 `UserVocab.in_use` 預設係 `False`。
+- User 之後可以喺自己嘅 vocab list 入面決定邊啲字要啟用。
+- Quiz question pool 只應使用 `in_use=True` 嘅 `UserVocab`。
+
+### 研究方向
+
+- 點解唔應該因為 user 暫時唔想練某個字，就刪除 `Vocab`。
+- 點解 `UserVocab` 唔只係 many-to-many join table，而係 user 個人 learning state。
+- `in_use=False` 同刪除 `UserVocab` 有咩分別。
+- EventNotice 系統點樣通知 user 有新字可啟用。
+- Quiz pool 點樣只取 user 已啟用嘅 vocab。
+
+### 概念整理與解答
+
+#### 1. 連鎖餐廳 menu 比喻
+
+可以將整個設計想像成一間連鎖餐廳：
+
+- 總公司 menu = `Vocab`
+- 分店 menu = `UserVocab`
+- 分店有冇提供某個 menu item = `UserVocab.in_use`
+
+當總公司推出新 menu：
+
+- 新 menu 會加入總公司 menu list。
+- 各分店可以收到呢個 menu item。
+- 但某間分店可以因為實際情況，暫時唔提供某個 menu item。
+- 某間分店唔提供，唔代表總公司要刪除嗰個 menu item。
+
+對應返 project：
+
+- Admin approve / CSV import 建立新 `Vocab`。
+- 系統可以為相關 user 建立 `UserVocab`。
+- `UserVocab.in_use=False` 表示個字已經喺 user 個人 list 入面，但暫時唔加入 quiz。
+- User click on 想練嘅字後，將 `in_use` 改成 `True`。
+- Quiz 只抽 `in_use=True` 嘅 `UserVocab`。
+
+#### 2. `Vocab` 係總資料，`UserVocab` 係個人狀態
+
+`Vocab` 保存全站共用資料：
+
+- word
+- kana
+- meaning
+- type
+- level
+- category
+- detail model
+
+`UserVocab` 保存 user 個人 learning state：
+
+- user 是否啟用呢個字：`in_use`
+- 抽題 weight
+- correct / incorrect count
+- streak
+- last quiz time
+
+所以 `UserVocab` 唔應該只當普通 join table 睇。佢係「user 對呢個 vocab 嘅個人狀態 record」。
+
+#### 3. 點解用 `in_use=False`，而唔係唔建立 `UserVocab`
+
+如果唔建立 `UserVocab`：
+
+- 系統唔容易知道呢個 user 有冇收過呢個字。
+- EventNotice 之後難以追蹤 user 有邊啲新字未處理。
+- User list 入面無法顯示「可啟用但未啟用」嘅字。
+
+如果建立 `UserVocab(in_use=False)`：
+
+- 系統知道呢個字已經派到 user 個人 list。
+- User 可以 filter `in_use=False` 睇未啟用字。
+- EventNotice 可以提醒 user 有新字可處理。
+- Quiz pool 仍然可以保持乾淨，只抽 `in_use=True`。
+
+#### 4. 點解唔直接刪 `UserVocab`
+
+刪除 `UserVocab` 代表失去 user 對呢個 vocab 嘅個人 record。
+
+但 `in_use=False` 代表：
+
+- 個 record 仲存在。
+- User 暫時唔練。
+- 之後可以重新啟用。
+- 如有需要，quiz stats / learning history 可以繼續保留。
+
+所以 `in_use` 比 delete 更適合表示「暫時不用」。
+
+#### 5. 對 quiz pool 嘅影響
+
+Quiz 出題時唔應該直接由全站 `Vocab` 抽題，而應該由目前 user 嘅 `UserVocab` 抽：
+
+```python
+UserVocab.objects.filter(
+    user=request.user,
+    in_use=True,
+)
+```
+
+之後再喺呢個 pool 上套用：
+
+- vocab type filter
+- level filter
+- category filter
+- weighted random
+- recent 10 skip
+- overdue boost
+
+咁可以確保 user 未啟用嘅字唔會突然出題。
+
+### 理解內容
+
+-
+
+## [ ] `[DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL]` Admin change form 用 readonly field 顯示 action link 嘅做法
+
+### 問題背景
+
+之前曾經試過喺 `VocabRequestAdmin` 入面用一個 readonly field / display method 顯示 approve / reject button link。
+
+大概做法係：
+
+- 定義 `review_buttons()`。
+- 用 `@admin.display(description="Review")` 將佢包裝成 admin 顯示欄位。
+- 喺 `readonly_fields` / `fields` 入面加入 `review_buttons`。
+- 用 `format_html()` 回傳 approve / reject `<a>` link。
+- override `get_urls()` 加入 admin custom URLs。
+- custom URL 進入 `approve_view()` / `reject_view()`，再 call service。
+
+### 研究方向
+
+- `@admin.display` 點樣令 method 變成 admin 欄位。
+- `readonly_fields` 入面除咗 model field，點解亦可以放 admin method name。
+- `format_html()` 點解比直接拼 HTML string 安全。
+- `ModelAdmin.get_urls()` 點樣加 custom admin URL。
+- `self.admin_site.admin_view()` 點樣套用 admin permission / staff check / CSRF 等 admin protection。
+- 點解用 `<a href="...">` 做 approve / reject 會有 GET side effect 問題。
+- 點解之後改用 change form submit button + POST flow。
+
+### 概念整理與解答
+
+#### 1. 用 admin method 當 readonly field
+
+Django Admin 嘅 `readonly_fields` 除咗可以放 model field name，亦可以放 `ModelAdmin` method name。
+
+例如：
+
+```python
+@admin.display(description="Review")
+def review_buttons(self, obj):
+    ...
+```
+
+然後：
+
+```python
+readonly_fields = (
+    "review_buttons",
+)
+
+fields = (
+    ...,
+    "review_buttons",
+)
+```
+
+Admin change form 就會喺指定位置顯示呢個 method 回傳嘅內容。
+
+#### 2. 用 `format_html()` 產生 admin button link
+
+原本概念大概係：
+
+```python
+@admin.display(description="Review")
+def review_buttons(self, obj):
+    if not obj.pk:
+        return "---"
+
+    if obj.status != VocabRequestStatus.PENDING:
+        return "Already Reviewed"
+
+    approve_url = reverse(
+        "admin:vocabrequest_approve",
+        args=[obj.pk],
+    )
+
+    reject_url = reverse(
+        "admin:vocabrequest_reject",
+        args=[obj.pk],
+    )
+
+    return format_html(
+        '<a class="button" href="{}">Approve</a>&nbsp;'
+        '<a class="button" href="{}">Reject</a>',
+        approve_url,
+        reject_url,
+    )
+```
+
+`format_html()` 會 escape 傳入嘅 arguments，避免直接拼 HTML 時出現 XSS 風險。
+如果需要喺 Django Admin 顯示少量 HTML，通常應該用 `format_html()`，而唔係普通 f-string。
+
+#### 3. 用 `get_urls()` 加 admin custom URL
+
+`ModelAdmin.get_urls()` 可以為某個 model admin 加入額外 URL。
+
+概念：
+
+```python
+def get_urls(self):
+    urls = super().get_urls()
+
+    custom_urls = [
+        path(
+            "<int:object_id>/approve/",
+            self.admin_site.admin_view(self.approve_view),
+            name="vocabrequest_approve",
+        ),
+        path(
+            "<int:object_id>/reject/",
+            self.admin_site.admin_view(self.reject_view),
+            name="vocabrequest_reject",
+        ),
+    ]
+
+    return custom_urls + urls
+```
+
+`self.admin_site.admin_view(...)` 會將 view 包成 admin view，加入 admin site 相關保護，例如 staff check、permission-related behavior、CSRF/cache handling 等。
+
+#### 4. Custom approve / reject view
+
+原本 view 概念係：
+
+```python
+@method_decorator(require_POST)
+def approve_view(self, request, object_id):
+    vocab_request = get_object_or_404(
+        VocabRequest,
+        pk=object_id,
+    )
+
+    VocabRequestService.approve_vocab_request(
+        vocab_request=vocab_request,
+        reviewed_by=request.user,
+    )
+
+    self.message_user(
+        request,
+        f"Vocab request approved by : {request.user}",
+        messages.SUCCESS,
+    )
+
+    return redirect(
+        reverse("admin:dictionary_vocabrequest_changelist")
+    )
+```
+
+Reject view 同 approve view 類似，只係 call `reject_vocab_request()`。
+
+#### 5. 呢個做法有咩問題
+
+如果 `review_buttons()` 回傳嘅係：
+
+```html
+<a href="/admin/.../approve/">Approve</a>
+```
+
+咁 click link 本質上係 GET request。
+但 approve / reject 係會改 database state 嘅 action，唔應該用 GET 做。
+
+原因：
+
+- GET 應該係 safe / read-only。
+- Browser prefetch、crawler、refresh、copy link 等情況可能誤觸。
+- 用 GET 做 state change 容易造成 CSRF / accidental action 風險。
+
+後來加 `@require_POST` 可以令 custom view 只接受 POST，但如果前端仍然係普通 `<a href>`，click 後就唔會正常工作，因為 link 發出嘅係 GET。
+
+要用 custom URL approach，button 應該改成 `<form method="post">`，並加入 CSRF token。
+
+#### 6. 點解最後改用 change form submit button
+
+目前 project 最後改成喺 custom admin `change_form.html` 入面放 submit buttons：
+
+```django
+<button type="submit" name="_approve" value="1" class="default">Approve</button>
+<button type="submit" name="_reject" value="1" class="default">Reject</button>
+```
+
+然後喺 `response_change()` 入面判斷：
+
+```python
+if "_approve" in request.POST:
+    ...
+
+if "_reject" in request.POST:
+    ...
+```
+
+呢個做法嘅好處：
+
+- 使用原本 admin change form POST。
+- 唔需要額外維護 approve / reject custom URL。
+- 可以同 admin form validation / save flow 接軌。
+- 較容易配合 `get_queryset()` conditional `select_for_update()`、`get_readonly_fields()`、`save_model()` 等 admin lifecycle hook。
+
+#### 7. 兩種做法點樣選
+
+Readonly field + custom URL approach 適合：
+
+- action 真係想做成獨立 endpoint。
+- 想將 action 同 admin change form save flow 分開。
+- 願意自己處理 POST form、CSRF、permission、transaction、redirect。
+
+Change form submit button approach 適合：
+
+- action 本身係 review / approve 呢類 change form workflow。
+- 想保留 admin 原生 form validation / save / message / redirect flow。
+- 想喺同一頁 review proposed data 後直接 approve / reject。
+
+今次 project 最後選擇 change form submit button，因為 approve / reject 係 `VocabRequest` review workflow，跟 change form 關係較密切。
+
+### 理解內容
+
+-
+
 ## [ ] `[DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW]` Admin approve / reject 點樣處理 form save 同 row lock
 
 ### 問題背景

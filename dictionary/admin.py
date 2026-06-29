@@ -99,7 +99,6 @@ class VocabRequestAdmin(admin.ModelAdmin):
     search_fields=('proposed_word',)
 
     readonly_fields = (
-        #'review_buttons',
         'created_by',
         'request_type',
         'status',
@@ -121,7 +120,6 @@ class VocabRequestAdmin(admin.ModelAdmin):
         #'proposed_similar_word',
         'proposed_native_japanese',
         'created_by',
-        #'review_buttons',
     )
 
     def get_queryset(self, request):
@@ -212,92 +210,3 @@ class VocabRequestAdmin(admin.ModelAdmin):
                 )
             )
         return super().response_change(request, obj)
-
-    
-    ########################################################
-    # different way to approve / reject vocab request on each vocab request page
-    # kept it for learning reference
-    # @admin.display(description="Review")
-    # def review_buttons(self, obj):
-    #     if not obj.pk:
-    #         return "---"
-        
-    #     if obj.status != VocabRequestStatus.PENDING:
-    #         return "Already Reviewed"
-        
-    #     approve_url = reverse(
-    #         "admin:vocabrequest_approve",
-    #         args=[obj.pk],
-    #     )
-
-    #     reject_url = reverse(
-    #         "admin:vocabrequest_reject",
-    #         args=[obj.pk],
-    #     )
-
-    #     return format_html(
-    #         '<a class="button" href="{}">Approve</a>&nbsp;'
-    #         '<a class="button" href="{}">Reject</a>',
-    #         approve_url,
-    #         reject_url,
-    #     )
-    
-    # def get_urls(self):
-    #     urls = super().get_urls()
-
-    #     custom_urls = [
-    #         path("<int:object_id>/approve/", self.admin_site.admin_view(self.approve_view), name="vocabrequest_approve"),
-    #         path("<int:object_id>/reject/", self.admin_site.admin_view(self.reject_view), name="vocabrequest_reject"),
-            
-    #     ]
-    #     return custom_urls + urls
-    
-    # @method_decorator(require_POST)
-    # def approve_view(self, request, object_id):
-    #     vocab_request = get_object_or_404(
-    #         VocabRequest,
-    #         pk = object_id,
-    #     )
-        
-    #     VocabRequestService.approve_vocab_request(
-    #         vocab_request=vocab_request,
-    #         reviewed_by=request.user
-    #     )
-
-    #     self.message_user(
-    #         request,
-    #         f"Vocab request approved by : {request.user}",
-    #         messages.SUCCESS,
-    #     )
-
-    #     return redirect(
-    #         reverse(
-    #             "admin:dictionary_vocabrequest_changelist",
-    #         )
-    #     )
-    
-    # @method_decorator(require_POST)
-    # def reject_view(self, request, object_id):
-    #     vocab_request = get_object_or_404(
-    #         VocabRequest,
-    #         pk = object_id,
-    #     )
-
-    #     VocabRequestService.reject_vocab_request(
-    #         vocab_request=vocab_request,
-    #         reviewed_by=request.user
-    #     )
-
-    #     self.message_user(
-    #         request,
-    #         f"Vocab request rejected by : {request.user}",
-    #         messages.WARNING,
-    #     )
-
-    #     return redirect(
-    #         reverse(
-    #             "admin:dictionary_vocabrequest_changelist",
-    #         )
-    #     )
-    ########################################################
-

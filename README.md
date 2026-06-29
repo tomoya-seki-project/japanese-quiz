@@ -23,6 +23,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - 支援按 word、kana、JLPT level 同 category search。
 - Vocab detail page。
 - Logged-in user 可以查看自己嘅 `UserVocab` list。
+- `UserVocab` 支援 `in_use` 狀態，方便將「已加入但未啟用」同「正在 quiz 使用」嘅 vocab 分開。
 - 支援一般 vocab 同 katakana vocab data。
 
 ### VocabRequest
@@ -36,7 +37,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
 - Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
-> **未完善：** 建立 request 時嘅極端 duplicate race condition 仍要喺 view layer 捕捉 `ValidationError`，admin review concurrency boundary 亦仲有待再收緊。
+> **未完善：** Approve UPDATE / RESTORE / DELETE request 前仍要補強 `original_vocab` validation；event notification flow 亦尚未建立。
 
 ### Admin
 
@@ -55,7 +56,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Event / notification system。
 - User-to-admin vocab message inbox。
 - Admin 整理資料後用 CSV 一次過 import vocab。
-- VocabRequest result event 同 `UserVocab` confirmation flow。
+- VocabRequest result event，同通知 user 有新 `UserVocab(in_use=False)` 可啟用。
 - Whole database CSV export / restore。
 - Account email activation。
 
@@ -86,7 +87,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `Vocab`：word、kana、meaning、type、level、category 等基本資料。
 - `VocabDetail`：一般 vocab 嘅 detail extension。
 - `KatakanaDetail`：katakana 專用資料，例如 native Japanese。
-- `UserVocab`：連接 user 同 vocab，保存 weight、answer counts、streak 同 last quiz time。
+- `UserVocab`：連接 user 同 vocab，保存 `in_use`、weight、answer counts、streak 同 last quiz time。
 - `VocabRequest`：保存 create、update、delete、restore request。
 
 ### Core
@@ -255,8 +256,9 @@ python manage.py test
 ## Current Limitations
 
 - Quiz app 暫時只係 placeholder。
-- VocabRequest approve/reject 已有基本 service flow，但 view-level `ValidationError` handling 同 admin review concurrency boundary 仍要完善。
+- VocabRequest approve/reject 已有基本 service flow，但 `original_vocab` validation 同 result event flow 仍要完善。
 - Event notification system 未建立。
+- `UserVocab(in_use=False)` 新字啟用 flow 尚未完成。
 - User-to-admin message flow 未建立。
 - CSV import 已有初步 admin-only command；summary、多 category 同完整 export / restore 尚未完成。
 - Requirements file 未建立。

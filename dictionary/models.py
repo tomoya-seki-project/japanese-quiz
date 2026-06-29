@@ -3,9 +3,6 @@ from django.db.models import JSONField, Q
 from django.conf import settings
 from core.models import TimeStampedModel
 
-
-
-
 class VocabType(models.TextChoices):
     VOCAB = "vocab", "Vocab"
     KATAKANA = "katakana", "Katakana"
@@ -23,7 +20,6 @@ class VocabLevel(models.TextChoices):
 
 class VocabCategory(models.TextChoices):
     VERB = "verb", "動詞"
-
     DAILY_LIFE = "daily_life", "日常生活"
     PEOPLE_RELATIONSHIPS = "people_relationships", "人間関係"
     FOOD = "food", "食事・料理"
@@ -122,6 +118,7 @@ class UserVocab(TimeStampedModel):
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocab'
     )
+    in_use = models.BooleanField(default=False)
     weight = models.IntegerField(verbose_name="Weight", default=50)
     correct_count = models.IntegerField(verbose_name="Correct", default=0)
     incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
