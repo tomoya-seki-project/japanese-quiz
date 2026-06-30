@@ -13,7 +13,7 @@ class UserVocabService():
     def get_new_vocab(*, user, limit=50):
         vocab_ids = (
             Vocab.objects
-            .exclude(user_vocab__user=user)
+            .exclude(user_vocabs__user=user)
             .order_by("-id")
             .values_list("id", flat=True)#[:limit]
         )
@@ -33,4 +33,3 @@ class UserVocabService():
         new_vocabs = UserVocabService.get_new_vocab(user=user)
         UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
         
-

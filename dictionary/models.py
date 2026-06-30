@@ -48,15 +48,15 @@ class Vocab(TimeStampedModel):
     type = models.CharField(
         verbose_name="Type", 
         max_length=20, choices=VocabType.choices
-        )
+    )
     level = models.CharField(
         verbose_name="Level", 
         max_length=10, choices=VocabLevel.choices
-        )
+    )
     category = models.CharField(
         verbose_name="Category", 
         max_length=50, choices=VocabCategory.choices
-        )
+    )
     
     #similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
 
@@ -71,7 +71,7 @@ class Vocab(TimeStampedModel):
         null=True, blank=True, 
         on_delete=models.SET_NULL,
         related_name='created_vocab'
-        )
+    )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         null=True, blank=True,
@@ -95,7 +95,7 @@ class VocabDetail(models.Model):
     vocab = models.OneToOneField(
         Vocab, on_delete=models.CASCADE,
         related_name='vocab_detail'
-        )
+    )
     class Meta:
         db_table = 'vocab_detail'
 
@@ -112,11 +112,11 @@ class UserVocab(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
-        related_name='user_vocab'
+        related_name='user_vocabs'
     )
     vocab = models.ForeignKey(
         Vocab, on_delete=models.CASCADE,
-        related_name='user_vocab'
+        related_name='user_vocabs'
     )
     in_use = models.BooleanField(default=False)
     weight = models.IntegerField(verbose_name="Weight", default=50)

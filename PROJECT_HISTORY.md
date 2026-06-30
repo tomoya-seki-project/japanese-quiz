@@ -504,6 +504,8 @@ Status: Work in progress
 
 ## 2026-06-29 - Dictionary normal flow stabilization and pre-test checkpoint
 
+Commit: `5cdf658`
+
 Status: Ready for manual flow testing
 
 ### 主要改動
