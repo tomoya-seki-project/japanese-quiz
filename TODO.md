@@ -255,20 +255,29 @@
 
 ## Event Notification System
 
-- [ ] **建立 site event / announcement model。**
+- [x] **建立 event / user-event data model foundation。**
+  - 已建立 `Event` model，用嚟保存 event type、title 同 message。
+  - 已建立 `UserEvent` through model，用嚟保存每個 user 對 event 嘅 read status。
+  - `UserEvent` 已加入 `(user, event)` unique constraint，避免同一個 user 對同一個 event 出現 duplicate read record。
+  - `Event` 已註冊到 admin，方便之後檢查 event data。
+
+- [ ] **完善 site announcement / notification model fields。**
   - Admin 可以建立重要公告，例如新功能、maintenance、quiz event、data update 或 policy change。
-  - Event 可以有 title、content、publish time、expire time、importance level 同 active status。
+  - 之後再決定是否加入 publish time、expire time、importance level、active status、target user group 等欄位。
   - 要決定通知係全體 users、指定 user group，定係單一 user。
 
-- [ ] **記錄每個 user 嘅 notification read status。**
+- [x] **記錄每個 user 嘅 notification read status。**
+  - `UserEvent.is_read` 同 `read_at` 已可記低 user 是否已讀同已讀時間。
+  - Event + UserEvent relationship 可以避免為每個全站公告直接複製完整 event content。
+
+- [ ] **實作 notification read / dismiss 操作。**
   - User login 後可以分到 unread 同已讀 notifications。
-  - 要記低邊個 user 已讀、read time，同埋有冇 dismiss。
-  - 避免為每個全站公告即時建立大量 duplicate rows，可以考慮 event + user read record 嘅結構。
+  - User 可以 mark as read、mark all as read，同查看之前嘅 notification history。
+  - 之後要決定是否需要 dismiss 狀態；如果需要，可能要喺 `UserEvent` 加欄位。
 
 - [ ] **User login 後顯示重要 event notifications。**
   - Login 後喺首頁、navbar notification icon 或 notification page 顯示未讀消息。
   - High priority event 可以用較明顯提示，但唔應該每次 refresh 都重複彈出。
-  - User 可以 mark as read、mark all as read，同查看之前嘅 notification history。
   - Vocab request result 唔會經 email notification，會統一經 site 入面嘅 event system 處理。
 
 ## Logging / Audit Trail

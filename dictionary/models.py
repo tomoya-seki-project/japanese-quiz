@@ -80,7 +80,7 @@ class Vocab(TimeStampedModel):
     )
 
     def __str__(self):
-        return f"{self.word}:{self.kana}"
+        return f"{self.word} ({self.kana})"
 
     class Meta:
         db_table = 'vocab'

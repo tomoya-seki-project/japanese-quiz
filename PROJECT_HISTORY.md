@@ -539,3 +539,43 @@ Status: Ready for manual flow testing
 - 一個看似簡單嘅 dictionary，其實一旦加入 user-specific state、admin review、import、concurrency 同 data integrity，就會變成完整 domain workflow。
 - 開發到一個階段後，manual flow testing 同 code review 一樣重要；前者驗證「用起來係咪啱」，後者驗證「寫法同責任分工係咪清楚」。
 - 文檔唔只係記錄已完成事項，亦可以幫自己標示 project 由「功能建設」進入「實際驗證」嘅節點。
+
+## 2026-07-01 - Event notification data model foundation
+
+Commit: `f51693a`
+
+Status: Foundation completed; service flow pending
+
+### 主要改動
+
+- 建立 event notification system 嘅初步 data model，加入 `Event` 同 `UserEvent`。
+- `Event` 保存 event type、title 同 message，準備用作 vocab request result、new vocab、system update 等通知。
+- `UserEvent` 保存每個 user 對每個 event 嘅 read status，包括 `is_read` 同 `read_at`。
+- 將 `Event` 註冊到 Django admin，方便之後檢查同管理 event data。
+- 建立 `core.service.event.EventService` 初稿，暫時保留 message generation、create event、assign event to user 等 service entry points。
+- 將 `UserVocab` reverse related name 由 singular `user_vocab` 整理成 plural `user_vocabs`，令 reverse relation 語意更自然。
+
+### Database 改動
+
+- 新增 `Event` table。
+- 新增 `UserEvent` table，作為 `Event` 同 user 之間嘅 through relationship。
+- `UserEvent` 加入 `(user, event)` unique constraint，防止同一 user 對同一 event 建立重複 read-status record。
+- `Event.message` 使用 `TextField`，避免之後 approve/reject result 或 import summary message 太長。
+- `UserVocab.user` 同 `UserVocab.vocab` 嘅 `related_name` 改成 `user_vocabs`；呢個係 Django model option 層面嘅命名整理，方便日後 query。
+
+### 技術重點
+
+- Event content 同 user read state 分開保存，可以避免同一個 event 因為派俾多個 users 而重複複製完整 message。
+- Through model 適合保存 relationship 自己嘅狀態，例如 `is_read`、`read_at`，之後亦可以擴展 dismiss / handled state。
+- `related_name` 應該反映 reverse side 會回傳多筆 records；plural naming 會令 `user.user_vocabs.all()` / `vocab.user_vocabs.all()` 更直覺。
+- Event service 暫時只建立 interface，真正 create / assign / mark-read flow 之後再按 vocab request result 同 login notification 需要實作。
+
+### 理由
+
+- Vocab request approve / reject、CSV import result、new vocab notification 等功能都需要一個統一通知基礎，而唔應該各自散落喺不同 app 入面。
+- 先建立 data model foundation，可以之後逐步將 admin review result、UserVocab sync notice 同 user message handling 接入同一套 event system。
+
+### 學到咩
+
+- Notification system 最少可以拆成「event 本體」同「user 對 event 嘅狀態」兩層，唔需要一開始就將所有通知複製成 per-user message。
+- Naming cleanup 雖然唔改 database 資料，但會影響 ORM query 可讀性；趁 project 未太大時處理成本最低。

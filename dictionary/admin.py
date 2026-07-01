@@ -38,18 +38,27 @@ class VocabAdmin(admin.ModelAdmin):
         'level',
         'created_by',
         'is_active',
-        'native_japanese',
         'create_at',
     )
     readonly_fields = (
         "type",
+        "created_by",
+        "approved_by",
     )
     ordering = ('id',)
     list_display_links = ('id',)
     search_fields = ('word', 'level', 'type')
     list_editable = ('level',)
+    list_filter = (
+        'level',
+        'type',
+        'is_active',
+    )
 
     def has_add_permission(self, request):
+        return False
+    
+    def has_delete_permission(self, request, obj = ...):
         return False
 
     def get_queryset(self, request):
@@ -76,10 +85,25 @@ class UserVocabAdmin(admin.ModelAdmin):
         'streak',
         'last_quiz_at',
     )
+
+    readonly_fields = (
+        'vocab',
+        'user',
+        'correct_count',
+        'incorrect_count',
+        'last_quiz_at',
+    )
+
     list_editable = ('weight',)
     ordering = ('user__id',)
     search_fields = ('user__username', 'vocab__word')
     autocomplete_fields = ('user', 'vocab')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj = ...):
+        return False
 
 @admin.register(VocabRequest)
 class VocabRequestAdmin(admin.ModelAdmin):
@@ -121,6 +145,12 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'proposed_native_japanese',
         'created_by',
     )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj = ...):
+        return False
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
