@@ -2686,3 +2686,159 @@ Row 2: invalid category
 ### 理解內容
 
 -
+
+## [ ] `[DJANGO-PAGINATION-KEEP-SEARCH-QUERY]` Search form + pagination + Ajax partial update 點樣保留 GET filter
+
+### 問題背景
+
+`VocabListView` 使用 GET form 做 search/filter，並將 vocab list 拆成 partial，再用 Ajax click pagination link 局部更新 list。
+
+問題係 pagination link 如果只寫：
+
+```django
+?page={{ num }}
+```
+
+當 user 已經 search 咗 `word=...`、`kana=...`、`level=...` 時，一按下一頁就會失去原本 search filter。
+
+### 研究方向
+
+- `request.GET` 入面保存咗咩 query string 資料。
+- 點解 pagination link 要保留原本 query string。
+- 點解要移除舊嘅 `page` parameter 再重新加新 page。
+- `QueryDict.copy()`、`pop()`、`urlencode()` 各自做咩。
+- Ajax partial update 同普通 pagination link 其實係咪用同一條 URL。
+
+### 概念整理與解答
+
+#### 1. Search filter 其實係 URL query string
+
+GET search form submit 後，URL 會變成類似：
+
+```text
+/dictionary/vocab/list?word=水&kana=みず
+```
+
+呢啲資料會出現喺：
+
+```python
+self.request.GET
+```
+
+所以 view 入面可以用 `VocabSearchForm(self.request.GET)` 去 filter queryset。
+
+#### 2. Pagination link 要保留原本 filter
+
+如果 pagination link 只寫：
+
+```django
+<a href="?page=2">2</a>
+```
+
+click 後 URL 會變成：
+
+```text
+/dictionary/vocab/list?page=2
+```
+
+原本嘅 `word=水&kana=みず` 會消失，queryset 就會變返無 filter。
+
+正確方向係：
+
+```text
+/dictionary/vocab/list?word=水&kana=みず&page=2
+```
+
+#### 3. View 入面準備一條不包含 page 嘅 query string
+
+可以喺 `get_context_data()` 入面做：
+
+```python
+def get_context_data(self, **kwargs):
+    context = super().get_context_data(**kwargs)
+
+    context["search_form"] = VocabSearchForm(self.request.GET)
+
+    query_params = self.request.GET.copy()
+    query_params.pop("page", None)
+    context["query_string"] = query_params.urlencode()
+
+    return context
+```
+
+意思：
+
+- `self.request.GET.copy()`：複製目前 URL query parameters。
+- `query_params.pop("page", None)`：移除舊 page，避免 URL 變成 `page=1&page=2`。
+- `query_params.urlencode()`：將 QueryDict 重新變回 URL query string，例如 `word=水&kana=みず`。
+
+#### 4. Template 入面重新加新 page
+
+Pagination link 可以寫：
+
+```django
+<a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="page-change">
+    {{ num }}
+</a>
+```
+
+如果有 search filter：
+
+```text
+?word=水&kana=みず&page=2
+```
+
+如果冇 search filter：
+
+```text
+?page=2
+```
+
+`{% if query_string %}` 係用嚟避免出現唔靚嘅：
+
+```text
+?&page=2
+```
+
+#### 5. Ajax partial update 都係用同一條 URL
+
+Ajax click pagination 時：
+
+```javascript
+fetch(url, {
+    headers: {
+        "X-Requested-With": "XMLHttpRequest"
+    }
+})
+```
+
+`url` 仍然係 pagination link 嘅 `href`。
+
+所以只要 pagination link 本身保留咗 search query，Ajax request 一樣會帶住 filter 去 view。
+
+View 可以用 header 判斷是否回傳 partial：
+
+```python
+def render_to_response(self, context, **response_kwargs):
+    if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return render(
+            self.request,
+            "dictionary/partials/vocab_list_partial.html",
+            context,
+        )
+    return super().render_to_response(context, **response_kwargs)
+```
+
+#### 6. 重點
+
+```text
+Search state = URL query string
+Pagination link = 原本 query string + 新 page
+Ajax partial update = fetch 同一條 pagination URL
+```
+
+所以問題唔係 Ajax 特有，而係 pagination link 要正確保存 GET parameters。
+
+### 理解內容
+
+-

@@ -358,3 +358,15 @@
   - 按下假名後，將文字插入 quiz answer input，而唔係覆蓋原有內容。
   - 考慮平假名／片假名切換、濁音／半濁音、拗音、促音同長音符號。
   - 可以加入簡單提示，幫 user 確認讀音或輸入方式。
+
+- [ ] **為 vocab / user vocab list 加入 Ajax partial pagination。**
+  - 已完成：
+    - `VocabListView` 已拆成 main template + partial template。
+    - `VocabListView.render_to_response()` 已可根據 `X-Requested-With` header 回傳 partial。
+    - `vocab_list.html` 已加入 Ajax click handler，pagination click 可以局部更新 vocab list 區域。
+    - `VocabListView.get_context_data()` 已建立 `query_string`，pagination link 可以保留現有 GET search filter。
+    - Pagination link 保留普通 `<a href>`，所以 non-JavaScript fallback 仍可完整 reload page。
+    - 相關 query string / pagination 處理方法已記錄喺 `LEARNING_QUESTIONS.md`。
+    - 已用 browser 實際測試 search + pagination + Ajax partial update flow。
+  - 未完成：
+    - 之後可以考慮將同一 pattern 套用到 `UserVocabListView`。

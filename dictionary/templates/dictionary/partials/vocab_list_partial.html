@@ -1,0 +1,43 @@
+<table>
+    <thead>
+        <tr>
+            <th>id</th>
+            <th>word</th>
+            <th>kana</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for vocab in vocabs %}
+        <tr>
+            <td>{{ vocab.pk }}</td>
+            <td>{{ vocab.word }}</td>
+            <td>{{ vocab.kana }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if is_paginated %}
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+    {% else %}
+        Prev
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            {{ num }}
+        {% else %}
+            <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
+       {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">Next</a>    
+    {% else %}
+        Next
+    {% endif %}
+</div>
+
+{% endif %}

@@ -579,3 +579,42 @@ Status: Foundation completed; service flow pending
 
 - Notification system 最少可以拆成「event 本體」同「user 對 event 嘅狀態」兩層，唔需要一開始就將所有通知複製成 per-user message。
 - Naming cleanup 雖然唔改 database 資料，但會影響 ORM query 可讀性；趁 project 未太大時處理成本最低。
+
+## 2026-07-02 - Kanji CSV resources and dictionary admin hardening
+
+Commit: `9a746a1`
+
+Status: Dictionary admin controls tightened; import resources prepared
+
+### 主要改動
+
+- 加入 kanji vocab CSV resource files，準備之後用 `import_vocab` command 做實際 import 測試。
+- 將 dictionary admin 嘅 direct add / delete 操作進一步收緊，避免 admin 繞過既有 service flow 直接建立或刪除核心資料。
+- `VocabAdmin` 禁止 direct add / delete，並將 `created_by`、`approved_by` 設為 readonly。
+- `VocabAdmin` 加入 level、type、active status list filters，令 admin 檢查 vocab data 時更易篩選。
+- `UserVocabAdmin` 禁止 direct add / delete，並將 user / vocab relationship 同 quiz stats 設為 readonly。
+- `VocabRequestAdmin` 禁止 direct add / delete，保持 request lifecycle 由 user submission 同 approve / reject workflow 控制。
+- 改善 `Vocab.__str__()` 顯示格式，令 admin、debug 同 import review 時更易辨認 word / kana。
+
+### Database 改動
+
+- 無 schema 變更。
+- 新增 `resource/kanji*.csv` files 作為之後 import / test data source。
+- Admin control changes 屬於 Django admin behavior，不影響現有 table structure。
+
+### 技術重點
+
+- 當 project 已經有 service layer 管理 create / update / delete 時，admin direct mutation 要收緊，否則好容易繞過 validation、transaction、detail model creation 或 audit flow。
+- Admin readonly fields 可以保護 ownership / approval metadata，避免後台手動修改破壞資料來源。
+- Admin list filters 係實際 manual review 好重要嘅工具，尤其係 vocab data 逐漸變多後，需要按 level、type、active status 快速排查。
+- CSV resource files 令 import command 可以進入較接近真實資料嘅測試階段，而唔只係用 placeholder CSV 驗證 reader 能否讀取。
+
+### 理由
+
+- Dictionary normal flow 即將進入實際使用測試，admin 後台需要先收緊可變更範圍，避免測試資料期間出現繞過正式 workflow 嘅資料。
+- Kanji CSV resources 會作為 import command、vocab validation、admin review 同 UserVocab sync flow 嘅實際測試材料。
+
+### 學到咩
+
+- Admin 介面唔只係方便 data entry；喺有 workflow 嘅系統入面，admin 亦需要配合 domain rules 限制邊啲操作可以做、邊啲只可以睇。
+- 準備 realistic resource data 係 manual testing 前嘅重要一步，可以更早暴露 import、filter、admin display 同 user-facing flow 嘅問題。

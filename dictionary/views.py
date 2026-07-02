@@ -191,7 +191,7 @@ class VocabListView(ListView):
     template_name = "dictionary/vocab_list.html"
     context_object_name = "vocabs"
     ordering = ['pk',]
-    #paginate_by = 10
+    paginate_by = 30
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -199,6 +199,9 @@ class VocabListView(ListView):
         context["search_form"] = VocabSearchForm(
             self.request.GET
         )
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["query_string"] = query_params.urlencode()
         return context
 
     def get_queryset(self):
@@ -222,6 +225,11 @@ class VocabListView(ListView):
                 qs = qs.filter(category=category)
 
         return qs
+    
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get('x-requested-with') == "XMLHttpRequest":
+            return render(self.request, 'dictionary/partials/vocab_list_partial.html', context)
+        return super().render_to_response(context, **response_kwargs)
     
 class UserVocabListView(LoginRequiredMixin, ListView):
     model = UserVocab

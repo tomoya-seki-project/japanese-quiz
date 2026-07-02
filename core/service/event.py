@@ -13,3 +13,11 @@ class EventService():
     @staticmethod
     def assign_event_to_user(*, event, user):
         pass
+
+    @staticmethod
+    def mark_as_read(*, event):
+        pass
+
+    @staticmethod
+    def get_unread_events(*, user):
+        pass
