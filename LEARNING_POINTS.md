@@ -2,6 +2,28 @@
 
 呢份文件用嚟記錄學習過程中仍然有疑問、值得之後深入研究的概念。內容未必代表 project 仲有 bug。
 
+## 目錄
+
+- [DJANGO-CUSTOM-USER-ADMIN](#DJANGO-CUSTOM-USER-ADMIN)
+- [JS-PARTIAL-REPLACE-EVENT-BINDING](#JS-PARTIAL-REPLACE-EVENT-BINDING)
+- [DJANGO-HANDWRITTEN-CHECKBOX-POST-FORM](#DJANGO-HANDWRITTEN-CHECKBOX-POST-FORM)
+- [HTML-JS-CHECKBOX-SELECT-ALL](#HTML-JS-CHECKBOX-SELECT-ALL)
+- [DJANGO-MODEL-MULTIPLE-CHOICE-BULK-SELECT-FLOW](#DJANGO-MODEL-MULTIPLE-CHOICE-BULK-SELECT-FLOW)
+- [DOMAIN-VOCAB-USERVOCAB-IN-USE](#DOMAIN-VOCAB-USERVOCAB-IN-USE)
+- [DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL](#DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL)
+- [DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW](#DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW)
+- [DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC](#DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC)
+- [DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE](#DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE)
+- [DJANGO-RELATION-FIELD-RELATED-NAME](#DJANGO-RELATION-FIELD-RELATED-NAME)
+- [DJANGO-UNIQUE-CONSTRAINT](#DJANGO-UNIQUE-CONSTRAINT)
+- [DJANGO-ADMIN-MESSAGE-USER](#DJANGO-ADMIN-MESSAGE-USER)
+- [PYTHON-SET-DIFFERENCE-CSV-HEADERS](#PYTHON-SET-DIFFERENCE-CSV-HEADERS)
+- [DJANGO-CBV-OBJECT-ID](#DJANGO-CBV-OBJECT-ID)
+- [PYTHON-ENUMERATE-CSV-ROWS](#PYTHON-ENUMERATE-CSV-ROWS)
+- [DJANGO-PAGINATION-KEEP-SEARCH-QUERY](#DJANGO-PAGINATION-KEEP-SEARCH-QUERY)
+
+<a id="DJANGO-CUSTOM-USER-ADMIN"></a>
+
 ## [ ] `[DJANGO-CUSTOM-USER-ADMIN]` Django Custom User Admin
 
 ### 問題背景
@@ -82,7 +104,239 @@ password2
 
 ### 理解內容
 
+- 
+
+<a id="JS-PARTIAL-REPLACE-EVENT-BINDING"></a>
+
+## [ ] `[JS-PARTIAL-REPLACE-EVENT-BINDING]` Ajax partial replace 後 event listener 點樣處理
+
+### 問題背景
+
+`UserVocabListView` 拆成 main template + partial template 後，Ajax pagination 會用：
+
+```javascript
+container.innerHTML = html;
+```
+
+替換 list 區域。  
+問題係 partial 入面原本嘅 checkbox、select all、pagination links 都會變成新 DOM。舊 DOM 上面綁過嘅 event listener 會消失。
+
+今次試咗將 checkbox setup logic 包成 function，喺 initial page load 同 Ajax replace 後都 call 一次，結果可以 work。
+
+### 研究方向
+
+- 點解 `innerHTML = html` 之後舊 event listener 會失效。
+- 用 function 包住重新 bind event 是否正路。
+- Event delegation 係咩，點解可以避免每次 replace 後重新 bind。
+- 什麼時候值得用 HTMX / Alpine.js 呢類小工具。
+- 邊種做法最適合目前 project 階段。
+
+### 概念整理與解答
+
+#### 1. 方法一：replace 完再 call setup function
+
+目前做法概念：
+
+```javascript
+function selectorReload() {
+    const selectAll = document.getElementById("select-all");
+    const checkboxes = document.querySelectorAll(".in-use-checkbox");
+
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+        });
+    });
+
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener("change", function () {
+            // update select-all state
+        });
+    });
+}
+
+selectorReload();
+
+// after Ajax replace
+container.innerHTML = html;
+selectorReload();
+```
+
+呢個做法係正路，因為：
+
+- `innerHTML = html` 會建立一批新 DOM elements。
+- 舊 checkbox 已經被移除，舊 listener 跟住消失。
+- replace 完重新 call setup function，就可以幫新 checkbox bind event。
+
+建議加 guard，避免 partial 暫時冇 checkbox 時 JS 爆：
+
+```javascript
+function selectorReload() {
+    const selectAll = document.getElementById("select-all");
+    if (!selectAll) return;
+
+    const checkboxes = document.querySelectorAll(".in-use-checkbox");
+    // bind events...
+}
+```
+
+優點：
+
+- 直覺、易明、易 debug。
+- 適合目前自己手寫 Django template + JavaScript 嘅階段。
+
+缺點：
+
+- 如果冇 replace DOM，而係對同一批 DOM 重複 call setup，可能會重複 bind listener。
+- function 入面要小心 selector 是否存在。
+
+#### 2. 方法二：Event delegation
+
+Event delegation 係將 listener 綁喺穩定存在嘅 parent container，而唔係每次綁喺新 checkbox 上。
+
+概念：
+
+```javascript
+const container = document.getElementById("user-vocab-list-container");
+
+container.addEventListener("change", function (e) {
+    if (e.target.id === "select-all") {
+        const checkboxes = container.querySelectorAll(".in-use-checkbox");
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = e.target.checked;
+        });
+        updateSelectAllState();
+    }
+
+    if (e.target.classList.contains("in-use-checkbox")) {
+        updateSelectAllState();
+    }
+});
+```
+
+因為 listener 係掛喺 `container`，而 `container` 本身冇被 replace，所以 partial 入面 checkbox 換咗都仍然可以收到事件。
+
+`updateSelectAllState()` 入面放嘅，就係原本每個 checkbox `change` listener 入面嗰段「重新計算 All checkbox 狀態」嘅 logic。
+
+原本做法大概係：
+
+```javascript
+checkboxes.forEach(function (checkbox) {
+    checkbox.addEventListener("change", function () {
+        const allChecked = Array.from(checkboxes).every(function (box) {
+            return box.checked;
+        });
+        const noneChecked = Array.from(checkboxes).every(function (box) {
+            return !box.checked;
+        });
+
+        selectAll.checked = allChecked;
+        selectAll.indeterminate = !allChecked && !noneChecked;
+    });
+});
+```
+
+Event delegation 之後，可以抽成：
+
+```javascript
+function updateSelectAllState() {
+    const selectAll = document.getElementById("select-all");
+    if (!selectAll) return;
+
+    const checkboxes = document.querySelectorAll(".in-use-checkbox");
+
+    const allChecked = Array.from(checkboxes).every(function (box) {
+        return box.checked;
+    });
+
+    const noneChecked = Array.from(checkboxes).every(function (box) {
+        return !box.checked;
+    });
+
+    selectAll.checked = allChecked;
+    selectAll.indeterminate = !allChecked && !noneChecked;
+}
+```
+
+分工：
+
+```text
+select-all change
+-> 將目前畫面所有 checkbox 跟住 select-all checked 狀態改變
+-> 再 call updateSelectAllState()
+
+single checkbox change
+-> 不改其他 checkbox
+-> 只 call updateSelectAllState() 重新計算 select-all 應該係 checked / unchecked / indeterminate
+```
+
+優點：
+
+- partial replace 後唔需要重新 bind checkbox listeners。
+- 對動態新增 / 替換 DOM 特別適合。
+- pagination click handler 其實已經係用緊類似 delegation：
+
+```javascript
+container.addEventListener("click", function (e) {
+    if (e.target.classList.contains("page-change")) {
+        // Ajax pagination
+    }
+});
+```
+
+缺點：
+
+- 對初學階段抽象少少。
+- function 要小心用 `e.target` 判斷事件來源。
+- 如果 DOM 結構變複雜，有時要用 `closest()` 搵真正目標。
+
+#### 3. 方法三：用 HTMX / Alpine.js 等小工具
+
+之後可以考慮用 HTMX 處理：
+
+- click link 後 fetch partial。
+- replace 指定 container。
+- 保留 server-rendered Django template flow。
+
+或者用 Alpine.js 管理小型互動狀態，例如 checkbox select-all。
+
+優點：
+
+- 少寫低層 fetch / event binding code。
+- 對 partial update 呢類 server-rendered interaction 好方便。
+
+缺點：
+
+- 會引入新 dependency / 新概念。
+- 如果未理解原生 JS flow，太早用工具可能會遮住底層原理。
+
+#### 4. 目前建議
+
+目前 project 階段可以先用：
+
+```text
+方法一：setup function reload
+```
+
+原因：
+
+- 已經 work。
+- 容易理解。
+- 同目前 Django template + vanilla JavaScript 學習階段配合。
+
+之後 `UserVocabListView` 穩定後，可以再嘗試 refactor 成：
+
+```text
+方法二：event delegation
+```
+
+因為 event delegation 更適合長期維護動態 partial DOM。
+
+### 理解內容
+
 -
+
+<a id="DJANGO-HANDWRITTEN-CHECKBOX-POST-FORM"></a>
 
 ## [ ] `[DJANGO-HANDWRITTEN-CHECKBOX-POST-FORM]` 手寫 checkbox HTML，再用 Django Form 接 POST data
 
@@ -238,6 +492,8 @@ context["update_form"] = UserVocabInUseUpdateForm(...)
 
 -
 
+<a id="HTML-JS-CHECKBOX-SELECT-ALL"></a>
+
 ## [ ] `[HTML-JS-CHECKBOX-SELECT-ALL]` Checkbox 全選 / 全取消點樣用 JavaScript 做
 
 ### 問題背景
@@ -362,6 +618,8 @@ selected_ids
 ### 理解內容
 
 -
+
+<a id="DJANGO-MODEL-MULTIPLE-CHOICE-BULK-SELECT-FLOW"></a>
 
 ## [ ] `[DJANGO-MODEL-MULTIPLE-CHOICE-BULK-SELECT-FLOW]` 用 `ModelMultipleChoiceField` 做批量選擇 object 嘅處理流程
 
@@ -543,6 +801,8 @@ return Vocab.objects.filter(id__in=vocab_ids)
 
 -
 
+<a id="DOMAIN-VOCAB-USERVOCAB-IN-USE"></a>
+
 ## [ ] `[DOMAIN-VOCAB-USERVOCAB-IN-USE]` `Vocab` 同 `UserVocab.in_use` 嘅設計心智模型
 
 ### 問題背景
@@ -664,6 +924,8 @@ UserVocab.objects.filter(
 ### 理解內容
 
 -
+
+<a id="DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL"></a>
 
 ## [ ] `[DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL]` Admin change form 用 readonly field 顯示 action link 嘅做法
 
@@ -877,6 +1139,8 @@ Change form submit button approach 適合：
 ### 理解內容
 
 -
+
+<a id="DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW"></a>
 
 ## [ ] `[DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW]` Admin approve / reject 點樣處理 form save 同 row lock
 
@@ -1155,6 +1419,8 @@ super().save_model(request, obj, form, change)
 
 -
 
+<a id="DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC"></a>
+
 ## [ ] `[DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC]` 點解要喺 `transaction.atomic()` 外面捕捉 `IntegrityError`
 
 ### 問題背景
@@ -1374,6 +1640,8 @@ except IntegrityError:
 
 -
 
+<a id="DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE"></a>
+
 ## [ ] `[DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE]` Sliced QuerySet 點解唔可以直接交俾 `ModelMultipleChoiceField`
 
 ### 問題背景
@@ -1554,6 +1822,8 @@ return (
 ### 理解內容
 
 -
+
+<a id="DJANGO-RELATION-FIELD-RELATED-NAME"></a>
 
 ## [ ] `[DJANGO-RELATION-FIELD-RELATED-NAME]` Relation 應該用 field name 定 `related_name`
 
@@ -1808,6 +2078,8 @@ vocab.user_vocab.select_related("user")
 
 -
 
+<a id="DJANGO-UNIQUE-CONSTRAINT"></a>
+
 ## [ ] `[DJANGO-UNIQUE-CONSTRAINT]` `UniqueConstraint` 同 conditional unique constraint
 
 ### 問題背景
@@ -2013,6 +2285,8 @@ Conditional unique constraint 會依賴 database 對 partial unique index 嘅支
 ### 理解內容
 
 -
+
+<a id="DJANGO-ADMIN-MESSAGE-USER"></a>
 
 ## [ ] `[DJANGO-ADMIN-MESSAGE-USER]` `ModelAdmin.message_user()` 係咩
 
@@ -2220,6 +2494,8 @@ self.message_user(
 
 -
 
+<a id="PYTHON-SET-DIFFERENCE-CSV-HEADERS"></a>
+
 ## [ ] `[PYTHON-SET-DIFFERENCE-CSV-HEADERS]` 點樣用 set 差集檢查 CSV 缺少嘅 headers
 
 ### 問題背景
@@ -2358,6 +2634,8 @@ if missing_headers:
 ### 理解內容
 
 -
+
+<a id="DJANGO-CBV-OBJECT-ID"></a>
 
 ## [ ] `[DJANGO-CBV-OBJECT-ID]` Detail／Update／Delete View 點樣取得目標 Object
 
@@ -2589,6 +2867,8 @@ DetailView／UpdateView／DeleteView
 
 - 
 
+<a id="PYTHON-ENUMERATE-CSV-ROWS"></a>
+
 ## [ ] `[PYTHON-ENUMERATE-CSV-ROWS]` `enumerate()` 點樣提供 CSV 行數同資料
 
 ### 問題背景
@@ -2686,6 +2966,8 @@ Row 2: invalid category
 ### 理解內容
 
 -
+
+<a id="DJANGO-PAGINATION-KEEP-SEARCH-QUERY"></a>
 
 ## [ ] `[DJANGO-PAGINATION-KEEP-SEARCH-QUERY]` Search form + pagination + Ajax partial update 點樣保留 GET filter
 

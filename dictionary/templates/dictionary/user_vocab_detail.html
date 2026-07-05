@@ -1,0 +1,7 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h1>user vocab detail</h1>
+{{ user_vocab.vocab__word }}
+{{ user_vocab.vocab__kana }}
+<a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">last page</a>
+{% endblock %}

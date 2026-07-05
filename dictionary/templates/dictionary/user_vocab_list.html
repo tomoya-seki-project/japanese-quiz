@@ -5,66 +5,58 @@
     {{ search_form.as_p }}
     <button type="submit">confirm</button>
 </form>
-<form method="POST" action="{{ request.get_full_path }}">
-    {% csrf_token %}
-    <table>
-        <thead>
-            <tr>
-                <th>
-                    <input type="checkbox" id="select-all">
-                    <label for="select-all">All</label>
-                </th>
-                <th>word</th>
-                <th>kana</th>
-                <th>meaning</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user_vocab in user_vocabs %}
-            <tr>
-                <td>
-                    <input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
-                    <input 
-                        type="checkbox" 
-                        name="selected_ids" 
-                        class="in-use-checkbox"
-                        value="{{ user_vocab.id }}" 
-                        {% if user_vocab.in_use %}checked{% endif %}>
-                </td>
-                <td>{{ user_vocab.vocab.word }}</td>
-                <td>{{ user_vocab.vocab.kana }}</td>
-                <td>{{ user_vocab.vocab.meaning }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button type="submit">Update</button>
-</form>
+<div id="user-vocab-list-container">
+    {% include "dictionary/partials/user_vocab_list_partial.html" %}
+</div>
 {% endblock %}
 {% block javascript %}
 <script>
     document.addEventListener("DOMContentLoaded", function(){
-        const selectAll = document.getElementById("select-all");
-        const checkboxes = document.querySelectorAll(".in-use-checkbox");
-
-        selectAll.addEventListener("change", function(){
-            checkboxes.forEach(function(checkbox){
-                checkbox.checked = selectAll.checked;
-            });
+        const userVocabListContainer = document.getElementById('user-vocab-list-container')
+        userVocabListContainer.addEventListener('click', function(e){
+            if(e.target.classList.contains('page-change')){
+                e.preventDefault();
+                const url = e.target.href;
+                fetch(url, {
+                    headers:{
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.text())
+                .then(html => {
+                    userVocabListContainer.innerHTML = html;
+                    selectorReload();
+                })
+                .catch(error => console.error('Error fetching filter user vocabs:', error));
+            }
         });
-        checkboxes.forEach(function(checkbox) {
-            checkbox.addEventListener("change", function(){
-                const allChecked = Array.from(checkboxes).every(function(box){
-                    return box.checked;
-                });
-                const noneChecked = Array.from(checkboxes).every(function(box){
-                    return !box.checked;
-                });
 
-                selectAll.checked = allChecked;
-                selectAll.indeterminate = !allChecked && !noneChecked;
+        function selectorReload(){
+            const selectAll = document.getElementById("select-all");
+            if(!selectAll) return;
+            const checkboxes = document.querySelectorAll(".in-use-checkbox");
+
+            selectAll.addEventListener("change", function(){
+                checkboxes.forEach(function(checkbox){
+                    checkbox.checked = selectAll.checked;
+                });
             });
-        });
+            checkboxes.forEach(function(checkbox) {
+                checkbox.addEventListener("change", function(){
+                    const allChecked = Array.from(checkboxes).every(function(box){
+                        return box.checked;
+                    });
+                    const noneChecked = Array.from(checkboxes).every(function(box){
+                        return !box.checked;
+                    });
+
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = !allChecked && !noneChecked;
+                });
+            });
+        }
+
+        selectorReload();
     });
 </script>
 {% endblock %}

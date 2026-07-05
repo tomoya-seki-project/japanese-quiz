@@ -1,4 +1,8 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>vocab detail</h1>
+{{ vocab.word }}
+{{ vocab.kana }}
+<a href="{% url "dictionary:vocab_update" vocab_id=vocab.pk%}" class="btn btn-primary">更新</a>
+<a href="{% url "dictionary:vocab_delete" vocab_id=vocab.pk%}" class="btn btn-primary">del</a>
 {% endblock %}

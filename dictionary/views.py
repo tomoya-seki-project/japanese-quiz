@@ -16,6 +16,7 @@ from django.views.generic import (
     FormView,
     ListView,
 )
+from django.views.generic.detail import DetailView
 
 
 
@@ -174,16 +175,18 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
     
 
-class VocabDetailView(TemplateView):
+class VocabDetailView(DetailView):
+    model = Vocab
     template_name = "dictionary/vocab_detail.html"
+    context_object_name = "vocab"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["vocab"] = get_object_or_404(
-            Vocab,
-            pk = self.kwargs["vocab_id"]
-        )
-        return context
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     context["vocab"] = get_object_or_404(
+    #         Vocab,
+    #         pk = self.kwargs["vocab_id"]
+    #     )
+    #     return context
     
 
 class VocabListView(ListView):
@@ -270,6 +273,10 @@ class UserVocabListView(LoginRequiredMixin, ListView):
 
         return redirect(request.get_full_path())
 
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get('x-requested-with') == "XMLHttpRequest":
+            return render(self.request, 'dictionary/partials/user_vocab_list_partial.html', context)
+        return super().render_to_response(context, **response_kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -277,6 +284,11 @@ class UserVocabListView(LoginRequiredMixin, ListView):
         context['search_form'] = UserVocabSearchForm(
             self.request.GET
         )
+
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context['query_string'] = query_params.urlencode()
+
         return context
     
     def get_queryset(self):
@@ -308,6 +320,11 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(vocab__category=category)
 
         return qs
+    
+class UserVocabDetailView(LoginRequiredMixin, DetailView):
+    model = UserVocab
+    template_name = "dictionary/user_vocab_detail.html"
+    context_object_name = "user_vocab"
 
 class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
     template_name = "dictionary/select_vocab.html"

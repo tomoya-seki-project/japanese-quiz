@@ -618,3 +618,41 @@ Status: Dictionary admin controls tightened; import resources prepared
 
 - Admin 介面唔只係方便 data entry；喺有 workflow 嘅系統入面，admin 亦需要配合 domain rules 限制邊啲操作可以做、邊啲只可以睇。
 - 準備 realistic resource data 係 manual testing 前嘅重要一步，可以更早暴露 import、filter、admin display 同 user-facing flow 嘅問題。
+
+## 2026-07-02 - Ajax pagination partial for vocab list
+
+Commit: `e1e56df`
+
+Status: Vocab list Ajax pagination tested; UserVocab list reuse pending
+
+### 主要改動
+
+- 將 vocab list table 同 pagination 拆成 `vocab_list_partial.html`，由 main template include。
+- `VocabListView.render_to_response()` 可根據 `X-Requested-With` header 回傳 partial HTML，供 Ajax pagination 使用。
+- `vocab_list.html` 加入 client-side fetch handling，click pagination link 時只更新 vocab list 區域。
+- Pagination link 會保留現有 GET search filters，避免 search 後轉頁時失去 filter 條件。
+- 保留普通 `<a href>` pagination link，即使 JavaScript 不執行亦可以完整 reload page。
+- 新增 `user_vocab_list_partial.html` placeholder，準備之後將同一 pattern 套用到 UserVocab list。
+- `EventService` 補上 read-state handling 相關 placeholder methods，為之後 notification read flow 留出 service entry points。
+
+### Database 改動
+
+- 無 schema 變更。
+- 今次主要係 template 分拆、view response 分流同 frontend interaction。
+
+### 技術重點
+
+- Partial template 可以令同一份 list markup 同時服務 initial page render 同 Ajax response，減少重複 HTML。
+- Ajax pagination 嘅核心唔係另一套 URL，而係 fetch 原本 pagination link，並用 `X-Requested-With` 令 view 回傳 partial。
+- Search state 由 GET query string 保存；pagination link 要將原有 query string 去除舊 `page` 後，再加上新 page number。
+- 保留 `<a href>` fallback 可以令功能不完全依賴 JavaScript，亦方便 debug。
+
+### 理由
+
+- Vocab list 之後資料量會增加，Ajax partial pagination 可以令列表操作感覺更順，同時保留 server-rendered template 架構。
+- 先喺較簡單嘅 VocabListView 驗證 pattern，再考慮套用到 UserVocabListView，風險較低。
+
+### 學到咩
+
+- Ajax partial update 同傳統 server-side pagination 可以共存；只要 URL、query string 同 fallback link 設計好，就唔需要一開始轉成完整 frontend app。
+- Query string 係 search/filter state 嘅來源，pagination、Ajax 同 normal reload 都應該圍繞同一份 state 運作。

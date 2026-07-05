@@ -1,0 +1,58 @@
+<form method="POST" action="{{ request.get_full_path }}">
+    {% csrf_token %}
+    <table>
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="select-all">
+                    <label for="select-all">All</label>
+                </th>
+                <th>word</th>
+                <th>kana</th>
+                <th>meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_vocab in user_vocabs %}
+            <tr>
+                <td>
+                    <input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
+                    <input 
+                        type="checkbox" 
+                        name="selected_ids" 
+                        class="in-use-checkbox"
+                        value="{{ user_vocab.id }}" 
+                        {% if user_vocab.in_use %}checked{% endif %}>
+                </td>
+                <td>{{ user_vocab.vocab.word }}</td>
+                <td>{{ user_vocab.vocab.kana }}</td>
+                <td>{{ user_vocab.vocab.meaning }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Update</button>
+</form>
+{% if is_paginated %}
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+    {% else %}
+        Prev
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            {{ num }}
+        {% else %}
+            <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+    {% else %}
+        Next
+    {% endif %}
+</div>
+{% endif %}

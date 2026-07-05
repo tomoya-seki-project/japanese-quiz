@@ -31,6 +31,7 @@
   - Approve 已按 CREATE / UPDATE / RESTORE / DELETE request type 呼叫對應 vocab action。
   - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
   - Admin 會根據 service 回傳結果顯示成功或已處理 warning。
+  - 已用 browser / admin 手動測試 create、restore、update、delete request，以及 approve / reject 正常 flow。
 
 - [x] **第 2 點（VocabRequest / Admin Review）：Admin 入面嘅 approve / reject action 由 GET link 改做 POST。**
   - 避免誤 click、refresh page 時重複執行，或者連續 click 造成重複處理。
@@ -65,7 +66,7 @@
   - `VocabRequestAdmin.get_queryset()` 會喺 approve / reject POST 時使用 `select_for_update()`，令 admin change form save 前先鎖住目標 request row。
   - `VocabRequestService.approve_vocab_request()` / `reject_vocab_request()` 仍保留 service-level `select_for_update()`，避免日後其他 caller 繞過 admin protection。
   - Reviewed request 會經 `get_readonly_fields()` 設為 readonly，並由 `save_model()` 擋住非 pending request 被再次保存。
-  - 之後可以再用 tests 驗證兩個 admin 同時 review 同舊頁面 submit 嘅情況。
+  - 已手動測試 approve / reject 正常操作；之後可以再用 automated tests 驗證兩個 admin 同時 review 同舊頁面 submit 嘅情況。
 
 - [x] **第 10 點（VocabRequest / Admin Review）：Admin 入面由 workflow 控制嘅 fields 要 set 做 readonly。**
   - 例如：`status`、`request_type`、`reviewed_by`，同埋適合 readonly 嘅 proposed data。
@@ -105,7 +106,7 @@
 - [x] **第 18 點（Account Admin）：檢查 custom User Admin 寫法。**
   - `CustomizedUserAdmin` 已繼承 Django standard `UserAdmin`。
   - Add form 會用 `set_password()`，change form 會用 readonly password hash field。
-  - 相關原理同之後想深入研究的問題記錄喺 `LEARNING_QUESTIONS.md`。
+  - 相關原理同之後想深入研究的問題記錄喺 `LEARNING_POINTS.md`。
   - 目前 public registration 同 admin Add User 共用 `RegistForm`。
   - 實作 email activation 時，拆成 public registration form 同 `UserCreationAdminForm`：
     - Public registration 建立 `is_active=False` 的 user，等待 email activation。
@@ -118,7 +119,7 @@
 - [x] **第 20 點（UserVocab Flow）：穩定 UserVocab 選擇頁 GET / POST 之間嘅候選範圍。**
   - 原本嘅 `UserVocabSelectVocabView` 會每次 request 重新計算候選 vocab，GET / POST 之間可能出現候選範圍變動。
   - 目前加字主流程已改成 login 後自動 sync 新 vocab，先建立 `UserVocab(in_use=False)`。
-  - 舊 selection flow 暫時唔作為主要加字入口，相關 `ModelMultipleChoiceField` pattern 已移入 `LEARNING_QUESTIONS.md` 保留做之後參考。
+  - 舊 selection flow 暫時唔作為主要加字入口，相關 `ModelMultipleChoiceField` pattern 已移入 `LEARNING_POINTS.md` 保留做之後參考。
 
 ## Vocab Future Work
 
@@ -333,8 +334,8 @@
     - Register 成功後亦會呼叫 `UserVocabService.sync_new_vocab()`，為新 user 建立現有 vocab 嘅 `UserVocab` records。
     - `UserVocabListView` 已加入 POST bulk update flow，用 `selectable_ids` / `selected_ids` 更新當前顯示項目嘅 `in_use` 狀態。
     - UserVocab list template 已加入 checkbox UI，提交 `selectable_ids` 同 `selected_ids`。
+    - 已用 browser 測試 select all / checkbox 更新 `in_use` flow。
   - 未完成：
-    - Bulk update flow 要同 pagination / filter query string 實際測試。
     - Quiz question pool 要只使用 `in_use=True` 嘅 `UserVocab`。
     - EventNotice system 要通知 user 有新字已加入個人 list，但仍未啟用。
     - 可以再整理 `sync_new_vocab()` 是否每次 login sync 全部未擁有 vocab，定係之後改成 event-driven / batch flow。
@@ -366,7 +367,13 @@
     - `vocab_list.html` 已加入 Ajax click handler，pagination click 可以局部更新 vocab list 區域。
     - `VocabListView.get_context_data()` 已建立 `query_string`，pagination link 可以保留現有 GET search filter。
     - Pagination link 保留普通 `<a href>`，所以 non-JavaScript fallback 仍可完整 reload page。
-    - 相關 query string / pagination 處理方法已記錄喺 `LEARNING_QUESTIONS.md`。
+    - 相關 query string / pagination 處理方法已記錄喺 `LEARNING_POINTS.md`。
     - 已用 browser 實際測試 search + pagination + Ajax partial update flow。
+    - `UserVocabListView` 已開始拆成 main template + partial template。
+    - `UserVocabListView.render_to_response()` 已可根據 `X-Requested-With` header 回傳 partial。
+    - `user_vocab_list.html` 已加入 Ajax pagination click handler，並喺 partial replace 後重新 call checkbox setup function。
+    - `UserVocabListView.get_context_data()` 已建立 `query_string`，pagination link 可以保留現有 GET search filter。
+    - Checkbox setup reload / event delegation / HTMX 等處理方法已記錄喺 `LEARNING_POINTS.md`。
+    - 已用 browser 測試 `UserVocabListView` search + pagination + Ajax partial update + checkbox select-all flow。
   - 未完成：
-    - 之後可以考慮將同一 pattern 套用到 `UserVocabListView`。
+    - 之後可以考慮將 checkbox event binding 由 setup reload function refactor 成 event delegation。

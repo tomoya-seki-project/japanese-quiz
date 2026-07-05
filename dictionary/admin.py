@@ -77,6 +77,7 @@ class VocabAdmin(admin.ModelAdmin):
 @admin.register(UserVocab)
 class UserVocabAdmin(admin.ModelAdmin):
     list_display = (
+        'in_use',
         'vocab',
         'user',
         'weight',
