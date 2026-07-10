@@ -12,13 +12,13 @@ from ...service.vocab_action import VocabActionService
 
 from ...models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
 )
 from ...models import (
     Vocab,
     VocabDetail,
     KatakanaDetail,
+    Category,
 )
 
 class Command(BaseCommand):
@@ -69,6 +69,31 @@ class Command(BaseCommand):
 
                 for row_number, data in enumerate(reader, start=2):
                     try:
+                        category_names = [
+                            data["category1"],
+                            data["category2"] if data["category2"] != "---" else None,
+                            data["category3"] if data["category3"] != "---" else None,
+                        ]
+
+                        category_names = [
+                            name.strip()
+                            for name in category_names
+                            if name and name.strip()
+                        ]
+
+                        categories = Category.objects.filter(
+                            name__in=category_names
+                        )
+
+                        found_names = set(
+                            categories.values_list("name", flat=True)
+                        )
+
+                        missing_names = set(category_names) - found_names
+                        if missing_names:
+                            raise ValidationError(
+                                f"There is a category not on the list: {','.join(missing_names)}"
+                            )
                         VocabActionService.create_vocab(
                             {
                                 "word": data["word"],
@@ -76,7 +101,7 @@ class Command(BaseCommand):
                                 "meaning": data["meaning"],
                                 "type": data["type"],
                                 "level": data["level"],
-                                "category": data["category1"],
+                                "categories": categories,
                                 "native_japanese": data["native_japanese"],
                                 "created_by": user,
                             },

@@ -3,7 +3,6 @@ from django.core.exceptions import ValidationError
 
 from ..models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
     VocabRequestStatus,
     VocabRequestType,
@@ -14,6 +13,7 @@ from ..models import (
     VocabDetail,
     KatakanaDetail,
     VocabRequest,
+    Category,
 )
 
 class VocabActionService():
@@ -27,13 +27,13 @@ class VocabActionService():
                 meaning=vocab_data["meaning"],
                 type=vocab_data["type"],
                 level=vocab_data["level"],
-                category=vocab_data["category"],
                 is_active=True,
                 created_by=vocab_data["created_by"],
                 approved_by=approved_by,
             )
             vocab.full_clean()
             vocab.save()
+            vocab.categories.set(vocab_data["categories"])
             match vocab_data["type"]:
                 case VocabType.VOCAB:
                     VocabDetail.objects.create(
@@ -54,12 +54,12 @@ class VocabActionService():
             target_vocab.kana=vocab_data["kana"]
             target_vocab.meaning=vocab_data["meaning"]
             target_vocab.level=vocab_data["level"]
-            target_vocab.category=vocab_data["category"]
             target_vocab.approved_by=approved_by
             # think about should update the create_by to which update the vocab
             #target_vocab.created_by=vocab_data["created_by"]
             target_vocab.full_clean()
             target_vocab.save()
+            target_vocab.categories.set(vocab_data["categories"])
             match vocab_data["type"]:
                 case VocabType.VOCAB:
                     pass
@@ -83,3 +83,10 @@ class VocabActionService():
         target_vocab.is_active = True
         target_vocab.approved_by = approved_by
         target_vocab.save(update_fields=['is_active', 'approved_by', 'update_at'])
+
+    @staticmethod
+    def dev_clear_table():
+        VocabDetail.objects.all().delete()
+        KatakanaDetail.objects.all().delete()
+        Vocab.objects.all().delete()
+        Category.objects.all().delete()

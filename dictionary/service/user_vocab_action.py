@@ -32,4 +32,7 @@ class UserVocabService():
     def sync_new_vocab(*, user):
         new_vocabs = UserVocabService.get_new_vocab(user=user)
         UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
-        
+    
+    @staticmethod
+    def dev_clear_table():
+        UserVocab.objects.all().delete()

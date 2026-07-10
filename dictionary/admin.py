@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404, redirect
 
 from django.urls import path, reverse
 
+from django import forms
+
 from django.views.decorators.http import require_POST
 
 from django.utils.decorators import method_decorator
@@ -17,7 +19,6 @@ from .service.vocab_request import VocabRequestService
 
 from .models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
     VocabRequestStatus,
     VocabRequestType,
@@ -28,7 +29,21 @@ from .models import (
     VocabDetail,
     KatakanaDetail,
     VocabRequest,
+    Category,
 )
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'display',
+        'create_at',
+    )
+    readonly_fields = (
+        'create_at',
+        'update_at',
+    )
+
 @admin.register(Vocab)
 class VocabAdmin(admin.ModelAdmin):
     list_display = (
@@ -48,7 +63,6 @@ class VocabAdmin(admin.ModelAdmin):
     ordering = ('id',)
     list_display_links = ('id',)
     search_fields = ('word', 'level', 'type')
-    list_editable = ('level',)
     list_filter = (
         'level',
         'type',
@@ -72,6 +86,11 @@ class VocabAdmin(admin.ModelAdmin):
         except KatakanaDetail.DoesNotExist:
             detail = None
         return detail.native_japanese if detail else "---"
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "categories":
+            kwargs["widget"] = forms.CheckboxSelectMultiple
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
     
 
 @admin.register(UserVocab)
@@ -130,6 +149,8 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'proposed_vocab_type',
         'reviewed_by',
         'original_vocab',
+        'create_at',
+        'update_at',
     )
 
     fields = (
@@ -141,11 +162,18 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'proposed_kana',
         'proposed_meaning',
         'proposed_level',
-        'proposed_category',
+        'proposed_categories',
         #'proposed_similar_word',
         'proposed_native_japanese',
         'created_by',
+        'create_at',
+        'update_at',
     )
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "proposed_categories":
+            kwargs["widget"] = forms.CheckboxSelectMultiple
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def has_add_permission(self, request):
         return False
@@ -180,6 +208,13 @@ class VocabRequestAdmin(admin.ModelAdmin):
             )
             return
         super().save_model(request, obj, form, change)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is not None and obj.status != VocabRequestStatus.PENDING:
+            if "proposed_categories" in form.base_fields:
+                form.base_fields["proposed_categories"].disabled = True
+        return form
 
     def response_change(self, request, obj):
         if "_approve" in request.POST:

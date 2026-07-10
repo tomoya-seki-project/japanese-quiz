@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError
 
 from .models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
     VocabRequestStatus,
     VocabRequestType,
@@ -15,6 +14,7 @@ from .models import (
     VocabDetail,
     KatakanaDetail,
     VocabRequest,
+    Category,
 )
 
 class BaseVocabRequestForm(forms.Form):
@@ -24,8 +24,13 @@ class BaseVocabRequestForm(forms.Form):
     meaning = forms.CharField(max_length=255, label="Meaning")
     kana = forms.CharField(max_length=255, label='Kana')
     level = forms.ChoiceField(choices=VocabLevel.choices)
-    category = forms.ChoiceField(choices=VocabCategory.choices)
     #similar_word = forms.CharField(max_length=255, required=False)
+
+    categories = forms.ModelMultipleChoiceField(
+        queryset=Category.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
 
     #--- kanji detail table ---#
     #nothing special right now
@@ -33,12 +38,19 @@ class BaseVocabRequestForm(forms.Form):
     #--- katakana detail table ---#
     native_japanese = forms.CharField(max_length=255, required=False)
 
+    def clean_categories(self):
+        categories = self.cleaned_data["categories"]
+        if categories.count() > 3:
+            raise forms.ValidationError(
+                "Allow 3 type of category only"
+            )
+        return categories
+
 class VocabCreateRequestForm(BaseVocabRequestForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["meaning"].required = False
         self.fields["level"].required = False
-        self.fields["category"].required = False
     
     def clean(self):
         cleaned_data = super().clean()
@@ -96,9 +108,10 @@ class VocabSearchForm(forms.Form):
         choices=[("","-----")] + list(VocabLevel.choices),
         required=False,
     )
-    category = forms.ChoiceField(
-        choices=[("","-----")] + list(VocabCategory.choices),
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
         required=False,
+        empty_label="-----"
     )
 class UserVocabInUse:
     NO_MATTER = ""
@@ -121,9 +134,10 @@ class UserVocabSearchForm(forms.Form):
         choices=[("","-----")] + list(VocabLevel.choices),
         required=False,
     )
-    category = forms.ChoiceField(
-        choices=[("","-----")] + list(VocabCategory.choices),
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
         required=False,
+        empty_label="-----",
     )
 
 class UserVocabSelectForm(forms.Form):

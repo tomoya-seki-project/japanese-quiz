@@ -71,10 +71,15 @@
 - [x] **第 10 點（VocabRequest / Admin Review）：Admin 入面由 workflow 控制嘅 fields 要 set 做 readonly。**
   - 例如：`status`、`request_type`、`reviewed_by`，同埋適合 readonly 嘅 proposed data。
   - 狀態變更應該經 approve / reject service 處理，唔應該喺 admin form 直接亂改。
+  - 已完成：
+    - 普通 model fields 已透過 `get_readonly_fields()` 於 reviewed request 變成 readonly。
+    - `save_model()` 已擋住非 pending request 被再次保存。
+    - `proposed_categories` 係 ManyToMany field，已透過 `get_form()` / `form.base_fields["proposed_categories"].disabled = True` 額外 disable。
+  - 之後可再手動測試 reviewed request 入面 M2M checkbox 是否真係無法修改。
 
 - [x] **第 11 點（VocabRequest Form）：統一 request form required fields 同 submission 設計。**
-  - TODO 原本決定 user submit CREATE request 時可以將 `meaning`、`level`、`category` 留空，由 admin review 時補返。
-  - `VocabCreateRequestForm` 已將 `meaning`、`level`、`category` 設為 optional。
+  - TODO 原本決定 user submit CREATE request 時可以將 `meaning`、`level`、`categories` 留空，由 admin review 時補返。
+  - `VocabCreateRequestForm` 已將 `meaning`、`level`、`categories` 設為 optional。
   - Approve 前會再經 `validate_for_approval()` 檢查最終 proposed data 是否足夠。
   - `VocabUpdateRequestForm` 仍保留較嚴格 required fields，因為 update form 會由原本 vocab data 提供 initial value。
 
@@ -128,16 +133,36 @@
   - 之後要決定 slug 由 `word`、`kana` 定其他資料產生。
   - 要處理 duplicate slug、word 更新時係咪同步更新 slug，以及舊資料 backfill。
 
-- [ ] **將 vocab category 改成最多可以選擇三個 category。**
+- [x] **將 vocab category 改成最多可以選擇三個 category。**
   - 已完成：
     - 已決定之後支援一個 vocab 最多三個 categories。
     - CSV import header 已暫定使用 `category1`、`category2`、`category3`。
-  - 未完成：
-    - 目前 `Vocab.category` 仍係單一 `CharField`，只可以保存一個 category。
-    - 之後要改用 category model 配合 `ManyToManyField` 處理一個 vocab 對多個 categories。
-    - 每個 vocab 最多只可以有三個 categories，需要喺 form / service validation 限制數量。
-    - CSV import 要安全跳過空白 category 欄位，亦要檢查每個 category value 是否合法。
-    - 改 schema 時要處理現有 `Vocab.category` 資料 migration，避免舊 category 資料遺失。
+    - 已新增 `Category` model，並為 `Vocab` 加入 `categories` ManyToManyField。
+    - 已為 `VocabRequest` 加入 `proposed_categories` ManyToManyField，準備保存 CREATE / UPDATE request 嘅 proposed categories。
+    - `BaseVocabRequestForm` 已加入 `categories` field，並用 `clean_categories()` 限制最多三個 categories。
+    - `VocabUpdateRequestView.get_initial()` 已將 `vocab.categories.all()` 放入 form initial，讓 update form 可 tick 返現有 categories。
+    - `VocabRequestService.gen_create_vocab_request()` / `gen_update_vocab_request()` 已保存 `proposed_categories`。
+    - `VocabRequestService.gen_restore_vocab_request()` 已用 `vocab.categories.all()` 保存 `proposed_categories` snapshot；approve RESTORE 時仍然只重新啟用 `original_vocab.is_active=True`。
+    - `VocabRequestService.build_vocab_data()` 已用 `proposed_categories.all()` 傳 categories 去 vocab action。
+    - `VocabActionService.create_vocab()` 已於 `vocab.save()` 後使用 `vocab.categories.set(...)` 建立 M2M relationship。
+    - `VocabActionService.update_vocab()` 已同步更新 `target_vocab.categories.set(...)`。
+    - `import_vocab` 已讀取 `category1`、`category2`、`category3`，並將存在嘅 category names 轉成 `Category` queryset。
+    - `import_vocab` 發現 CSV category 不存在時，會以 row-level `ValidationError` 記錄 failed row，而唔會中斷整個 import command。
+    - 已建立 `resource/categories.csv` 作為 category seed data。
+    - 已建立 `setup_categories` command，可重複 seed / update `Category` records。
+    - `CategoryAdmin` 已顯示 `name`、`display` 同 timestamps。
+    - `VocabAdmin` 已用 `formfield_for_manytomany()` 將 `categories` 顯示成 checkbox widget。
+    - `VocabRequestAdmin` review form 已加入 `proposed_categories`，admin 可以查看 / 編輯 proposed M2M categories。
+    - 已補上 `0021_category_change.py` migration，model 同 migration 狀態已同步。
+    - Vocab list / user vocab list search filter 已改用 M2M `categories`。
+    - 已移除 legacy single `Vocab.category` 同 `VocabRequest.proposed_category` flow，改由 M2M category 作唯一來源。
+    - 已補上並套用 `0022_remove_vocab_category_and_more.py` migration，清走舊 database columns。
+  - 測試 / 檢查結果：
+    - `manage.py check` 通過，Django system check 無發現問題。
+    - `py_compile` 通過，相關 Python 檔案無 syntax error。
+    - `makemigrations --check --dry-run` 已顯示 `No changes detected`。
+    - `setup_categories resource/categories.csv` 已成功建立 / 更新 18 筆 `Category` records。
+    - 已手動測試 `proposed_categories` reviewed request disabled behavior OK。
 
 ## Data Import / Export / Database Migration
 

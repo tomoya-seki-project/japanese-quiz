@@ -18,26 +18,14 @@ class VocabLevel(models.TextChoices):
     JLPT_N4 = "4", "N4"
     JLPT_N5 = "5", "N5"
 
-class VocabCategory(models.TextChoices):
-    VERB = "verb", "動詞"
-    DAILY_LIFE = "daily_life", "日常生活"
-    PEOPLE_RELATIONSHIPS = "people_relationships", "人間関係"
-    FOOD = "food", "食事・料理"
-    PLACES_FACILITIES = "places_facilities", "場所・施設"
-    EDUCATION_LANGUAGE = "education_language", "教育・言語"
-    WORK_BUSINESS = "work_business", "仕事・ビジネス"
-    MONEY_ECONOMY = "money_economy", "お金・経済"
-    SOCIETY_LAW = "society_law", "社会・法律"
-    TRANSPORT_TRAVEL = "transport_travel", "交通・旅行"
-    HEALTH_BODY = "health_body", "健康・身体"
-    NATURE_SCIENCE = "nature_science", "自然・科学"
-    TECHNOLOGY_TOOLS = "technology_tools", "技術・道具"
-    CULTURE_ENTERTAINMENT = "culture_entertainment", "文化・娯楽"
-    EMOTION_THOUGHT = "emotion_thought", "感情・思考"
+class Category(TimeStampedModel):
+    name = models.CharField(verbose_name="Category", max_length=50, unique=True)
+    display = models.CharField(max_length=50, blank=True, null=True)
 
-    # ADVERB = "adverb", "副詞"
-    # MIMETIC = "mimetic", "擬音・擬態語"
-    # CONJUNCTION = "conjunction", "接続詞"
+    def __str__(self):
+        return self.display or self.name
+    class Meta:
+        db_table = 'category'
 
 class Vocab(TimeStampedModel):
     word = models.CharField(verbose_name="Word", max_length=50)
@@ -53,9 +41,9 @@ class Vocab(TimeStampedModel):
         verbose_name="Level", 
         max_length=10, choices=VocabLevel.choices
     )
-    category = models.CharField(
-        verbose_name="Category", 
-        max_length=50, choices=VocabCategory.choices
+    categories = models.ManyToManyField(
+        Category,
+        related_name='vocabs',
     )
     
     #similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
@@ -174,7 +162,11 @@ class VocabRequest(TimeStampedModel):
     proposed_meaning = models.CharField(verbose_name="Meaning", max_length=255, blank=True, null=True)
     proposed_kana = models.CharField(verbose_name="Kana", max_length=255, default="kana")
     proposed_level = models.CharField(verbose_name="level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
-    proposed_category = models.CharField(verbose_name="Category", max_length=50, choices=VocabCategory.choices, blank=True, null=True)
+    proposed_categories = models.ManyToManyField(
+        Category,
+        related_name='vocab_requests',
+        blank=True,
+    )
 
     #proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
     

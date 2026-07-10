@@ -656,3 +656,45 @@ Status: Vocab list Ajax pagination tested; UserVocab list reuse pending
 
 - Ajax partial update 同傳統 server-side pagination 可以共存；只要 URL、query string 同 fallback link 設計好，就唔需要一開始轉成完整 frontend app。
 - Query string 係 search/filter state 嘅來源，pagination、Ajax 同 normal reload 都應該圍繞同一份 state 運作。
+
+## 2026-07-06 - UserVocab Ajax pagination and dictionary full-flow verification
+
+Commit: `e61baea`
+
+Status: Dictionary app normal flow manually verified
+
+### 主要改動
+
+- 將 `UserVocabListView` 嘅 table、bulk update form 同 pagination 拆成 `user_vocab_list_partial.html`。
+- `UserVocabListView.render_to_response()` 可根據 `X-Requested-With` header 回傳 partial HTML，完成 UserVocab list Ajax pagination flow。
+- `UserVocabListView` pagination 已保留 GET search filters，避免 search / filter 後換頁失去條件。
+- UserVocab list partial replace 後會重新初始化 checkbox select-all handling，確保 Ajax 換頁後 checkbox 互動仍然生效。
+- 將 `VocabDetailView` 改用 Django `DetailView`，令 object lookup flow 更貼近 CBV standard pattern。
+- Vocab list rows 加入 vocab detail link，vocab detail page 加入 update / delete action links。
+- 補上 delete request form rendering，完成 delete request manual flow。
+- `UserVocabAdmin` list 顯示加入 `in_use` 狀態，方便 admin 檢查 user vocab 是否啟用。
+- 將 `LEARNING_QUESTIONS.md` rename 成 `LEARNING_POINTS.md`，並加入目錄同 Ajax partial event binding 筆記。
+- 完成一次 dictionary app full manual test，覆蓋 vocab request create / restore / update / delete、admin approve / reject、vocab list、UserVocab list、Ajax pagination、select-all 更新 `in_use` 等正常流程。
+
+### Database 改動
+
+- 無 schema 變更。
+- 今次主要係 view/template interaction、admin display、document rename 同 manual verification。
+
+### 技術重點
+
+- Ajax partial replace 會替換 DOM，因此 partial 內 checkbox listener 需要在更新後重新初始化，或者之後改用 event delegation。
+- 用 Network tab 檢查 request `Type: fetch`，並確認 response 只包含 partial HTML，可以驗證局部更新確實成功。
+- Django `DetailView` 適合處理標準 single-object detail page，可減少手動 `get_object_or_404()` boilerplate。
+- Manual full-flow testing 可以補足目前缺少 automated tests 時嘅信心，但 concurrency / permission boundary 等仍然需要日後用 tests 或更嚴格 review 補強。
+
+### 理由
+
+- Dictionary app 已經接近 feature-complete，做 full manual test 可以確認主要 user/admin flow 真正按預期運作，而唔只係 code path 理論成立。
+- UserVocab list 需要同 vocab list 一樣支援 search、pagination 同局部更新，因為之後 quiz pool 會依賴 user 是否將 vocab 設為 `in_use=True`。
+
+### 學到咩
+
+- DOM replacement 後事件綁定係 Ajax partial UI 必須處理嘅問題；簡單做法係 replace 後重新 call setup function，長期可研究 event delegation。
+- 一個 app 到達「功能完整」階段後，測試重點會由單點功能轉成完整 workflow：user request、admin review、正式 vocab 變更、user vocab sync / activation。
+- Network tab 係確認 Ajax 是否真係局部更新嘅最直接工具，`fetch` / `document` type 同 response content 都可以用嚟判斷。

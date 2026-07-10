@@ -12,6 +12,7 @@
 - [DOMAIN-VOCAB-USERVOCAB-IN-USE](#DOMAIN-VOCAB-USERVOCAB-IN-USE)
 - [DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL](#DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL)
 - [DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW](#DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW)
+- [DJANGO-ADMIN-GET-FORM-BASE-FIELDS](#DJANGO-ADMIN-GET-FORM-BASE-FIELDS)
 - [DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC](#DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC)
 - [DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE](#DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE)
 - [DJANGO-RELATION-FIELD-RELATED-NAME](#DJANGO-RELATION-FIELD-RELATED-NAME)
@@ -21,6 +22,8 @@
 - [DJANGO-CBV-OBJECT-ID](#DJANGO-CBV-OBJECT-ID)
 - [PYTHON-ENUMERATE-CSV-ROWS](#PYTHON-ENUMERATE-CSV-ROWS)
 - [DJANGO-PAGINATION-KEEP-SEARCH-QUERY](#DJANGO-PAGINATION-KEEP-SEARCH-QUERY)
+- [DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET](#DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET)
+- [DJANGO-ADMIN-M2M-WIDGET](#DJANGO-ADMIN-M2M-WIDGET)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -331,6 +334,499 @@ container.addEventListener("click", function (e) {
 ```
 
 因為 event delegation 更適合長期維護動態 partial DOM。
+
+### 理解內容
+
+-
+
+<a id="DJANGO-ADMIN-M2M-WIDGET"></a>
+
+## [ ] `[DJANGO-ADMIN-M2M-WIDGET]` Django Admin 入面 ManyToManyField 點樣改成 checkbox widget
+
+### 問題背景
+
+`Vocab.categories` 改成 `ManyToManyField` 後，希望喺 Django admin vocab change page 入面用 multi-select checkbox 形式顯示 categories。
+
+查到兩種做法：
+
+- `formfield_for_manytomany()`
+- `formfield_overrides`
+
+暫時未完全肯定兩者分別，以及係咪一個 `formfield_overrides` 就會改晒所有 fields。
+
+### 研究方向
+
+- Django admin default 點樣 render `ManyToManyField`。
+- `formfield_for_manytomany()` 係針對咩時候用。
+- `formfield_overrides` 係針對咩範圍用。
+- 如果只想改 `Vocab.categories`，邊個做法較清楚。
+- `filter_horizontal`、`filter_vertical`、`autocomplete_fields` 會唔會影響 widget。
+
+### 概念整理與解答
+
+#### 1. `formfield_for_manytomany()`：針對 ManyToMany field 做客製
+
+喺 `ModelAdmin` 入面可以 override：
+
+```python
+from django import forms
+
+class VocabAdmin(admin.ModelAdmin):
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "categories":
+            kwargs["widget"] = forms.CheckboxSelectMultiple
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+```
+
+意思係：
+
+```text
+當 admin 建立 ManyToManyField 對應嘅 form field 時，
+如果 field name 係 categories，
+就用 CheckboxSelectMultiple。
+```
+
+呢個做法適合：
+
+- 只想改某一個 ManyToMany field。
+- 想根據 `db_field.name` 做不同處理。
+- 想之後加 queryset filter、help text、label 等 field-specific customization。
+
+#### 2. `formfield_overrides`：按 model field class 批量改 form field option
+
+另一種做法：
+
+```python
+from django import forms
+from django.db import models
+
+class VocabAdmin(admin.ModelAdmin):
+    formfield_overrides = {
+        models.ManyToManyField: {
+            "widget": forms.CheckboxSelectMultiple,
+        },
+    }
+```
+
+意思係：
+
+```text
+喺呢個 ModelAdmin 入面，
+凡係 ManyToManyField，
+預設都用 CheckboxSelectMultiple。
+```
+
+所以你問：
+
+```text
+係咪只改一個 formfield_overrides 就會改晒？
+```
+
+答案係：**喺該 ModelAdmin 內，對應 field class 嘅 fields 會一齊受影響。**
+
+例如 `VocabAdmin` 入面如果將來有多個 `ManyToManyField`，佢哋都有機會一齊變成 checkbox widget。
+
+#### 3. 兩者分別
+
+```text
+formfield_for_manytomany()
+-> 針對 ManyToManyField 嘅 hook
+-> 可以用 db_field.name 指定某一個 field
+-> field-specific，控制細
+
+formfield_overrides
+-> 按 model field class 批量套用
+-> 例如所有 models.ManyToManyField 都改 widget
+-> 寫法短，但影響範圍較大
+```
+
+如果只係想改：
+
+```python
+Vocab.categories
+```
+
+我會偏向用：
+
+```python
+formfield_for_manytomany()
+```
+
+因為清楚寫明只改 `categories`，之後加其他 M2M field 時唔會意外受影響。
+
+#### 4. 不是所有 admin widget 設定都會同時用
+
+Django admin 仲有其他 M2M display option：
+
+```python
+filter_horizontal = ("categories",)
+filter_vertical = ("categories",)
+autocomplete_fields = ("categories",)
+```
+
+呢啲都會影響 widget。
+
+通常唔應該同時為同一 field 混用太多 widget 設定，例如：
+
+```python
+filter_horizontal = ("categories",)
+```
+
+再同時喺 `formfield_for_manytomany()` 強行改 checkbox，會令意圖唔清楚。
+
+簡單規則：
+
+```text
+少量 categories -> CheckboxSelectMultiple 可以
+大量 categories -> filter_horizontal / autocomplete_fields 更適合
+```
+
+你而家 categories 數量少，例如十幾個固定分類，用 checkbox 係合理。
+
+#### 5. Checkbox widget 只係 admin form 顯示方式，不改 DB schema
+
+無論 admin 用：
+
+```python
+CheckboxSelectMultiple
+```
+
+定係 default multi-select，背後保存都係同一個：
+
+```python
+Vocab.categories
+```
+
+亦即係 ManyToMany through table。
+
+所以 widget 只影響：
+
+```text
+admin change page 點樣顯示 / 提交 categories
+```
+
+唔會改 database structure。
+
+#### 6. 暫時建議
+
+對目前 project，我會用：
+
+```python
+from django import forms
+
+class VocabAdmin(admin.ModelAdmin):
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "categories":
+            kwargs["widget"] = forms.CheckboxSelectMultiple
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+```
+
+理由：
+
+- `Vocab.categories` 係明確單一 field。
+- categories 數量少，checkbox 易睇。
+- 影響範圍細，日後加其他 M2M field 唔會被意外改 widget。
+
+### 理解內容
+
+-
+
+<a id="DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET"></a>
+
+## [ ] `[DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET]` `ModelMultipleChoiceField`、ManyToManyField 同 `.set()` 嘅關係
+
+### 問題背景
+
+今次將 vocab category 改成最多三個 categories 時，用咗：
+
+```python
+categories = forms.ModelMultipleChoiceField(
+    queryset=Category.objects.all(),
+    required=False,
+    widget=forms.CheckboxSelectMultiple,
+)
+```
+
+保存時又用咗：
+
+```python
+vocab.categories.set(categories)
+```
+
+疑問係：
+
+- `ModelMultipleChoiceField` 做緊咩？
+- `vocab.categories.set()` 又係咩？
+- `.set()` 係咪只係配合 `ModelMultipleChoiceField` 先用？
+- 呢個係 form 嘅功能，定係 ManyToMany relationship 嘅功能？
+
+### 研究方向
+
+- `ModelMultipleChoiceField` cleaned_data 回傳咩。
+- `ManyToManyField` 喺 model instance 上會變成咩 object。
+- `.set()` 係邊個 object 嘅 method。
+- 點解 M2M 要先 save main object，之後先可以 `.set()`。
+- `create` / `update` / `request approve` flow 入面點樣傳 categories。
+
+### 概念整理與解答
+
+#### 1. `ModelMultipleChoiceField` 係 form field
+
+`ModelMultipleChoiceField` 負責喺 form layer 接收多個 model objects。
+
+例如：
+
+```python
+categories = forms.ModelMultipleChoiceField(
+    queryset=Category.objects.all(),
+    required=False,
+)
+```
+
+佢會做幾件事：
+
+- 顯示多個可選 `Category`。
+- POST 時接收多個 category ids。
+- 驗證 submitted ids 必須存在於 `queryset`。
+- `form.cleaned_data["categories"]` 會變成一個 `Category` QuerySet。
+
+概念：
+
+```python
+form.cleaned_data["categories"]
+# -> <QuerySet [Category(...), Category(...)]>
+```
+
+所以 `ModelMultipleChoiceField` 只係負責：
+
+```text
+HTML / POST data -> Python/Django model objects
+```
+
+#### 2. `ManyToManyField` 係 model relationship
+
+model 入面：
+
+```python
+class Vocab(models.Model):
+    categories = models.ManyToManyField(Category, related_name="vocabs")
+```
+
+意思係：
+
+```text
+一個 Vocab 可以有多個 Category
+一個 Category 可以屬於多個 Vocab
+```
+
+Django 會喺背後建立一張 through table，大概概念係：
+
+```text
+vocab_id | category_id
+```
+
+例如：
+
+```text
+1 | 3
+1 | 5
+1 | 8
+```
+
+代表 vocab 1 有三個 categories。
+
+#### 3. `vocab.categories` 係 relationship manager
+
+當你有一個已 save 嘅 vocab：
+
+```python
+vocab = Vocab.objects.get(pk=1)
+```
+
+你寫：
+
+```python
+vocab.categories
+```
+
+得到嘅唔係一個普通 list，而係 Django 嘅 ManyRelatedManager。
+
+佢有一堆 method，例如：
+
+```python
+vocab.categories.all()
+vocab.categories.add(category)
+vocab.categories.remove(category)
+vocab.categories.clear()
+vocab.categories.set(categories)
+```
+
+所以：
+
+```python
+vocab.categories.set(...)
+```
+
+係 **ManyToManyField relationship manager** 嘅 method，唔係 `ModelMultipleChoiceField` 嘅 method。
+
+#### 4. `.set()` 係用嚟同步整組 M2M 關係
+
+```python
+vocab.categories.set(categories)
+```
+
+意思係：
+
+```text
+將呢個 vocab 目前嘅 categories 改成傳入去嗰一組 categories
+```
+
+例如原本：
+
+```text
+vocab.categories = [A, B]
+```
+
+執行：
+
+```python
+vocab.categories.set([B, C, D])
+```
+
+之後會變成：
+
+```text
+vocab.categories = [B, C, D]
+```
+
+Django 會幫你：
+
+- 保留 B
+- 移除 A
+- 加入 C、D
+
+所以 `.set()` 好適合 form submit 後「以今次表單選擇為準」嘅情況。
+
+#### 5. `.set()` 唔係只可以配合 `ModelMultipleChoiceField`
+
+`.set()` 可以接收好多種 iterable：
+
+```python
+vocab.categories.set(category_queryset)
+vocab.categories.set([category1, category2])
+vocab.categories.set([1, 2, 3])
+```
+
+所以佢唔係 form 專用。
+
+只係因為：
+
+```python
+ModelMultipleChoiceField.cleaned_data
+```
+
+剛好會回傳一個 QuerySet，所以可以直接傳入：
+
+```python
+categories = form.cleaned_data["categories"]
+vocab.categories.set(categories)
+```
+
+#### 6. 點解要先 `vocab.save()` 再 `.set()`
+
+ManyToMany relationship 需要 main object 有 primary key。
+
+如果 vocab 未 save：
+
+```python
+vocab = Vocab(...)
+vocab.categories.set(categories)  # 不可以
+```
+
+因為 through table 需要：
+
+```text
+vocab_id
+category_id
+```
+
+但未 save 嘅 vocab 仲未有 `id`。
+
+正確順序：
+
+```python
+vocab = Vocab(...)
+vocab.full_clean()
+vocab.save()
+vocab.categories.set(categories)
+```
+
+#### 7. 今次 project 入面嘅 flow
+
+Create vocab：
+
+```python
+categories = form.cleaned_data["categories"]
+
+vocab = Vocab(...)
+vocab.save()
+vocab.categories.set(categories)
+```
+
+Create / update request：
+
+```python
+request = VocabRequest.objects.create(...)
+request.proposed_categories.set(form.cleaned_data["categories"])
+```
+
+Approve request：
+
+```python
+vocab_data = {
+    "categories": vocab_request.proposed_categories.all(),
+}
+
+VocabActionService.create_vocab(vocab_data, approved_by)
+```
+
+Import CSV：
+
+```python
+categories = Category.objects.filter(name__in=category_names)
+VocabActionService.create_vocab(
+    {
+        "categories": categories,
+        ...
+    },
+    approved_by=user,
+)
+```
+
+#### 8. 重點總結
+
+```text
+ModelMultipleChoiceField
+-> form layer
+-> 將 POST 入面多個 ids 變成 Category QuerySet
+
+ManyToManyField
+-> model relationship
+-> 保存 Vocab 同 Category 嘅多對多關係
+
+vocab.categories.set(...)
+-> relationship manager method
+-> 將某個 vocab 嘅 categories 同步成指定一組 categories
+```
+
+所以：
+
+```text
+.set() 係 MTOM / ManyToManyField 嘅東西
+唔係 ModelMultipleChoiceField 專用
+```
+
+只係 `ModelMultipleChoiceField` 嘅 cleaned_data 格式剛好好適合交俾 `.set()`。
 
 ### 理解內容
 
@@ -1414,6 +1910,130 @@ super().save_model(request, obj, form, change)
 - Reviewed request 是否確實無法再 save proposed data。
 
 如果之後發現 admin lifecycle 仍然有更深層嘅 race condition，再研究 override `changeform_view()` 或獨立 custom admin view。
+
+### 理解內容
+
+-
+
+<a id="DJANGO-ADMIN-GET-FORM-BASE-FIELDS"></a>
+
+## [ ] `[DJANGO-ADMIN-GET-FORM-BASE-FIELDS]` Django Admin `get_form()` 同 `form.base_fields`
+
+### 問題背景
+
+`VocabRequestAdmin` 入面，reviewed request 應該只可以查看，唔應該再修改 proposed data。
+
+普通 model field 可以用 `get_readonly_fields()` 變 readonly，但 `proposed_categories` 係 `ManyToManyField`，admin form 入面通常係以 form field / widget 方式處理，未必會完全受 `readonly_fields` 控制。
+
+所以如果想 reviewed request 入面連 M2M checkbox 都唔可以改，可以喺 `get_form()` 入面將該 form field disable。
+
+### 研究方向
+
+- `ModelAdmin.get_form()` 喺 admin lifecycle 入面幾時被 call。
+- `form.base_fields` 同平時 template 入面見到嘅 `form.fields` 有咩關係。
+- `disabled=True` 對 Django form validation / cleaned data 有咩影響。
+- 點解 `ManyToManyField` 有時要喺 form 層另外處理 readonly / disabled。
+
+### Codex 解答
+
+#### 1. `get_form()` 係咩
+
+`get_form()` 係 `ModelAdmin` 提供嘅 hook，用嚟決定 admin change page / add page 要用邊一個 form class。
+
+簡化理解：
+
+```python
+def get_form(self, request, obj=None, **kwargs):
+    form = super().get_form(request, obj, **kwargs)
+    return form
+```
+
+`super().get_form(...)` 會根據目前 `ModelAdmin` 設定，例如 `fields`、`readonly_fields`、`exclude`、model fields 同 custom widgets，動態生成一個 admin form class。
+
+呢度 return 嘅 `form` 通常係一個 form class，唔係某一張已經 bind data 嘅 form instance。
+
+#### 2. `base_fields` 係咩
+
+`form.base_fields` 可以理解成「呢個 form class 預設有邊啲 fields」。
+
+例如：
+
+```python
+form.base_fields["proposed_categories"]
+```
+
+就係攞到 admin form 入面 `proposed_categories` 對應嘅 form field object。
+
+你可以喺呢個階段改佢嘅設定：
+
+```python
+form.base_fields["proposed_categories"].disabled = True
+```
+
+意思係：之後 Django Admin 建立呢張 form 時，`proposed_categories` 呢個欄位會係 disabled。
+
+#### 3. 點解要檢查 field 是否存在
+
+安全寫法通常會咁：
+
+```python
+if "proposed_categories" in form.base_fields:
+    form.base_fields["proposed_categories"].disabled = True
+```
+
+因為 admin form 可能因為 `fields`、`readonly_fields`、permission 或其他設定，令某個 field 唔存在於 `base_fields`。
+
+直接寫 `form.base_fields["proposed_categories"]`，如果 field 唔存在，就會 `KeyError`。
+
+#### 4. 今次用法
+
+```python
+def get_form(self, request, obj=None, **kwargs):
+    form = super().get_form(request, obj, **kwargs)
+
+    if obj is not None and obj.status != VocabRequestStatus.PENDING:
+        if "proposed_categories" in form.base_fields:
+            form.base_fields["proposed_categories"].disabled = True
+
+    return form
+```
+
+意思係：
+
+- 新增頁 / 無 object：唔處理。
+- Request 仍然 pending：admin 可以 review / 修改 proposed categories。
+- Request 已經 approved / rejected：`proposed_categories` checkbox disabled。
+
+#### 5. 打字位要小心
+
+正確屬性係：
+
+```python
+disabled
+```
+
+唔係：
+
+```python
+diabled
+```
+
+如果寫錯成 `diabled = True`，Python 未必會報錯，因為佢可能只係喺 object 上加咗一個新 attribute。
+
+結果係畫面唔會 disable，但 system check / syntax check 都未必會發現，所以呢類 typo 要靠實際 UI 測試或細心 review。
+
+#### 6. 同 `save_model()` 嘅分工
+
+`get_form()` + `disabled=True` 主要係 UI / form 層：
+
+- 令 admin 頁面唔容易改到 reviewed request。
+- 令使用者操作上更清楚。
+
+`save_model()` 係後端防線：
+
+- 即使有人 submit 舊頁面或繞過 UI，都唔應該保存 reviewed request。
+
+所以兩者唔係互相取代，而係一前一後配合。
 
 ### 理解內容
 

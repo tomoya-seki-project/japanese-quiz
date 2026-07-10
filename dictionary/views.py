@@ -32,7 +32,6 @@ from .forms import (
 )
 from .models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
     VocabRequestStatus,
     VocabRequestType,
@@ -121,7 +120,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
             "meaning" : vocab.meaning,
             "kana" : vocab.kana,
             "level" : vocab.level,
-            "category" : vocab.category, 
+            "categories" : vocab.categories.all(),
             #"similar_word" : vocab.similar_word
         })
         match vocab.type:
@@ -225,7 +224,7 @@ class VocabListView(ListView):
                 qs = qs.filter(level=lv)
             category = form.cleaned_data.get("category")
             if category:
-                qs = qs.filter(category=category)
+                qs = qs.filter(categories=category)
 
         return qs
     
@@ -317,7 +316,7 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(vocab__level=lv)
             category = form.cleaned_data.get("category")
             if category:
-                qs = qs.filter(vocab__category=category)
+                qs = qs.filter(vocab__categories=category)
 
         return qs
     

@@ -5,7 +5,6 @@ from .vocab_action import VocabActionService
 
 from ..models import (
     VocabType,
-    VocabCategory,
     VocabLevel,
     VocabRequestStatus,
     VocabRequestType,
@@ -30,11 +29,12 @@ class VocabRequestService():
             "proposed_vocab_type": "Vocab type is required.",
             "proposed_meaning": "Meaning is required.",
             "proposed_level": "Level is required.",
-            "proposed_category": "Category is required.",
         }
         for field_name, error_msg in required_fields.items():
             if not getattr(vocab_request, field_name):
                 errors[field_name] = error_msg
+        if not vocab_request.proposed_categories.exists():
+            errors["proposed_categories"] = "Category is required."
         match vocab_request.proposed_vocab_type:
             case VocabType.VOCAB:
                 pass
@@ -54,7 +54,7 @@ class VocabRequestService():
             "meaning": vocab_request.proposed_meaning,
             "type": vocab_request.proposed_vocab_type,
             "level": vocab_request.proposed_level,
-            "category": vocab_request.proposed_category,
+            "categories": vocab_request.proposed_categories.all(),
             "native_japanese": vocab_request.proposed_native_japanese,
             "created_by": vocab_request.created_by,
         }
@@ -92,9 +92,9 @@ class VocabRequestService():
                         proposed_meaning = form.cleaned_data["meaning"],
                         proposed_kana = kana,
                         proposed_level = form.cleaned_data["level"],
-                        proposed_category = form.cleaned_data["category"],
                         #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
+                    create_request.proposed_categories.set(form.cleaned_data["categories"])
                     match vocab_type:
                         case VocabType.VOCAB:
                             pass
@@ -124,10 +124,10 @@ class VocabRequestService():
                         proposed_meaning = form.cleaned_data["meaning"],
                         proposed_kana = form.cleaned_data["kana"],
                         proposed_level = form.cleaned_data["level"],
-                        proposed_category = form.cleaned_data["category"],
                         original_vocab = form.target_vocab,
                         #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
+                    update_request.proposed_categories.set(form.cleaned_data["categories"])
                     
                     update_request.original_data = {
                         "word" : form.target_vocab.word,
@@ -135,7 +135,9 @@ class VocabRequestService():
                         "kana" : form.target_vocab.kana,
                         "type" : form.target_vocab.type,
                         "level" : form.target_vocab.level,
-                        "category": form.target_vocab.category,
+                        "categories": list(
+                            form.target_vocab.categories.values_list("name", flat=True)
+                        ),
                         #"similar_word": form.target_vocab.similar_word,
                     }
                     
@@ -170,10 +172,10 @@ class VocabRequestService():
                         proposed_meaning = vocab.meaning,
                         proposed_kana = vocab.kana,
                         proposed_level = vocab.level,
-                        proposed_category = vocab.category,
                         original_vocab = vocab,
                         #proposed_similar_word = vocab.similar_word,
                     )
+                    restore_request.proposed_categories.set(vocab.categories.all())
                     match vocab.type:
                         case VocabType.VOCAB:
                             if hasattr(vocab, "vocab_detail"):
@@ -201,6 +203,8 @@ class VocabRequestService():
                         request_type = VocabRequestType.DELETE,
                         status = VocabRequestStatus.PENDING,
                         original_vocab = vocab,
+                        proposed_word = vocab.word,
+                        proposed_kana = vocab.kana,
                     )
                     is_created = True
             except IntegrityError:
@@ -268,3 +272,7 @@ class VocabRequestService():
                 update_fields=["status","reviewed_by","update_at"]
             )
         return True
+    
+    @staticmethod
+    def dev_clear_table():
+        VocabRequest.objects.all().delete()
