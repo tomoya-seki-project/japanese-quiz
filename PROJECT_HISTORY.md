@@ -698,3 +698,62 @@ Status: Dictionary app normal flow manually verified
 - DOM replacement 後事件綁定係 Ajax partial UI 必須處理嘅問題；簡單做法係 replace 後重新 call setup function，長期可研究 event delegation。
 - 一個 app 到達「功能完整」階段後，測試重點會由單點功能轉成完整 workflow：user request、admin review、正式 vocab 變更、user vocab sync / activation。
 - Network tab 係確認 Ajax 是否真係局部更新嘅最直接工具，`fetch` / `document` type 同 response content 都可以用嚟判斷。
+
+## 2026-07-10 - Category model-backed M2M migration
+
+Commit: `bf579ac`
+
+Status: Dictionary category system migrated from single field to 1-3 categories
+
+### 主要改動
+
+- 將 dictionary category system 由 hard-coded single category 改成 database-backed `Category` model。
+- `Vocab` 改用 `categories` ManyToMany relationship，支援一個 vocab 擁有最多三個 categories。
+- `VocabRequest` 改用 `proposed_categories` ManyToMany relationship，令 create / update / restore request 可以保存 proposed categories snapshot。
+- 移除 legacy single category flow，包括 `Vocab.category`、`VocabRequest.proposed_category` 同 `VocabCategory` choices enum。
+- `BaseVocabRequestForm` 加入 `ModelMultipleChoiceField`，並用 `clean_categories()` 限制最多三個 categories。
+- `VocabUpdateRequestView.get_initial()` 會帶入現有 `vocab.categories.all()`，令 update form 可 tick 返原本 categories。
+- `VocabRequestService` create / update / restore request flow 已改為保存 `proposed_categories`，approve create / update 時再交由 `VocabActionService` 同步到正式 vocab。
+- `VocabActionService.create_vocab()` / `update_vocab()` 已改用 `vocab.categories.set(...)` 同步 M2M relationship。
+- `VocabSearchForm` / `UserVocabSearchForm` category filter 改用 `ModelChoiceField`，並支援 vocab list / user vocab list 以 M2M category 篩選。
+- `import_vocab` command 改用 `category1`、`category2`、`category3` CSV headers，並檢查 category 是否存在於 `Category` table。
+- 新增 `setup_categories` command 同 `resource/categories.csv`，方便重建 development database 後快速 seed category master data。
+- `CategoryAdmin`、`VocabAdmin`、`VocabRequestAdmin` 已加入 categories 管理與 checkbox display。
+- `VocabRequestAdmin` 針對 reviewed request 使用 `get_form()` disable `proposed_categories`，避免 reviewed request 嘅 M2M field 仍可修改。
+- 撰寫 `doc/modification/category_improvement.md`，記錄今次 single category -> M2M categories migration 嘅完整流程同設計原因。
+
+### Database 改動
+
+- 新增 `Category` table。
+- 新增 `Vocab.categories` ManyToMany relationship。
+- 新增 `VocabRequest.proposed_categories` ManyToMany relationship。
+- 移除 `Vocab.category` column。
+- 移除 `VocabRequest.proposed_category` column。
+- 新增並套用 migration：
+  - `0020_categories_prepare.py`
+  - `0021_category_change.py`
+  - `0022_remove_vocab_category_and_more.py`
+- 已執行 `manage.py migrate`，`0022_remove_vocab_category_and_more` 套用成功。
+
+### 技術重點
+
+- `ModelMultipleChoiceField` 負責喺 form 層收多個 model objects；真正同步 M2M relationship 要喺 model instance save 後使用 `.set(...)`。
+- ManyToMany relationship 需要 main object 已有 primary key，所以 `VocabActionService.create_vocab()` 要先 `vocab.save()`，再 `vocab.categories.set(...)`。
+- `ModelChoiceField` 適合用 database records 做 filter choices；form validate 後取得嘅係 `Category` instance，而唔係舊 choices string。
+- M2M filter 需要用 relationship lookup，例如 `Vocab.objects.filter(categories=category)` 同 `UserVocab.objects.filter(vocab__categories=category)`。
+- `readonly_fields` 未必完整處理 admin M2M field，所以 reviewed request 入面嘅 `proposed_categories` 需要透過 `get_form()` / `form.base_fields["proposed_categories"].disabled = True` 額外保護。
+- Legacy field 移除前要確定所有 form / view / service / admin / import command 都已改用新 M2M source，否則 schema migration 後容易出現 runtime error。
+
+### 理由
+
+- 單一 category 無法準確表達 vocab 可能同時屬於多個使用場景，限制之後 search、quiz pool selection 同 data organization。
+- Database-backed `Category` 比 hard-coded choices 更易維護，之後可以透過 seed command / admin 調整 display 或新增 category。
+- 將 request flow 同正式 vocab flow 一起改成 M2M，可以保持 user submission、admin review、approve action 同 import command 使用一致資料模型。
+- 移除 legacy single category field 可以避免同一份資料有兩個 source of truth，減少日後 category 不一致問題。
+
+### 學到咩
+
+- Schema refactor 唔只係改 model；要沿住整條資料流檢查 form、view、service、admin、command、migration 同 manual test。
+- M2M data 同普通 field lifecycle 唔同，尤其係 create 時必須先 save main object，再處理 relationship table。
+- Admin form lifecycle 有好多細節，`get_form()`、`base_fields`、`readonly_fields`、`save_model()` 係唔同層次嘅保護。
+- 將大型改動寫成 modification report 有助整理設計原因、實作步驟同之後維護注意事項，亦方便將來 review 自己嘅架構決策。

@@ -2234,7 +2234,178 @@ except IntegrityError:
 
 應該選擇邊種方式，取決於業務要求係「可以部分成功」定「必須全部成功」。
 
-#### 7. 最簡單記法
+#### 7. `transaction.on_commit()`：commit 成功後先做 side effect
+
+`transaction.on_commit()` 用嚟註冊一個 callback：
+
+```python
+transaction.on_commit(callback)
+```
+
+意思係：
+
+- 如果目前 transaction 成功 commit，callback 先會執行。
+- 如果 transaction rollback，callback 唔會執行。
+
+呢個適合處理「主 database 操作成功後先做」嘅 side effect，例如：
+
+- 建立 notification / event
+- 發 email
+- call external API
+- 更新 cache
+- 寫非核心 log
+
+例如 vocab request rejected 後先建立 event：
+
+```python
+with transaction.atomic():
+    locked_request = (
+        VocabRequest.objects
+        .select_for_update()
+        .get(pk=vocab_request.pk)
+    )
+
+    if locked_request.status != VocabRequestStatus.PENDING:
+        return False
+
+    locked_request.status = VocabRequestStatus.REJECTED
+    locked_request.reviewed_by = reviewed_by
+    locked_request.save(
+        update_fields=["status", "reviewed_by", "update_at"]
+    )
+
+    if locked_request.created_by is not None:
+        user = locked_request.created_by
+        request_type = locked_request.request_type
+
+        def create_reject_event():
+            event = EventService.create_event(
+                event_type=EventType.VOCAB_REQUEST_RESULT,
+                event_title=(
+                    f"Your {request_type} vocab request "
+                    f"has been rejected by {reviewed_by}"
+                ),
+                event_msg="",
+            )
+            EventService.assign_event_to_user(
+                event=event,
+                user=user,
+            )
+
+        transaction.on_commit(create_reject_event)
+```
+
+重點係 callback 入面嘅 code 會等 `with transaction.atomic()` 成功完成後先執行。
+
+如果中途 rollback，例如 save request status 失敗，event 就唔會建立，避免出現「通知話 rejected，但 request 其實無成功 rejected」嘅不一致。
+
+##### 點解先存 local variables
+
+例子入面先存：
+
+```python
+user = locked_request.created_by
+request_type = locked_request.request_type
+```
+
+因為 `on_commit()` callback 係之後先執行。先將需要嘅資料存入 local variables，會比 callback 入面再依賴 `locked_request` object 清楚。
+
+##### callback 要帶參數時點寫
+
+`transaction.on_commit()` 需要接收一個「之後可以直接執行」嘅 callback。
+
+即係：
+
+```python
+transaction.on_commit(callback)
+```
+
+`callback` 本身唔應該喺呢一刻需要你再傳參數。
+
+如果想抽 helper，例如：
+
+```python
+def create_event_for_admin(*, word, kana, request_type):
+    ...
+```
+
+就有三種常見寫法。
+
+第一種：用 `lambda` 包一層。
+
+```python
+transaction.on_commit(
+    lambda: create_event_for_admin(
+        word=word,
+        kana=kana,
+        request_type=request_type,
+    )
+)
+```
+
+意思係：交俾 `on_commit()` 嘅係一個無參數 function，但呢個 function 執行時會 call 真正 helper 並帶入參數。
+
+第二種：用 inner function。
+
+```python
+def create_event_after_commit():
+    create_event_for_admin(
+        word=word,
+        kana=kana,
+        request_type=request_type,
+    )
+
+transaction.on_commit(create_event_after_commit)
+```
+
+呢個同 `lambda` 概念一樣，但如果 callback 內容多過一行，inner function 會清楚好多。
+
+第三種：用 `functools.partial`。
+
+```python
+from functools import partial
+
+transaction.on_commit(
+    partial(
+        create_event_for_admin,
+        word=word,
+        kana=kana,
+        request_type=request_type,
+    )
+)
+```
+
+`partial()` 會預先幫 function 塞好參數，產生一個之後可以直接呼叫嘅 callback。
+
+簡單選擇：
+
+- Callback 只得一行：`lambda` 可以接受。
+- Callback 有幾行 logic：用 inner function。
+- 想明確表達「預先綁定參數」：用 `partial`。
+
+目前 project 學習階段，inner function 最易讀。
+
+##### 放 transaction 入面、出面、on_commit 嘅分別
+
+放喺 `transaction.atomic()` 入面：
+
+- Event failure 會令主操作 rollback。
+- 適合 event 係核心業務資料，缺少 event 就唔應該完成主操作。
+
+放喺 `transaction.atomic()` 出面：
+
+- 主操作成功後，即使 event failure，主操作都已經保留。
+- 但如果主操作 rollback，而你太早建立 event，就可能出現假通知。
+
+用 `transaction.on_commit()`：
+
+- 主操作 commit 成功先建立 event。
+- 主操作 rollback 就唔建立 event。
+- Event failure 唔會 rollback 已經 commit 嘅主操作。
+
+所以 notification / event 呢類 side effect，通常 `on_commit()` 係最平衡嘅選擇。
+
+#### 8. 最簡單記法
 
 ```text
 預計捕捉 database error
@@ -2251,6 +2422,7 @@ except IntegrityError:
 try:
     with transaction.atomic():
         # database operations
+        transaction.on_commit(callback)
 except IntegrityError:
     # rollback 已完成
     # safe error handling

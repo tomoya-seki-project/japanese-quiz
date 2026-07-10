@@ -296,6 +296,18 @@
   - `UserEvent.is_read` 同 `read_at` 已可記低 user 是否已讀同已讀時間。
   - Event + UserEvent relationship 可以避免為每個全站公告直接複製完整 event content。
 
+- [x] **建立 EventService 基本 create / assign / unread / mark-read helper。**
+  - `EventService.create_event()` 已負責建立 event record。
+  - `EventService.assign_event_to_user()` 已用 `UserEvent.objects.get_or_create()` 建立 user-event relationship，避免同一 event 重複 assign 同一 user 時撞 unique constraint。
+  - `EventService.assign_event_to_users()` 已可將 event 派俾指定 user queryset；預設可派俾所有 users。
+  - `EventService.mark_as_read()` 已會設定 `is_read=True` 同 `read_at=timezone.now()`。
+  - `EventService.get_unread_events()` 已回傳 user 未讀 events，並用 `select_related("event")` 減少之後 template 顯示時嘅 query。
+
+- [x] **User submit vocab request 後通知 staff 有新 request。**
+  - CREATE / UPDATE / RESTORE / DELETE vocab request 建立成功後，會透過 `transaction.on_commit()` 建立 `NEW_VOCAB_REQUEST` event。
+  - 通知會派俾 `is_staff=True` users。
+  - Staff notification event 係輔助通知；使用 `on_commit()` 可避免 event 建立失敗令 user submit request rollback。
+
 - [ ] **實作 notification read / dismiss 操作。**
   - User login 後可以分到 unread 同已讀 notifications。
   - User 可以 mark as read、mark all as read，同查看之前嘅 notification history。
@@ -345,10 +357,16 @@
 ## VocabRequest Result / UserVocab Flow
 
 - [ ] **Approve / reject request 後建立 user event。**
-  - Vocab request review 完成後，唔會即時寄 email。
-  - 系統會建立一個對應 user 嘅 event record，記低 request 係 approved 定 rejected，同埋發生咗咩事。
-  - Approved / imported 新字會先建立 `UserVocab` record，但預設 `in_use=False`。
-  - User 下次 login 時先 show event notice，提醒有新字可查看／啟用。
+  - 已完成：
+    - Vocab request review 完成後，唔會即時寄 email。
+    - Approve request 時已建立 `VOCAB_REQUEST_RESULT` event，通知 request owner review result。
+    - Reject request 時已建立 `VOCAB_REQUEST_RESULT` event，通知 request owner review result。
+    - Approve request 時已建立 `VOCAB` event，通知 users vocab data 有變更。
+    - Approve / reject result event 暫時放喺 review transaction 入面；若 event 建立失敗，admin 可以重新 approve / reject。
+  - 未完成：
+    - User 下次 login / notification page 顯示 event notice。
+    - User mark result event as read / handled。
+    - Approved / imported 新字 event 要同 `UserVocab(in_use=False)` 啟用提示整合。
 
 - [ ] **UserVocab 新字預設 `in_use=False`，由 user 自己啟用。**
   - 已完成：

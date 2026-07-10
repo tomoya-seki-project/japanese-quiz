@@ -4,11 +4,10 @@ from datetime import date, datetime
 
 class EventType(models.TextChoices):
     VOCAB_REQUEST_RESULT = "vocab_request_result","Vocab Request Result"
-    NEW_VOCAB = "new_vocab","New vocab"
-    UPDATE_VOCAB = "update_vocab","Update Vocab"
-    RESTORE_VOCAB = "restore_vocab","Restore Vocab"
-    DELETE_VOCAB = "delete_vocab", "Delete Vocab"
+    NEW_VOCAB_REQUEST = "new_vocab_request","New Vocab Request Result"
+    VOCAB = "vocab","Vocab"
     WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system","Weight Update by System"
+
 
 class TimeStampedModel(models.Model):
     create_at = models.DateTimeField(auto_now_add=True)
