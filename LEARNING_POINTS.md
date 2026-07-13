@@ -14,6 +14,7 @@
 - [DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW](#DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW)
 - [DJANGO-ADMIN-GET-FORM-BASE-FIELDS](#DJANGO-ADMIN-GET-FORM-BASE-FIELDS)
 - [DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC](#DJANGO-CATCH-INTEGRITY-ERROR-AROUND-ATOMIC)
+- [DJANGO-QUERYSET-SUBSET-ORDERING](#DJANGO-QUERYSET-SUBSET-ORDERING)
 - [DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE](#DJANGO-SLICED-QUERYSET-MULTIPLE-CHOICE)
 - [DJANGO-RELATION-FIELD-RELATED-NAME](#DJANGO-RELATION-FIELD-RELATED-NAME)
 - [DJANGO-UNIQUE-CONSTRAINT](#DJANGO-UNIQUE-CONSTRAINT)
@@ -2427,6 +2428,200 @@ except IntegrityError:
     # rollback 已完成
     # safe error handling
 ```
+
+### 理解內容
+
+-
+
+<a id="DJANGO-QUERYSET-SUBSET-ORDERING"></a>
+
+## [ ] `[DJANGO-QUERYSET-SUBSET-ORDERING]` 分開 QuerySet 後 `order_by()` 只會喺各自 subset 入面排序
+
+### 問題背景
+
+設計 vocab sync event 時，希望做到：
+
+- CREATE：自上次 sync 後曾經 create 就通知。
+- UPDATE / RESTORE / DELETE：只通知每個 vocab 最後一次非 CREATE 改動。
+
+於是將 query 拆成兩條：
+
+```python
+create_vocab_request = VocabRequest.objects.filter(
+    request_type=VocabRequestType.CREATE,
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+).order_by("-update_at").first()
+
+other_vocab_request = VocabRequest.objects.filter(
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+).exclude(
+    request_type=VocabRequestType.CREATE
+).order_by("-update_at").first()
+```
+
+初初以為外層 `Vocab.objects.filter(update_at__gt=last_sync)` 已經保證 vocab 係新近改過，所以 create query 唔需要再加 `update_at__gt=last_sync`。
+
+### 研究方向
+
+- QuerySet filter 後嘅資料集合係點樣決定。
+- `order_by("-update_at").first()` 係喺全體資料排序，定係只喺目前 QuerySet subset 排序。
+- 點解拆開 CREATE / non-CREATE query 後，要分別考慮各自 sync window。
+- 點樣避免舊 CREATE request 被新 UPDATE 觸發後再次算成 CREATE notification。
+
+### Codex 解答
+
+#### 1. `order_by()` 只會排序目前 QuerySet
+
+呢句：
+
+```python
+create_vocab_request = VocabRequest.objects.filter(
+    request_type=VocabRequestType.CREATE,
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+).order_by("-update_at").first()
+```
+
+意思係：
+
+```text
+先篩出 approved CREATE requests
+再喺呢批 CREATE requests 入面按 update_at 排序
+最後攞最新一筆 CREATE request
+```
+
+佢唔會理同一個 vocab 有無更新嘅 UPDATE / RESTORE / DELETE request。
+
+因為 UPDATE / RESTORE / DELETE 一開始已經被：
+
+```python
+request_type=VocabRequestType.CREATE
+```
+
+排除咗。
+
+#### 2. 外層 vocab 新，不代表內層 create request 新
+
+例如：
+
+```text
+7/1  CREATE request approved
+     Vocab A created
+
+7/10 user sync
+     user.profile.last_vocab_sync_at = 7/10
+
+7/14 UPDATE request approved
+     Vocab A updated
+```
+
+外層 query：
+
+```python
+Vocab.objects.filter(update_at__gt=last_sync)
+```
+
+會拎到 `Vocab A`，因為佢 7/14 update 過。
+
+但 create query：
+
+```python
+VocabRequest.objects.filter(
+    request_type=VocabRequestType.CREATE,
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+).order_by("-update_at").first()
+```
+
+仍然會搵到 7/1 嗰筆 CREATE request。
+
+如果無再加：
+
+```python
+update_at__gt=last_sync
+```
+
+就會將 7/1 嘅舊 CREATE request 當成今次 sync 要通知嘅 create event。
+
+#### 3. 兩層 filter 嘅責任唔同
+
+外層 vocab filter：
+
+```python
+Vocab.objects.filter(update_at__gt=last_sync)
+```
+
+負責決定：
+
+```text
+邊啲 vocab 自上次 sync 後有變化，需要檢查
+```
+
+內層 request filter：
+
+```python
+VocabRequest.objects.filter(update_at__gt=last_sync)
+```
+
+負責決定：
+
+```text
+邊啲 request 係自上次 sync 後發生，可以代表今次 sync window 入面嘅事件
+```
+
+呢兩個條件唔係重複，而係控制唔同資料集合。
+
+#### 4. 修正方向
+
+CREATE query 應該限制喺今次 sync window：
+
+```python
+create_vocab_request = VocabRequest.objects.filter(
+    request_type=VocabRequestType.CREATE,
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+    update_at__gt=last_sync,
+).order_by("-update_at").first()
+```
+
+non-CREATE query 亦應該限制喺今次 sync window：
+
+```python
+other_vocab_request = VocabRequest.objects.filter(
+    proposed_word=vocab.word,
+    proposed_kana=vocab.kana,
+    status=VocabRequestStatus.APPROVED,
+    update_at__gt=last_sync,
+).exclude(
+    request_type=VocabRequestType.CREATE
+).order_by("-update_at").first()
+```
+
+咁就可以表達：
+
+```text
+CREATE = 自上次 sync 後曾經 create
+UPDATE / RESTORE / DELETE = 自上次 sync 後最後一次非 CREATE 改動
+```
+
+#### 5. 重點
+
+```text
+filter() 決定資料集合
+order_by() 只會排序呢個集合
+first() 只會攞呢個集合排序後第一筆
+```
+
+如果拆開兩條 QuerySet，每條 QuerySet 都要自己帶齊時間範圍、狀態、類型等條件。
+
+唔可以假設外層 query 已經幫內層 query 限制咗所有語意。
 
 ### 理解內容
 

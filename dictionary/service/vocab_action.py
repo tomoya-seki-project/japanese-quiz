@@ -55,8 +55,8 @@ class VocabActionService():
             target_vocab.meaning=vocab_data["meaning"]
             target_vocab.level=vocab_data["level"]
             target_vocab.approved_by=approved_by
-            # think about should update the create_by to which update the vocab
-            #target_vocab.created_by=vocab_data["created_by"]
+            # Decide later whether updates should also change created_by.
+            # target_vocab.created_by=vocab_data["created_by"]
             target_vocab.full_clean()
             target_vocab.save()
             target_vocab.categories.set(vocab_data["categories"])

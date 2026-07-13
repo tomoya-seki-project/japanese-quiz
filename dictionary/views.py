@@ -68,9 +68,9 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 form.add_error(None, e)
                 return self.form_invalid(form)
             if created:
-                messages.success(self.request, "There was the same word on the list, passed to admin to review")
+                messages.success(self.request, "The same word already exists on the list. A restore request has been sent to admin for review.")
             else:
-                messages.info(self.request, "There was the same word on the list and We got the review request already, waiting for admin review")
+                messages.info(self.request, "The same word already exists on the list, and a review request is already waiting for admin review.")
             return redirect(self.get_success_url())
         else:
             try:
@@ -82,9 +82,9 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 form.add_error(None, e)
                 return self.form_invalid(form)
             if created:
-                messages.success(self.request, "Created New Word request to admin, waiting for confirm")
+                messages.success(self.request, "A new word request has been sent to admin for confirmation.")
             else:
-                messages.info(self.request, "There are other user ask for the same word already, waiting for admin confirm")
+                messages.info(self.request, "Another user has already requested the same word. It is waiting for admin confirmation.")
             return redirect(self.get_success_url())
         
     def get_success_url(self):

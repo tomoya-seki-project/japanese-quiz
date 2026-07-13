@@ -171,7 +171,7 @@ class VocabRequest(TimeStampedModel):
     #proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
     
     #vocab type
-    # nothing special right now
+    # No special fields right now.
 
     #katakana type
     proposed_native_japanese = models.CharField(verbose_name="Native Japanese", max_length=255, blank=True, null=True)

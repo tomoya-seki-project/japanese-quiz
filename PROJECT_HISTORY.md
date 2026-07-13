@@ -757,3 +757,52 @@ Status: Dictionary category system migrated from single field to 1-3 categories
 - M2M data 同普通 field lifecycle 唔同，尤其係 create 時必須先 save main object，再處理 relationship table。
 - Admin form lifecycle 有好多細節，`get_form()`、`base_fields`、`readonly_fields`、`save_model()` 係唔同層次嘅保護。
 - 將大型改動寫成 modification report 有助整理設計原因、實作步驟同之後維護注意事項，亦方便將來 review 自己嘅架構決策。
+
+## 2026-07-11 - Vocab request event notification wiring
+
+Commit: `0d8b401`
+
+Status: Vocab request flow connected to initial event notification service
+
+### 主要改動
+
+- 完善 `EventService` 基本 helper，包括 create event、assign event to user/users、get unread events 同 mark as read。
+- `EventService.create_event()` 改為每次建立新 event record，避免一般通知被 `get_or_create()` 重用成舊 event。
+- `EventService.assign_event_to_user()` 改用 `UserEvent.objects.get_or_create()`，避免同一 event 重複 assign 同一 user 時撞 unique constraint。
+- `EventService.get_unread_events()` 加入 `select_related("event")`，減少之後 notification template 顯示 event content 時嘅 query。
+- `VocabRequestService` 新增 `create_event_for_admin()` helper，統一建立 staff-facing `NEW_VOCAB_REQUEST` notification。
+- CREATE / UPDATE / RESTORE / DELETE vocab request 建立成功後，會通知 `is_staff=True` users 有新 request 需要 review。
+- Staff notification 使用 `transaction.on_commit()`，確保 request 成功 commit 後先建立 event。
+- Approve / reject request 後會建立 `VOCAB_REQUEST_RESULT` event，通知 request owner review result。
+- Approve request 後會額外建立 `VOCAB` event，通知 users vocab data 有變更。
+- 清理 `vocab_request.py` 入面 event 相關無用 import，只保留實際需要嘅 `EventType`。
+- 將 `transaction.on_commit()`、callback 帶參數方式、`lambda` / inner function / `functools.partial` 寫入 `LEARNING_POINTS.md`。
+
+### Database 改動
+
+- 無新增 schema 變更。
+- `EventType` 目前已包含 `NEW_VOCAB_REQUEST`，model / migration 狀態已通過 `makemigrations --check --dry-run`。
+- 今次主要係 service flow wiring，同現有 `Event` / `UserEvent` table 互動。
+
+### 技術重點
+
+- User submit vocab request 時，request 本身係核心資料；staff notification event 係輔助通知。
+- 因此 request creation flow 使用 `transaction.on_commit()` 建立 notification，避免 event 建立失敗令 user request rollback。
+- `transaction.on_commit()` 只會喺 transaction 成功 commit 後執行 callback；如果 request 建立失敗 rollback，就唔會建立假通知。
+- Callback 要帶參數時，可以用 inner function 包住 helper call，令 `on_commit()` 收到一個無參數 callback。
+- Approve / reject flow 暫時將 result event 放喺 review transaction 入面；如果 event 建立失敗，admin 可以即時重新 approve / reject。
+- 呢個設計係按失敗成本區分 transaction boundary：user submit failure 成本較高，admin review failure 可重試成本較低。
+
+### 理由
+
+- Event notification system 需要先接入現有 vocab request workflow，先可以進一步做 navbar unread count、notification page 同 mark as read。
+- Staff 需要知道有新 vocab request 需要 review，但呢個通知唔應該影響 user 成功提交 request。
+- Request owner 需要知道 approve / reject result，所以 review 完成後要建立 per-user result event。
+- 先用 service helper 串起 core event flow，可以避免 view/admin layer 直接操作 `Event` / `UserEvent`，之後擴展 notification UI 時會更集中。
+
+### 學到咩
+
+- `transaction.on_commit()` 適合處理「主資料成功後先做」嘅 side effect，例如 notification、email、cache update。
+- Event 是否放入 transaction 入面，唔係固定答案，而係要睇 event failure 應否令主流程 rollback。
+- `get_or_create()` 適合 idempotent relationship，例如 `UserEvent` assignment；一般通知 event 本體通常應該用 `create()`，避免不同事件被誤判成同一筆通知。
+- 抽 helper 後要留意 keyword-only arguments 是否同 callback 傳入嘅 keyword 一致，否則 syntax check 未必發現 runtime `TypeError`。

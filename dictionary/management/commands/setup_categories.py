@@ -4,7 +4,7 @@ import csv
 from ...models import Category
 
 class Command(BaseCommand):
-    help = "setup basic categories"
+    help = "Set up basic categories from a CSV file."
 
     def add_arguments(self, parser):
         parser.add_argument("csv_file", type=str)
@@ -36,10 +36,10 @@ class Command(BaseCommand):
                     display = data["display"].strip()
 
                     if not category_name:
-                        failed_rows.append((row_number, "category is required"))
+                        failed_rows.append((row_number, "Category is required."))
                         self.stderr.write(
                             self.style.ERROR(
-                                f"Row {row_number}: category is required"
+                                f"Row {row_number}: Category is required."
                             )
                         )
                         continue

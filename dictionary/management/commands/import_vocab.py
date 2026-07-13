@@ -22,7 +22,7 @@ from ...models import (
 )
 
 class Command(BaseCommand):
-    help = "Import vocab form CSV. for Admin only"
+    help = "Import vocab from a CSV file. Admin only."
 
     def add_arguments(self, parser):
         parser.add_argument("csv_file",type=str)
@@ -92,7 +92,7 @@ class Command(BaseCommand):
                         missing_names = set(category_names) - found_names
                         if missing_names:
                             raise ValidationError(
-                                f"There is a category not on the list: {','.join(missing_names)}"
+                                f"These categories do not exist: {', '.join(missing_names)}"
                             )
                         VocabActionService.create_vocab(
                             {
@@ -115,11 +115,11 @@ class Command(BaseCommand):
                         )
                     except IntegrityError as e:
                         failed_rows.append(
-                            (row_number, "database integrity error")
+                            (row_number, "Database integrity error.")
                         )
                         self.stderr.write(
                             self.style.ERROR(
-                                f"Row {row_number}: database integrity error"
+                                f"Row {row_number}: Database integrity error."
                             )
                         )
                         continue

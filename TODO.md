@@ -308,6 +308,21 @@
   - 通知會派俾 `is_staff=True` users。
   - Staff notification event 係輔助通知；使用 `on_commit()` 可避免 event 建立失敗令 user submit request rollback。
 
+- [ ] **建立 vocab sync summary event flow。**
+  - 已完成：
+    - `UserProfile.last_vocab_sync_at` 已可作為 user 上次 vocab sync / event summary 嘅基準時間。
+    - `EventService.gen_vocab_sync_event()` 已有初版，會根據 `Vocab.update_at > last_vocab_sync_at` 找出自上次 sync 後有變化嘅 vocab。
+    - CREATE request 已獨立計算；只會計入 sync window 內 approved CREATE request。
+    - UPDATE / RESTORE / DELETE 已按 sync window 內最新 non-CREATE approved request 分類。
+    - 無對應 approved request 但 vocab 有變化時，暫時當成 admin / import created vocab fallback。
+    - 已記錄 QuerySet subset ordering learning point：分開 CREATE / non-CREATE query 後，各自都要帶 `update_at__gt=last_sync`。
+  - 未完成：
+    - 將 `gen_vocab_sync_event()` 接入 login / home flow。
+    - 實際 browser 測試 create / update / restore / delete / import 後是否正確生成 summary event。
+    - 決定第一次 sync 是否只設定 `last_vocab_sync_at`，定係要顯示現有 vocab summary。
+    - 處理 user 無 profile 時嘅 fallback。
+    - 整理 notification UI，讓 user 可以看到 vocab sync summary event。
+
 - [ ] **實作 notification read / dismiss 操作。**
   - User login 後可以分到 unread 同已讀 notifications。
   - User 可以 mark as read、mark all as read，同查看之前嘅 notification history。
@@ -366,7 +381,7 @@
   - 未完成：
     - User 下次 login / notification page 顯示 event notice。
     - User mark result event as read / handled。
-    - Approved / imported 新字 event 要同 `UserVocab(in_use=False)` 啟用提示整合。
+    - Approved / imported 新字 event 要同 vocab sync summary event 及 `UserVocab(in_use=False)` 啟用提示整合。
 
 - [ ] **UserVocab 新字預設 `in_use=False`，由 user 自己啟用。**
   - 已完成：
@@ -380,7 +395,7 @@
     - 已用 browser 測試 select all / checkbox 更新 `in_use` flow。
   - 未完成：
     - Quiz question pool 要只使用 `in_use=True` 嘅 `UserVocab`。
-    - EventNotice system 要通知 user 有新字已加入個人 list，但仍未啟用。
+    - Vocab sync summary event / EventNotice system 要通知 user 有新字已加入個人 list，但仍未啟用。
     - 可以再整理 `sync_new_vocab()` 是否每次 login sync 全部未擁有 vocab，定係之後改成 event-driven / batch flow。
 
 - [ ] **處理 rejected request event。**

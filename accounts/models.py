@@ -43,6 +43,8 @@ class User(AbstractUser):
         return self.username
 
 class UserProfile(TimeStampedModel):
+    last_vocab_sync_at = models.DateTimeField(blank=True, null=True)
+
     user = models.OneToOneField(
         User, on_delete=models.CASCADE,
         related_name='profile'

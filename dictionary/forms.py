@@ -18,13 +18,13 @@ from .models import (
 )
 
 class BaseVocabRequestForm(forms.Form):
-    #--- vocab table ---#
+    # Vocab fields
     vocab_type = forms.ChoiceField(choices=VocabType.choices, label='type')
     word = forms.CharField(max_length=50, label='Word')
     meaning = forms.CharField(max_length=255, label="Meaning")
     kana = forms.CharField(max_length=255, label='Kana')
     level = forms.ChoiceField(choices=VocabLevel.choices)
-    #similar_word = forms.CharField(max_length=255, required=False)
+    # similar_word = forms.CharField(max_length=255, required=False)
 
     categories = forms.ModelMultipleChoiceField(
         queryset=Category.objects.all(),
@@ -32,17 +32,17 @@ class BaseVocabRequestForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
     )
 
-    #--- kanji detail table ---#
-    #nothing special right now
+    # Kanji detail fields
+    # No special fields right now.
     
-    #--- katakana detail table ---#
+    # Katakana detail fields
     native_japanese = forms.CharField(max_length=255, required=False)
 
     def clean_categories(self):
         categories = self.cleaned_data["categories"]
         if categories.count() > 3:
             raise forms.ValidationError(
-                "Allow 3 type of category only"
+                "You can select up to 3 categories only."
             )
         return categories
 
@@ -61,7 +61,7 @@ class VocabCreateRequestForm(BaseVocabRequestForm):
 
         if existing_vocab:
             if existing_vocab.is_active:
-                self.add_error('word', 'There is the same word on the list and active.')
+                self.add_error('word', 'The same word already exists on the active list.')
             else:
                 self.deactived_vocab = existing_vocab
 
@@ -86,9 +86,9 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
 
         if existing_vocab:
             if existing_vocab.is_active:
-                self.add_error('word', 'There is the same word on the list and active')
+                self.add_error('word', 'The same word already exists on the active list.')
             else:
-                self.add_error('word', 'There is the same word on the list but it been deactived')
+                self.add_error('word', 'The same word already exists on the list, but it has been deactivated.')
 
         return cleaned_data
 

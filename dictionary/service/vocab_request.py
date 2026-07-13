@@ -82,8 +82,8 @@ class VocabRequestService():
     def create_event_for_admin(*, word, kana, request_type, request_by):
         event = EventService.create_event(
                     event_type=EventType.NEW_VOCAB_REQUEST,
-                    event_title=f"New vocab {request_type} request be applied",
-                    event_msg=f"{word} ({kana}) request by {request_by}"
+                    event_title=f"A new vocab {request_type} request has been submitted.",
+                    event_msg=f"{word} ({kana}) was requested by {request_by}."
                 )
         EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
 
@@ -130,14 +130,14 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word have another request waiting for review already")
+                raise ValidationError("This word already has another request waiting for review.")
         return is_created
     
     @staticmethod
     def gen_update_vocab_request(user, form):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = form.target_vocab):
-            #add log
+            # Add logging later.
             is_created = False
         else:
             try:
@@ -190,14 +190,14 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word have another request waiting for review already")
+                raise ValidationError("This word already has another request waiting for review.")
         return is_created
 
     @staticmethod
     def gen_restore_vocab_request(user, vocab):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = vocab):
-            # add log
+            # Add logging later.
             is_created = False
         else:
             try:
@@ -237,14 +237,14 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word have another request waiting for review already")
+                raise ValidationError("This word already has another request waiting for review.")
         return is_created
 
     @staticmethod
     def gen_delete_vocab_request(user, vocab):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = vocab):
-            #add log
+            # Add logging later.
             is_created = False
         else:
             try:
@@ -271,7 +271,7 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word have another request waiting for review already")
+                raise ValidationError("This word already has another request waiting for review.")
         return is_created
 
 
@@ -311,13 +311,13 @@ class VocabRequestService():
                         target_vocab=locked_request.original_vocab, 
                         approved_by=reviewed_by
                     )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been restore by {locked_request.created_by}'s request"
+                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been restored by {locked_request.created_by}'s request"
                 case VocabRequestType.DELETE:
                     VocabActionService.deactivate_vocab(
                         target_vocab=locked_request.original_vocab,
                         approved_by=reviewed_by
                     )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been delete by {locked_request.created_by}'s request"
+                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been deleted by {locked_request.created_by}'s request"
             locked_request.status = VocabRequestStatus.APPROVED
             locked_request.reviewed_by = reviewed_by
             locked_request.save(
@@ -330,12 +330,12 @@ class VocabRequestService():
                                             event_msg=""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
-            new_vocab_event = EventService.create_event(
-                                event_type=EventType.VOCAB,
-                                event_title=event_title,
-                                event_msg=""
-            )
-            EventService.assign_event_to_users(event=new_vocab_event)
+            # new_vocab_event = EventService.create_event(
+            #                     event_type=EventType.VOCAB,
+            #                     event_title=event_title,
+            #                     event_msg=""
+            # )
+            # EventService.assign_event_to_users(event=new_vocab_event)
         return True
 
     @staticmethod
