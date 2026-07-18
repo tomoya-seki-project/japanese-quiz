@@ -1,0 +1,58 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h1>user event list</h1>
+<div id="user-event-list-container">
+    {% include "core/event/partials/user_event_list_partial.html" %}
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+        const userEventListContainer = document.getElementById('user-event-list-container');
+        userEventListContainer.addEventListener('click', function(e){
+            if(e.target.classList.contains('page-change')){
+                e.preventDefault();
+                const url = e.target.href;
+                fetch(url, {
+                    headers:{
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.text())
+                .then(html => {
+                    userEventListContainer.innerHTML = html;
+                    selectorReload();
+                })
+                .catch(error => console.error('Error fetching filter user event:', error));
+            }
+        });
+
+        function selectorReload(){
+            const selectAll = document.getElementById("select-all");
+            if(!selectAll) return;
+            const checkboxes = document.querySelectorAll(".is-read-checkbox");
+
+            selectAll.addEventListener("change", function(){
+                checkboxes.forEach(function(checkbox){
+                    checkbox.checked = selectAll.checked;
+                });
+            });
+            checkboxes.forEach(function(checkbox){
+                checkbox.addEventListener("change", function(){
+                    const allChecked = Array.from(checkboxes).every(function(box){
+                        return box.checked;
+                    });
+                    const noneChecked = Array.from(checkboxes).every(function(box){
+                        return !box.checked;
+                    });
+
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = !allChecked && !noneChecked;
+                });
+            });
+        }
+
+        selectorReload();
+    });
+</script>
+{% endblock %}

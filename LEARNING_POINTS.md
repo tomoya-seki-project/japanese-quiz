@@ -25,6 +25,8 @@
 - [DJANGO-PAGINATION-KEEP-SEARCH-QUERY](#DJANGO-PAGINATION-KEEP-SEARCH-QUERY)
 - [DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET](#DJANGO-MODEL-MULTIPLE-CHOICE-FIELD-M2M-SET)
 - [DJANGO-ADMIN-M2M-WIDGET](#DJANGO-ADMIN-M2M-WIDGET)
+- [DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE](#DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE)
+- [DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA](#DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -339,6 +341,157 @@ container.addEventListener("click", function (e) {
 ### 理解內容
 
 -
+
+<a id="DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA"></a>
+
+## [ ] `[DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA]` 全站 navbar data 應該用 context processor
+
+### 問題背景
+
+`core/base.html` 係所有 page 共用嘅 base template，頂部 menu 會顯示 Home、Profile、Sign in / Login、Vocab 等 link。
+
+如果想加一個 Event link，並且喺有 unread event 時顯示類似：
+
+```text
+Event(2)
+```
+
+就需要每個 render 出嚟嘅 template 都可以拎到 unread event count。
+
+問題係：應唔應該每個 view 都喺 `get_context_data()` 入面加 `unread_event_count`？定係用 middleware？
+
+### 研究方向
+
+- `get_context_data()` 適合單一 view / page-specific data。
+- Middleware 適合每個 request 前後都要執行嘅 request-level logic。
+- Context processor 適合「所有 template 都想用到嘅共用顯示資料」。
+- Navbar unread count 屬於 template display data，唔係每個 view 嘅業務邏輯。
+
+### 你的解答
+
+呢個情況最適合用 **context processor**。
+
+Context processor 會喺 template render 時，自動將指定資料加入 template context。咁 `base.html` 就可以直接用同一個變數，而唔需要每個 view 都手動 pass。
+
+例子：
+
+```python
+# core/context_processors.py
+
+from core.service.event import EventService
+
+def unread_event_count(request):
+    if not request.user.is_authenticated:
+        return {
+            "unread_event_count": 0,
+        }
+
+    return {
+        "unread_event_count": EventService.get_unread_events(user=request.user).count(),
+    }
+```
+
+然後喺 `settings.py` 註冊：
+
+```python
+TEMPLATES = [
+    {
+        "OPTIONS": {
+            "context_processors": [
+                # Django default context processors...
+                "core.context_processors.unread_event_count",
+            ],
+        },
+    },
+]
+```
+
+之後 `base.html` 可以直接寫：
+
+```django
+<a href="{% url 'core:event_list' %}">
+    Event{% if unread_event_count %}({{ unread_event_count }}){% endif %}
+</a>
+```
+
+### Middleware 同 context processor 分工
+
+Middleware 係 request / response 層：
+
+```text
+Request -> Middleware -> URL/View -> Middleware -> Response
+```
+
+適合做：
+
+- request logging
+- permission / redirect
+- language / timezone setup
+- login user request-level sync
+- 每次 request 前後都一定要做嘅 side effect
+
+Context processor 係 template render 層，適合做：
+
+- navbar unread count
+- site-wide display data
+- common user display info
+- base template 需要嘅 shared context
+
+### 理解內容
+
+- `get_context_data()` 唔應該為咗全站 navbar data 喺每個 view 重複寫。
+- Middleware 可以做到全 request 共用 logic，但 unread count 主要係 template 顯示資料，context processor 更啱。
+- Context processor 每次 render template 都可能會查一次 DB，例如 `.count()` unread events；project 細時 OK，將來可以再加 cache 或節流。
+- 簡單記法：middleware 管 request flow，context processor 管 template 共用 context。
+
+<a id="DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE"></a>
+
+## [ ] `[DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE]` `post_save` signal、`created` 同 `get_or_create()`
+
+### 問題背景
+
+想做到 create user 時自動建立對應嘅 `UserProfile`。
+
+如果只係喺 registration view 入面手動 create profile，admin create user、management command create user、test data create user 呢啲入口就可能會漏。
+
+所以可以考慮用 Django `post_save` signal，喺 User save 完之後自動補返 profile。
+
+### 研究方向
+
+- `post_save` 會喺 create 同 update 時都觸發。
+- Signal callback 入面嘅 `created` 參數點樣分辨今次係新建 object 定更新 object。
+- `get_or_create()` 點樣避免重複 create profile。
+- Signal 適合處理「每次 user 建立後都應該存在」嘅 companion model。
+
+### 你的解答
+
+`post_save` signal 會喺 model `save()` 完成後觸發。對 User 嚟講，create user 同 update user 都會觸發同一個 signal。
+
+Django 會傳一個 `created` boolean 入 signal receiver：
+
+```python
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
+```
+
+`created=True` 代表今次係新建 User。
+
+`created=False` 代表今次係更新已存在 User。
+
+所以如果寫咗 `if created:`，update user 時 signal 雖然會觸發，但唔會入去 create profile。
+
+`get_or_create()` 係第二層保險。即使 profile 已經存在，佢都只會拎返現有 object，而唔會再 create 多一個。
+
+如果想「舊 user 如果無 profile，之後 update user 時都自動補返」，可以唔加 `if created`，每次 save 都 `get_or_create()`。不過一般做法係 create 時建立 profile，舊資料另外用 management command 或 migration 去補。
+
+### 理解內容
+
+- `post_save` 唔等於只係 create 後觸發；update save 都會觸發。
+- `created` 先係判斷「今次係 create 定 update」嘅關鍵。
+- `if created: get_or_create(...)` 係常見穩陣寫法。
+- Signal 適合防止多個 create user 入口漏做 profile creation。
 
 <a id="DJANGO-ADMIN-M2M-WIDGET"></a>
 

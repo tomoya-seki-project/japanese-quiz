@@ -1,0 +1,56 @@
+<form method="POST" action="{{ request.get_full_path }}">
+    {% csrf_token %}
+    <table>
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="select-all">
+                    <label for="select-all">All</label>
+                </th>
+                <th>Type</th>
+                <th>Title</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_event in user_events %}
+            <tr>
+                <td>
+                    <input type="hidden" name="selectable_ids" value="{{ user_event.id }}">
+                    <input
+                        type="checkbox"
+                        name="selected_ids"
+                        class="is-read-checkbox"
+                        value="{{ user_event.id }}"
+                        {% if user_event.is_read %}checked{% endif %}>
+                </td>
+                <td>{{ user_event.event.event_type }}</td>
+                <td>{{ user_event.event.title }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Confirm</button>
+</form>
+{% if is_paginated %}
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+    {% else %}
+        Prev
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            {{ num }}
+        {% else %}
+            <a href="?page={{ num }}" class="page-change">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+    {% else %}
+        Next
+    {% endif %}
+</div>
+{% endif %}

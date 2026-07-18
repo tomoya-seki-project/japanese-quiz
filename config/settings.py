@@ -38,10 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts',
-    'dictionary',
-    'quiz',
-    'core',
+    'accounts.apps.AccountsConfig',
+    'dictionary.apps.DictionaryConfig',
+    'quiz.apps.QuizConfig',
+    'core.apps.CoreConfig',
 ]
 
 MIDDLEWARE = [
@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.unread_event_count',
             ],
         },
     },

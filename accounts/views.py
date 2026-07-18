@@ -22,6 +22,7 @@ from .forms import (
 )
 
 from dictionary.service.user_vocab_action import UserVocabService
+from core.service.event import EventService
 
 class HomeView(TemplateView):
     template_name = 'accounts/user_home.html'
@@ -46,6 +47,7 @@ class UserLoginView(LoginView):
         remember = form.cleaned_data['remember_me']
 
         UserVocabService.sync_new_vocab(user=self.request.user)
+        EventService.gen_vocab_sync_event(user=self.request.user)
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:
@@ -58,3 +60,8 @@ class UserLogoutView(LoginRequiredMixin, LogoutView):
 
 class UserView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_detail.html'
+
+    def get_context_data(self, **kwargs):
+        UserVocabService.sync_new_vocab(user=self.request.user)
+        EventService.gen_vocab_sync_event(user=self.request.user)
+        return super().get_context_data(**kwargs)

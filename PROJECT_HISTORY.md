@@ -806,3 +806,47 @@ Status: Vocab request flow connected to initial event notification service
 - Event 是否放入 transaction 入面，唔係固定答案，而係要睇 event failure 應否令主流程 rollback。
 - `get_or_create()` 適合 idempotent relationship，例如 `UserEvent` assignment；一般通知 event 本體通常應該用 `create()`，避免不同事件被誤判成同一筆通知。
 - 抽 helper 後要留意 keyword-only arguments 是否同 callback 傳入嘅 keyword 一致，否則 syntax check 未必發現 runtime `TypeError`。
+
+## 2026-07-14 - Vocab sync summary event foundation
+
+Commit: `14c04a6`
+
+Status: Initial vocab sync summary event flow added; login/home integration and UI handling are still pending
+
+### 主要改動
+
+- `UserProfile` 新增 `last_vocab_sync_at`，用作記錄每個 user 上次同步 vocab changes 嘅時間點。
+- `EventService.gen_vocab_sync_event()` 加入初版 vocab sync summary flow，根據 `last_vocab_sync_at` 搵出上次同步後有變化嘅 vocab。
+- CREATE request 獨立計算；只要 sync window 入面有 approved CREATE request，就會當作新字通知。
+- UPDATE / RESTORE / DELETE request 使用同一個 non-CREATE 分支，只取 sync window 入面最新一次 approved request 作為該 vocab 嘅變更 summary。
+- 如果 vocab 有更新但搵唔到對應 approved request，暫時當作 admin / import 直接建立嘅 vocab，歸類為 new vocab fallback。
+- 產生 new / updated / restored / deleted vocab summary event，並 assign 俾該 user。
+- 第一次 sync 目前只設定 baseline，不會一次過通知所有歷史 vocab。
+- 將 QuerySet subset ordering 相關理解寫入 `LEARNING_POINTS.md`，並同步更新 `TODO.md` 入面 event system 未完成項目。
+
+### Database 改動
+
+- 新增 `UserProfile.last_vocab_sync_at` 欄位。
+- 新增 migration `accounts/migrations/0005_add_sync_field.py`。
+- `Event` / `UserEvent` schema 無改動；今次係利用現有 event table 建立 vocab summary notification。
+
+### 技術重點
+
+- `Vocab.objects.filter(update_at__gt=last_sync)` 用嚟搵需要檢查嘅 vocab。
+- 內層 `VocabRequest` query 仍然需要自己加 `update_at__gt=last_sync`，因為外層 vocab query 唔會自動限制入面另一個 QuerySet。
+- CREATE 同 non-CREATE 分開處理，避免「新字」通知被後續 update / delete 覆蓋。
+- Non-CREATE request 只取最新一次變更，令 user 收到嘅係 summary，而唔係每一次歷史操作。
+- 使用 `last_vocab_sync_at` 而唔係 `last_login`，可以將「登入時間」同「vocab notification sync 時間」分開處理。
+
+### 理由
+
+- 避免每次 approve vocab 時即時為所有 user 建立大量 event。
+- 將 notification 由 per-action event 改成 per-user sync summary，可以減少 user 收到一堆重複 vocab notification。
+- Vocab request owner 嘅 approve / reject result event 仍然保留；一般 user 嘅 vocab change notification 則改為 summary flow。
+- 第一次 sync 先建立 baseline，可以避免舊資料一次過湧入通知中心。
+
+### 學到咩
+
+- QuerySet 分開後，每個 QuerySet 都有自己嘅 filter / order_by 範圍；外層 query 條件唔會自動傳入內層 query。
+- 做時間區間 summary 時，需要一個 domain-specific sync timestamp，而唔一定應該借用 login timestamp。
+- Event system 要分清楚 audit trail 同 user-facing notification；user 未必需要知道每一次內部操作，只需要知道對佢有用嘅 summary。

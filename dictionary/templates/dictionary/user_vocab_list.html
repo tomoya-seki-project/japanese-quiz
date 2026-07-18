@@ -12,7 +12,7 @@
 {% block javascript %}
 <script>
     document.addEventListener("DOMContentLoaded", function(){
-        const userVocabListContainer = document.getElementById('user-vocab-list-container')
+        const userVocabListContainer = document.getElementById('user-vocab-list-container');
         userVocabListContainer.addEventListener('click', function(e){
             if(e.target.classList.contains('page-change')){
                 e.preventDefault();
