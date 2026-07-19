@@ -6,4 +6,14 @@ from .models import Event
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    pass
+    list_display = (
+        'pk',
+        'event_type',
+        'title',
+    )
+    readonly_fields = ('event_type', 'title',)
+    list_filter = ('event_type',)
+
+    def has_add_permission(self, request):
+        return False
+    

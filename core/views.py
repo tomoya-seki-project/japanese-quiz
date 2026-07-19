@@ -21,6 +21,12 @@ class UserEventListView(LoginRequiredMixin, ListView):
     ordering = ['pk']
     paginate_by = 5
 
+    def get_template_names(self) -> list[str]:
+        if self.get_queryset().count() == 0:
+            return "core/event/no_unread_event.html"
+        return super().get_template_names()
+    
+
     def post(self, request, *args, **kwargs):
         user_event_queryset = self.get_queryset()
 

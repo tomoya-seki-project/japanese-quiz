@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
+from django.utils import timezone
 
 from .service.vocab_request import VocabRequestService
 
@@ -114,7 +115,9 @@ class UserVocabAdmin(admin.ModelAdmin):
         'last_quiz_at',
     )
 
-    list_editable = ('weight',)
+    list_display_links = ('vocab',)
+
+    list_editable = ('in_use', 'weight',)
     ordering = ('user__id',)
     search_fields = ('user__username', 'vocab__word')
     autocomplete_fields = ('user', 'vocab')

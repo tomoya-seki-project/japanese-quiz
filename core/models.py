@@ -32,6 +32,9 @@ class Event(models.Model):
         related_name='events'
     )
 
+    def __str__(self):
+        return f"{self.event_type} : {self.title}"
+
     class Meta:
         db_table = 'event'
 

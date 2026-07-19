@@ -1,0 +1,2 @@
+DATETIME_FORMAT = "F j, Y, H:i:s"
+SHORT_DATETIME_FORMAT = "F j, Y, H:i:s"

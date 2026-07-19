@@ -106,12 +106,16 @@ class UserVocab(TimeStampedModel):
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocabs'
     )
-    in_use = models.BooleanField(default=False)
+    in_use = models.BooleanField(default=True)
     weight = models.IntegerField(verbose_name="Weight", default=50)
     correct_count = models.IntegerField(verbose_name="Correct", default=0)
     incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
     streak = models.IntegerField(verbose_name="Streak", default=0)
     last_quiz_at = models.DateTimeField(verbose_name="Last Quiz", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.vocab.word} ({self.vocab.kana})"
+
     class Meta:
         db_table = 'user_vocab'
         constraints = [

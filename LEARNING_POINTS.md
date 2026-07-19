@@ -27,6 +27,8 @@
 - [DJANGO-ADMIN-M2M-WIDGET](#DJANGO-ADMIN-M2M-WIDGET)
 - [DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE](#DJANGO-POST-SAVE-SIGNAL-CREATED-GET-OR-CREATE)
 - [DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA](#DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA)
+- [DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE](#DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE)
+- [DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT](#DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -341,6 +343,201 @@ container.addEventListener("click", function (e) {
 ### 理解內容
 
 -
+
+<a id="DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT"></a>
+
+## [ ] `[DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT]` Django admin datetime localtime 同 format
+
+### 問題背景
+
+Admin page 入面會顯示好多 datetime，例如 `last_login`、`date_joined`、`create_at`、`update_at`、`last_vocab_sync_at`。
+
+如果 database 存 UTC，但 project 設定係日本時間，就要理解 Django 係邊啲情況會自動轉 localtime，邊啲情況要自己處理。
+
+另外，admin list display 嘅 datetime 格式可能用 `SHORT_DATETIME_FORMAT`，唔一定係 `DATETIME_FORMAT`。
+
+### 研究方向
+
+- `USE_TZ=True` 時 Django 點樣保存 aware datetime。
+- `TIME_ZONE="Asia/Tokyo"` 對 admin/template 顯示有咩影響。
+- `FORMAT_MODULE_PATH` 點樣控制 global date/datetime display format。
+- `DATETIME_FORMAT` 同 `SHORT_DATETIME_FORMAT` 分別喺咩位置使用。
+- 自己 `.strftime()` 同 return datetime object 俾 admin format 有咩分別。
+
+### 你的解答
+
+如果 settings 係：
+
+```python
+TIME_ZONE = "Asia/Tokyo"
+USE_TZ = True
+```
+
+Django admin / template 直接顯示 model `DateTimeField` 時，通常會自動將 datetime 轉成目前 active timezone，即係 `Asia/Tokyo`。
+
+例如直接顯示：
+
+```python
+@admin.display(description="Join at")
+def create_at(self, obj):
+    return obj.date_joined
+```
+
+呢種情況通常會由 Django admin 自己 localtime 同 format。
+
+但如果自己手動 `.strftime()`：
+
+```python
+return obj.date_joined.strftime("%B %d, %Y, %H:%M:%S")
+```
+
+就已經繞過 Django admin 嘅 formatting。呢個時候應該先轉 localtime：
+
+```python
+from django.utils import timezone
+
+return timezone.localtime(obj.date_joined).strftime("%B %d, %Y, %H:%M:%S")
+```
+
+如果想用 global format，要建立 format module，例如：
+
+```text
+core/
+  formats/
+    __init__.py
+    en_US/
+      __init__.py
+      formats.py
+```
+
+`settings.py`：
+
+```python
+LANGUAGE_CODE = "en-us"
+FORMAT_MODULE_PATH = ["core.formats"]
+```
+
+`core/formats/en_US/formats.py`：
+
+```python
+DATETIME_FORMAT = "F j, Y, H:i:s"
+SHORT_DATETIME_FORMAT = "F j, Y, H:i:s"
+```
+
+注意：
+
+- Django format string 用 `F j, Y, H:i:s`
+- Python `.strftime()` 用 `"%B %d, %Y, %H:%M:%S"`
+- `LANGUAGE_CODE="en-us"` 對應嘅 folder 係 `en_US`，唔係 `en-us`
+- Admin changelist 入面嘅 datetime，例如 `last_login`，好多時會用 `SHORT_DATETIME_FORMAT`
+- 改完 format module 後要 restart dev server，因為 format setting 可能已經被 cache
+
+### 理解內容
+
+- 直接 return datetime object：Django admin 幫手 localtime + format。
+- 自己 `.strftime()`：要自己 `timezone.localtime()`，global format 唔會再影響。
+- 想全 admin datetime 統一，應該盡量 return datetime object，交俾 Django formatting system。
+- `DATETIME_FORMAT` 同 `SHORT_DATETIME_FORMAT` 都要留意，admin list page 未必用你以為嗰個。
+
+<a id="DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE"></a>
+
+## [ ] `[DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE]` Admin User page 入面顯示 related `UserVocab`
+
+### 問題背景
+
+想喺 Django admin 嘅 User change page 入面睇到該 user 擁有邊啲 `UserVocab`。
+
+`UserVocab` 係由 user 指向 vocab 嘅 related model，所以 admin 入面有兩種常見做法：
+
+1. 用 inline 直接喺 User page 下方列出 `UserVocab`
+2. 喺 User page 顯示 count / link，跳去 filtered `UserVocab` admin list
+
+### 研究方向
+
+- `TabularInline` / `StackedInline` 點樣喺 parent model admin 入面顯示 child model。
+- Inline 適合少量 related data，但 related rows 太多時會令 admin page 好慢、好長。
+- 用 count / filtered link 可以避免 User page 載入大量 `UserVocab`。
+- 長期管理大量 related records 時，filtered admin list 通常比 inline 更易用。
+
+### 你的解答
+
+#### 方法一：Inline 顯示 `UserVocab`
+
+如果 `UserVocab` 有 `user = ForeignKey(User, related_name="user_vocabs", ...)`，可以喺 User admin 加 inline：
+
+```python
+from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import UserAdmin
+
+from dictionary.models import UserVocab
+
+User = get_user_model()
+
+
+class UserVocabInline(admin.TabularInline):
+    model = UserVocab
+    extra = 0
+    fields = ("vocab", "in_use")
+    readonly_fields = ("vocab",)
+    can_delete = False
+
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    inlines = [UserVocabInline]
+```
+
+優點：
+
+- 入 User change page 就可以直接睇到 related `UserVocab`。
+- Development / debug 時好直觀。
+- 少量 rows 時操作方便。
+
+缺點：
+
+- 如果一個 user 有幾百甚至幾千個 vocab，User page 會變慢。
+- Page 會好長，admin UX 會差。
+- Inline 本身唔太適合大量資料管理。
+
+#### 方法二：顯示 count / link 去 filtered admin list
+
+如果想長期穩陣啲，可以喺 User admin 顯示 user vocab count，或者一條 link 去 `UserVocab` admin list。
+
+例如 count：
+
+```python
+def user_vocab_count(self, obj):
+    return obj.user_vocabs.count()
+
+user_vocab_count.short_description = "User vocab count"
+```
+
+之後可以放入 `readonly_fields` 或 `list_display`。
+
+如果要做 link，就可以 reverse 去 `UserVocab` changelist，再用 query string filter 指定 user。概念上係：
+
+```text
+/admin/dictionary/uservocab/?user__id__exact=<user_id>
+```
+
+優點：
+
+- User page 唔會一次過載入大量 `UserVocab`。
+- 真正要管理 vocab 時先入 filtered list。
+- 對大量 data 比 inline 更穩定。
+
+缺點：
+
+- 無 inline 咁即場一眼睇晒。
+- 要多 click 一次先見到完整 list。
+
+### 理解內容
+
+- Inline 適合「少量、附屬、需要喺 parent page 快速睇或改」嘅 related data。
+- Count / filtered link 適合「數量可能好多、需要獨立管理」嘅 related data。
+- `UserVocab` 長遠可能好多，所以長期方案偏向 count / link；development debug 可以先用 inline。
+- Admin page 設計唔只係能不能顯示，仲要考慮資料量同操作體驗。
 
 <a id="DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA"></a>
 
