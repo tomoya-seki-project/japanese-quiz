@@ -104,6 +104,11 @@ class VocabDeleteRequestForm(forms.Form):
 class VocabSearchForm(forms.Form):
     word = forms.CharField(max_length=50, required=False)
     kana = forms.CharField(max_length=255, required=False)
+    vocab_type = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabType.choices),
+        required=False,
+        label="Type",
+    )
     level = forms.ChoiceField(
         choices=[("","-----")] + list(VocabLevel.choices),
         required=False,
@@ -130,6 +135,11 @@ class UserVocabSearchForm(forms.Form):
     )
     word = forms.CharField(max_length=50, required=False)
     kana = forms.CharField(max_length=255, required=False)
+    vocab_type = forms.ChoiceField(
+        choices=[("","-----")] + list(VocabType.choices),
+        required=False,
+        label="Type",
+    )
     level = forms.ChoiceField(
         choices=[("","-----")] + list(VocabLevel.choices),
         required=False,

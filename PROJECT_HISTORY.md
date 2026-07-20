@@ -850,3 +850,48 @@ Status: Initial vocab sync summary event flow added; login/home integration and 
 - QuerySet 分開後，每個 QuerySet 都有自己嘅 filter / order_by 範圍；外層 query 條件唔會自動傳入內層 query。
 - 做時間區間 summary 時，需要一個 domain-specific sync timestamp，而唔一定應該借用 login timestamp。
 - Event system 要分清楚 audit trail 同 user-facing notification；user 未必需要知道每一次內部操作，只需要知道對佢有用嘅 summary。
+
+## 2026-07-19 - Event and admin management polish
+
+Commit: `f616e5c`
+
+Status: Event notification and admin management flows are more usable; documentation format started to settle
+
+### 主要改動
+
+- User admin detail page 改用 summary field 顯示 `UserVocab` count，並提供 filtered `UserVocabAdmin` link，取代大量 inline rows。
+- User admin detail page 加入 `last_vocab_sync_at`、`date_joined`、`last_login` readonly display，方便 review user sync 狀態。
+- `UserVocab.in_use` default 改為 `True`，新 sync 入 user list 嘅 vocab 會預設進入可用範圍，由 user 自己再停用。
+- `UserEventListView` 加入 no unread event template，避免無未讀 event 時仍顯示空 list。
+- `UserEventDetailView` 已限制只能查看目前 user 自己嘅 event。
+- `EventAdmin` / `UserVocabAdmin` 管理畫面整理過，令 event 同 user vocab data 更易檢查。
+- `Event` 同 `UserVocab` 補上更易讀嘅 `__str__()`。
+- Admin datetime format 加入 project-level format module，統一顯示到年月日時分秒。
+- `TODO.md` 開始重整成較固定嘅 tracking format，並新增 `PROJECT_DOC_FORMAT.md` 記錄 TODO / learning points / project history 嘅分工。
+
+### Database 改動
+
+- 新增 migration `dictionary/migrations/0023_in_use_default_true.py`。
+- `UserVocab.in_use` default 由 `False` 改為 `True`。
+- 無新增 event schema；今次主要係 admin display、view flow 同 default behavior 調整。
+
+### 技術重點
+
+- 大量 related records 唔適合長期用 admin inline 顯示；改用 count + filtered changelist link，admin page 會更快、更清楚。
+- `UserVocab.in_use=True` 更適合大量 vocab sync flow，避免新 user 或久未 login user 要手動啟用大量新 vocab。
+- Event list / detail 已開始形成基本 notification UI：navbar count、unread list、detail page、mark as read。
+- Django datetime global format 需要 `FORMAT_MODULE_PATH` + locale folder，例如 `core/formats/en_US/formats.py`。
+
+### 理由
+
+- Dictionary app 目前已進入整體 logic review 階段，UI 只需要能顯示必要資料，避免過早投入 polish。
+- User admin inline 喺 user vocab 數量增加時會變慢，因此改用 summary/link pattern。
+- 新 vocab 預設 in use 可以減少 user 初次使用成本，之後再由 quiz filter 或 user 自己停用控制練習範圍。
+- Documentation format 開始固定，可以避免 TODO、learning notes 同 history 互相混淆。
+
+### 學到咩
+
+- Admin 頁面要按資料量選擇呈現方式；inline 適合少量 child rows，大量資料應交俾 filtered changelist。
+- Default value 係 product behavior decision，不只係 model 設定。
+- Event notification flow 可以先完成資料同基本可視化，再逐步 polish UI。
+- Project 文件要分工清楚：`TODO.md` 追狀態，`LEARNING_POINTS.md` 放學習理解，`PROJECT_HISTORY.md` 記重要階段同決策。

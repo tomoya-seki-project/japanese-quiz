@@ -583,15 +583,42 @@ Status badge：
 ## Quiz Question Logic
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Quiz question filter**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz question filter**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已決定建立 quiz form，俾 user 選擇今次想考嘅 vocab type、level、category。
+- `QuizForm` 已建立 `vocab_type`、`level`、`categories` 三個 filter fields。
+- 三個 filter fields 已暫時使用 checkbox UI，方便 user 複選出題範圍。
+- `QuizService.create_question_pool()` 已建立初稿，會由目前 user 嘅 `UserVocab` 建立 question pool。
+- Question pool 已支援 `in_use=True`、vocab type、level、categories filter。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- Quiz 開始前可選擇 vocab type、level、category。
-- Filter 要套用喺目前 user 擁有且 `in_use=True` 嘅 `UserVocab` question pool。
+- 將 `QuizForm` 接入 quiz start / question generation flow。
+- 將 `QuizForm.cleaned_data` 傳入 `QuizService.create_question_pool()`。
 - 支援單一條件、複數條件、無條件。
 - Filter 後無題目時要顯示清楚提示。
+- `QuizSettingView` 要處理 `pick_random_vocab()` 回傳 `None` 嘅情況，避免 redirect 去無效 question URL。
+
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz view routing and result flow**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Quiz basic flow 已有初稿：setting page -> random `UserVocab` question -> answer form -> result page。
+- `QuizView` 已用 `get_object_or_404(UserVocab, pk=..., user=request.user)` 防止 user 改 URL 操作其他 user 嘅 vocab。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- `tips_count` 暫時仍是 required field，要確認 template 會 submit，或改成可選 / hidden default 0。
+- 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
+- 決定 answer result 點樣傳去 result page，例如 session、query string、或者 quiz answer history。
+- 清走未使用嘅 `QuizSettingView.user_vocab_id = 0` class variable。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
@@ -602,23 +629,33 @@ Status badge：
 - `UserVocab` 已有 `weight` field。
 - 已決定 question pool 會來自目前 user 嘅 `UserVocab`。
 - 已決定 weight 越高，被抽中機會越高。
+- 已決定唔用 `random.choices()`。
+- 已決定自行計算 total weight，再用 cumulative weight + `bisect_left` 搵中獎項目。
+- `QuizService.pick_question()` 已建立初稿，會計算 total weight、cumulative weight，並用 `bisect_left` 抽題。
+- `UserVocab.weight` 已加入 `MinValueValidator(1)`，避免正常 form / admin validation 接受 0 或負數。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 實作 weighted random selection logic。
 - 每次答完題後，根據答題結果、tips used 同 streak 更新 weight。
-- 設定合理 min / max，避免某啲 vocab 永遠抽唔到或長期霸住題目。
+- 設定合理 max，並考慮 service layer 更新 weight 時用 clamp 保護 min / max。
+- 確認 `weight` validator migration 已建立並套用。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Recent question skip**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Recent question skip**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `create_question_pool()` / `pick_question()` 已有初步 `order_by("-last_quiz_at")[10:]`，暫時避開最近 quiz 過嘅 10 個 `UserVocab`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 最近出過嘅 10 題要暫時 skip。
+- 確認 `last_quiz_at=None` 嘅新 vocab 排序是否符合預期。
 - 建立 quiz answer / question history，或其他 per-user recent question tracking。
 - User vocab 少過或接近 10 個時要設計 fallback。
+- 如果 skip 最近 10 題後 question pool 變空，要 fallback 返未 skip 嘅 pool 或其他策略。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **UserVocab quiz stats and streak update**
@@ -628,14 +665,14 @@ Status badge：
 
 - `UserVocab` 已有 `streak`、`correct_count`、`incorrect_count`、`last_quiz_at`。
 - 已決定 streak 基本規則。
+- `check_kana_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
+- `check_mc_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 答中增加 `correct_count`。
-- 答錯增加 `incorrect_count`。
-- 按規則更新 `streak`。
-- 更新 `last_quiz_at`。
+- 決定 kana answer 同 multiple choice answer 是否抽共用 helper。
+- 回傳答題結果，方便 view/template 顯示答啱或答錯。
 - 記錄 tips used，俾 weight calculation 使用。
 - Stats update 同 quiz answer history 應放入同一個 transaction。
 

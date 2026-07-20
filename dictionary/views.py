@@ -219,6 +219,9 @@ class VocabListView(ListView):
             kana = form.cleaned_data.get("kana")
             if kana:
                 qs = qs.filter(kana__icontains=kana)
+            vocab_type = form.cleaned_data.get("vocab_type")
+            if vocab_type:
+                qs = qs.filter(type=vocab_type)
             lv = form.cleaned_data.get("level")
             if lv:
                 qs = qs.filter(level=lv)
@@ -311,6 +314,9 @@ class UserVocabListView(LoginRequiredMixin, ListView):
             kana = form.cleaned_data.get("kana")
             if kana:
                 qs = qs.filter(vocab__kana__icontains=kana)
+            vocab_type = form.cleaned_data.get("vocab_type")
+            if vocab_type:
+                qs = qs.filter(type=vocab_type)
             lv = form.cleaned_data.get("level")
             if lv:
                 qs = qs.filter(vocab__level=lv)

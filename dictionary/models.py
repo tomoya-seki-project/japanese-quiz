@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import JSONField, Q
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from core.models import TimeStampedModel
 
 class VocabType(models.TextChoices):
@@ -107,7 +108,7 @@ class UserVocab(TimeStampedModel):
         related_name='user_vocabs'
     )
     in_use = models.BooleanField(default=True)
-    weight = models.IntegerField(verbose_name="Weight", default=50)
+    weight = models.IntegerField(verbose_name="Weight", default=50, validators=[MinValueValidator(1)])
     correct_count = models.IntegerField(verbose_name="Correct", default=0)
     incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
     streak = models.IntegerField(verbose_name="Streak", default=0)
