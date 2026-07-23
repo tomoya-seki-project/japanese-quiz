@@ -113,6 +113,7 @@ class UserVocabAdmin(admin.ModelAdmin):
         'correct_count',
         'incorrect_count',
         'last_quiz_at',
+        'last_answer',
     )
 
     list_display_links = ('vocab',)

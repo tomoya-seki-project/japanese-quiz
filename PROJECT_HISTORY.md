@@ -895,3 +895,45 @@ Status: Event notification and admin management flows are more usable; documenta
 - Default value 係 product behavior decision，不只係 model 設定。
 - Event notification flow 可以先完成資料同基本可視化，再逐步 polish UI。
 - Project 文件要分工清楚：`TODO.md` 追狀態，`LEARNING_POINTS.md` 放學習理解，`PROJECT_HISTORY.md` 記重要階段同決策。
+
+## 2026-07-20 - Initial quiz question flow foundation
+
+Commit: `615dc9f`
+
+Status: Quiz app has its first working foundation; flow is still rough and will need refinement
+
+### 主要改動
+
+- 建立 quiz setting form，讓 user 選擇今次 quiz 要使用嘅 vocab type、level 同 categories。
+- 建立 `QuizService.create_question_pool()` 初稿，由目前 user 嘅 `UserVocab` 產生 question pool。
+- Question pool 已開始套用 `in_use=True`、vocab type、level、categories filter。
+- 建立 `QuizService.pick_random_vocab()` 初稿，使用 total weight、cumulative weight 同 `bisect_left` 抽出下一題。
+- 建立 quiz view / URL 初稿，形成 setting -> question -> answer -> result 嘅基本 flow。
+- 建立 quiz templates 初稿，包括 home、setting、question、result 同 kana keyboard partial。
+- Answer checking 初稿已開始更新 `correct_count`、`incorrect_count`、`streak` 同 `last_quiz_at`。
+
+### Database 改動
+
+- `UserVocab.weight` 加入 `MinValueValidator(1)`，避免正常 form / admin validation 接受 0 或負數。
+- 新增 migration `dictionary/migrations/0024_weight_add_min.py`。
+- 無新增 quiz-specific table；quiz answer history / result tracking 仍未正式建立。
+
+### 技術重點
+
+- Weighted random selection 暫時選擇自行計算 total weight，再建立 cumulative weights，最後用 `bisect_left` 找出命中項目。
+- Quiz question pool 使用 `UserVocab` 而唔係直接使用全站 `Vocab`，因為出題範圍需要尊重每個 user 自己嘅 `in_use` 設定同 quiz stats。
+- M2M categories filter 需要留意重複 row，所以 category filter 後使用 `distinct()`。
+- `QuizView` 取題目時用 `get_object_or_404(UserVocab, pk=..., user=request.user)`，避免 user 改 URL 操作其他 user 嘅 vocab。
+
+### 理由
+
+- Quiz app 係 project 核心功能之一，今日先建立可逐步接駁嘅骨架，之後再慢慢完善 result、history、weight update 同 UI。
+- 先完成 setting -> question -> answer -> result 嘅大方向，可以更容易測試整個 quiz flow 是否符合預期。
+- Question selection 先用可理解、可 debug 嘅 weighted random 寫法，方便之後按 learning behavior 調整 weight 規則。
+
+### 學到咩
+
+- FormView 做 dynamic redirect 時，固定 `success_url` 未必適合；需要帶 URL kwargs 時，直接喺 `form_valid()` 入面 `redirect(...)` 會更清楚。
+- CBV 入面 URL parameter 會放喺 `self.kwargs`，例如 `self.kwargs["user_vocab_id"]`。
+- Service function return object 定 pk 要事先諗清楚，因為會影響 view redirect、template display 同後續 result flow。
+- 初版 feature 可以先粗略接通，再用 TODO tracking 記低 no question fallback、result passing、answer history 同 weight update 等後續要執嘅位。

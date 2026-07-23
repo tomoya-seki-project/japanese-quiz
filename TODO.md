@@ -600,6 +600,7 @@ Status badge：
 - 將 `QuizForm` 接入 quiz start / question generation flow。
 - 將 `QuizForm.cleaned_data` 傳入 `QuizService.create_question_pool()`。
 - 支援單一條件、複數條件、無條件。
+- 空 filter 選項應代表「不限制該條件」，避免 empty list / empty queryset 被當成 filter 條件令 question pool 變空。
 - Filter 後無題目時要顯示清楚提示。
 - `QuizSettingView` 要處理 `pick_random_vocab()` 回傳 `None` 嘅情況，避免 redirect 去無效 question URL。
 
@@ -611,14 +612,29 @@ Status badge：
 
 - Quiz basic flow 已有初稿：setting page -> random `UserVocab` question -> answer form -> result page。
 - `QuizView` 已用 `get_object_or_404(UserVocab, pk=..., user=request.user)` 防止 user 改 URL 操作其他 user 嘅 vocab。
+- 已重新釐清 Ajax partial flow：View 應按 user action 分工，partial 只代表 UI state。
+- 已決定 `quiz_result_partial.html` 不一定需要獨立 `QuizResultView`；答題 submit action 可以直接 render result partial。
+- 已決定 result partial 入面嘅 Next button 應 call next-question endpoint，再由該 endpoint render question partial。
+- Quiz flow 已開始重整成 full page shell + action endpoints：
+  - `QuizPlayView` render quiz full page shell / 第一題 question partial。
+  - `QuizSubmitAnswerView` 做 answer checking、stats update，然後 return `quiz_result_partial.html`。
+  - `QuizNextView` 負責抽下一題，然後 return `quiz_question_partial.html`。
+- 已移除獨立 `QuizResultView` 方向，改由 submit answer action 直接 render result partial。
+- 已移除 answer data 放 URL path 嘅方向，改由 POST body / form data 傳入。
+- `QuizForm` 已加入 hidden `user_vocab_id`，用嚟表示目前 answer form 對應邊個 `UserVocab`。
+- `QuizNextForm` 已建立成空 form，`QuizNextView` 已改用 next-only form，避免要求 answer fields。
+- `QuizSettingRequiredMixin` 已建立，並用 `dispatch()` 喺 `QuizPlayView` / `QuizNextView` 進入前檢查 session 入面是否有 `quiz_settings`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
+- 建立 `quiz_play.html` full page shell，並準備可被 Ajax replace 嘅 quiz area。
+- 建立 `quiz_question_partial.html`，包含 answer form、hidden `user_vocab_id`、hidden/default `tips_count`。
+- 建立 `quiz_result_partial.html`，顯示答題結果，並提供 call `QuizNextView` 嘅 Next button。
+- 建立前端 Ajax submit / replace flow。
 - `tips_count` 暫時仍是 required field，要確認 template 會 submit，或改成可選 / hidden default 0。
 - 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
-- 決定 answer result 點樣傳去 result page，例如 session、query string、或者 quiz answer history。
-- 清走未使用嘅 `QuizSettingView.user_vocab_id = 0` class variable。
+- Result partial context 應由 submit answer action 即場建立，包括 user answer、correct answer、是否答中、streak / stats 等資料。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
@@ -806,6 +822,15 @@ Status badge：
 - Count field 會提供 link 去 filtered `UserVocabAdmin` list。
 - `UserProfile.last_vocab_sync_at` 已用 readonly function field 顯示。
 - 已放棄用 `UserVocabInline` 長期顯示大量 user vocab。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 L：Quiz question pool query performance review**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- Review `QuizService.create_question_pool()` 入面 `qs.count()` + `pick_random_vocab()` 入面 `list(queryset)` 造成兩次 SQL 嘅 trade-off。
+- 目前寫法清楚易明，暫時可接受；之後如 quiz pool 變大，再評估是否需要改成更適合大量資料嘅抽題策略。
 
 ## UI / UX
 

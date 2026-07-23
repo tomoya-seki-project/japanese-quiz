@@ -113,7 +113,7 @@ class UserVocab(TimeStampedModel):
     incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
     streak = models.IntegerField(verbose_name="Streak", default=0)
     last_quiz_at = models.DateTimeField(verbose_name="Last Quiz", blank=True, null=True)
-
+    last_answer = models.CharField(max_length=255, blank=True, null=True)
     def __str__(self):
         return f"{self.vocab.word} ({self.vocab.kana})"
 

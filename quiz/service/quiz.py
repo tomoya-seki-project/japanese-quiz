@@ -13,14 +13,15 @@ class QuizService():
     def create_question_pool(*, user, vocab_type=None, level=None, categories=None):
         qs = UserVocab.objects.filter(user=user, in_use=True).select_related("vocab").distinct()
 
-        if vocab_type is not None:
+        if vocab_type:
             qs = qs.filter(vocab__type__in=vocab_type)
-        if level is not None:
+        if level:
             qs = qs.filter(vocab__level__in=level)
-        if categories is not None:
+        if categories:
             qs = qs.filter(vocab__categories__in=categories).distinct()
 
-        qs = qs.order_by("-last_quiz_at")[10:]
+        if qs.count() > 10:
+            qs = qs.order_by("-last_quiz_at")[10:]
 
         return qs
     

@@ -344,6 +344,217 @@ container.addEventListener("click", function (e) {
 
 -
 
+## [ ] `[DJANGO-AJAX-PARTIAL-ACTION-ENDPOINT]` Ajax partial flow 入面，View 係 action endpoint，Partial 係 UI state
+
+### 問題背景
+
+Quiz flow 想做到同一個 quiz page 入面局部切換：
+
+```text
+question partial
+-> submit answer by Ajax
+-> replace 成 result partial
+-> click Next
+-> replace 成下一題 question partial
+```
+
+一開始容易諗成：
+
+```text
+QuizQuestionView render question partial
+QuizResultView render result partial
+QuizResultView 入面再處理 Next
+```
+
+但其實更重要係分清：
+
+```text
+View = 處理 request / user action
+Partial = 顯示某個 UI state
+```
+
+### 研究方向
+
+- `render_to_response()` 適合咩場景。
+- `form_valid()` / `post()` 適合咩場景。
+- 點分 full page shell、question partial、result partial。
+- 點避免為每個 partial 都硬開一個同名 View。
+
+### 我的理解
+
+`quiz_result_partial.html` 只係「答完題後要顯示嘅畫面狀態」，唔一定需要一個 `QuizResultView`。
+
+如果 result partial 入面有 Next button，Next button 應該 call 嘅係「抽下一題」呢個 action endpoint，例如：
+
+```text
+QuizNextView
+```
+
+而唔係一定要 call `QuizResultView`。
+
+比較清楚嘅 flow 係：
+
+```text
+QuizPlayView GET
+-> render quiz_play.html full page shell
+-> shell 入面顯示第一題 question partial
+
+Submit answer POST
+-> check answer
+-> update correct_count / incorrect_count / streak / last_quiz_at / weight
+-> return quiz_result_partial.html
+
+Next button POST/GET
+-> pick next question
+-> return quiz_question_partial.html
+```
+
+所以：
+
+- submit answer action -> render `quiz_result_partial.html`
+- next question action -> render `quiz_question_partial.html`
+- partial file 名稱唔代表一定要有同名 View
+
+### 你嘅解答
+
+#### 1. `render_to_response()` 適合 list page partial fallback
+
+`render_to_response()` 比較適合呢種情況：
+
+```text
+同一個 ListView
+普通 request -> render full page
+Ajax request -> render partial list
+```
+
+例如 vocab list / user vocab list：
+
+```python
+def render_to_response(self, context, **response_kwargs):
+    if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return render(
+            self.request,
+            "dictionary/partials/vocab_list_partial.html",
+            context,
+        )
+    return super().render_to_response(context, **response_kwargs)
+```
+
+呢種情況入面，同一條 URL 同一個 view 可以同時服務：
+
+```text
+full page request
+partial update request
+```
+
+#### 2. Quiz answer / next 更似 action endpoint
+
+Quiz 呢個 case 唔係「同一條 list URL 有 full / partial 兩種 render」。
+
+Quiz 更似：
+
+```text
+answer action -> result partial
+next action -> question partial
+```
+
+所以可以直接喺 `form_valid()` 或 `post()` 入面 return partial：
+
+```python
+return render(
+    self.request,
+    "quiz/partials/quiz_result_partial.html",
+    context,
+)
+```
+
+或者：
+
+```python
+return render(
+    request,
+    "quiz/partials/quiz_question_partial.html",
+    context,
+)
+```
+
+唔需要靠 `render_to_response()` 再判斷 Ajax header。
+
+#### 3. 答題 checking 應該放喺 submit action 入面
+
+Answer checking 會改 database：
+
+- `correct_count`
+- `incorrect_count`
+- `streak`
+- `last_quiz_at`
+- `weight`
+
+所以唔應該放喺 `get_context_data()`。
+
+`get_context_data()` 適合準備畫面資料，最好盡量避免 side effects。
+
+答題 checking 應放喺：
+
+```text
+form_valid()
+```
+
+或：
+
+```text
+post()
+```
+
+因為呢兩個位置代表 user submit 咗 action。
+
+#### 4. Result partial 唔需要獨立 View
+
+如果 answer submit 後即時 return result partial：
+
+```text
+QuizPlayView.form_valid()
+-> check answer
+-> build context
+-> render quiz_result_partial.html
+```
+
+咁 `QuizResultView` 可以完全唔需要。
+
+Result partial 入面嘅 Next button 可以直接 call：
+
+```text
+QuizNextView
+```
+
+然後 `QuizNextView` 再 return：
+
+```text
+quiz_question_partial.html
+```
+
+#### 5. Full page shell 同 partial 要分開諗
+
+`quiz_play.html` 可以係唯一 full page shell：
+
+```django
+<div id="quiz-area">
+    {% include "quiz/partials/quiz_question_partial.html" %}
+</div>
+```
+
+之後 Ajax 只 replace：
+
+```text
+#quiz-area
+```
+
+而唔需要成頁 reload。
+
+### 理解內容
+
+-
+
 <a id="DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT"></a>
 
 ## [ ] `[DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT]` Django admin datetime localtime 同 format
