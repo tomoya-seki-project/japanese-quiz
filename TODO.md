@@ -589,20 +589,20 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - 已決定建立 quiz form，俾 user 選擇今次想考嘅 vocab type、level、category。
-- `QuizForm` 已建立 `vocab_type`、`level`、`categories` 三個 filter fields。
+- `QuizSettingForm` 已建立 `vocab_type`、`level`、`categories` 三個 filter fields。
 - 三個 filter fields 已暫時使用 checkbox UI，方便 user 複選出題範圍。
 - `QuizService.create_question_pool()` 已建立初稿，會由目前 user 嘅 `UserVocab` 建立 question pool。
 - Question pool 已支援 `in_use=True`、vocab type、level、categories filter。
+- `QuizSettingView` 已將 `QuizSettingForm.cleaned_data` 保存到 session，並由 `QuizPlayView` / `QuizNextView` 傳入 `QuizService.create_question_pool()`。
+- Empty filter 選項已喺 `create_question_pool()` 用 truthy check 處理，代表「不限制該條件」。
+- `create_question_pool()` 已支援單一條件、複數條件、無條件 filter 組合。
+- Filter 後無題時已加入 fallback strategy：改用目前 user 嘅 full active vocab pool，並回傳 `fallback_used` flag。
+- `QuizSettingView` 已用 `QUIZ_MIN_IN_USE_VOCAB_COUNT` 檢查 user active vocab 數量；不足時會 redirect 去 user vocab list 並顯示 warning message。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 將 `QuizForm` 接入 quiz start / question generation flow。
-- 將 `QuizForm.cleaned_data` 傳入 `QuizService.create_question_pool()`。
-- 支援單一條件、複數條件、無條件。
-- 空 filter 選項應代表「不限制該條件」，避免 empty list / empty queryset 被當成 filter 條件令 question pool 變空。
-- Filter 後無題目時要顯示清楚提示。
-- `QuizSettingView` 要處理 `pick_random_vocab()` 回傳 `None` 嘅情況，避免 redirect 去無效 question URL。
+- Filter fallback / no active vocab warning message 之後可再配合 template 顯示得更清楚。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz view routing and result flow**
@@ -611,7 +611,7 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - Quiz basic flow 已有初稿：setting page -> random `UserVocab` question -> answer form -> result page。
-- `QuizView` 已用 `get_object_or_404(UserVocab, pk=..., user=request.user)` 防止 user 改 URL 操作其他 user 嘅 vocab。
+- `QuizSubmitAnswerView` 已用 `get_object_or_404(UserVocab, pk=..., user=request.user)` 防止 user 改 hidden id 操作其他 user 嘅 vocab。
 - 已重新釐清 Ajax partial flow：View 應按 user action 分工，partial 只代表 UI state。
 - 已決定 `quiz_result_partial.html` 不一定需要獨立 `QuizResultView`；答題 submit action 可以直接 render result partial。
 - 已決定 result partial 入面嘅 Next button 應 call next-question endpoint，再由該 endpoint render question partial。
@@ -624,6 +624,10 @@ Status badge：
 - `QuizForm` 已加入 hidden `user_vocab_id`，用嚟表示目前 answer form 對應邊個 `UserVocab`。
 - `QuizNextForm` 已建立成空 form，`QuizNextView` 已改用 next-only form，避免要求 answer fields。
 - `QuizSettingRequiredMixin` 已建立，並用 `dispatch()` 喺 `QuizPlayView` / `QuizNextView` 進入前檢查 session 入面是否有 `quiz_settings`。
+- `QuizSubmitAnswerView` 已從 session 讀取目前題目嘅 `fallback_used` flag，並傳入 result partial context。
+- `QuizNextView` 已將新題目嘅 `fallback_used` flag 保存到 session，方便 submit answer 後 result partial 判斷是否顯示 Next。
+- `tips_count` 已改成 hidden field，準備由 question form 以 hidden/default value submit。
+- `UserVocab.last_answer` 已加入 model / migration / admin display，準備俾 result partial 顯示 user 最近一次答案。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
@@ -632,9 +636,8 @@ Status badge：
 - 建立 `quiz_question_partial.html`，包含 answer form、hidden `user_vocab_id`、hidden/default `tips_count`。
 - 建立 `quiz_result_partial.html`，顯示答題結果，並提供 call `QuizNextView` 嘅 Next button。
 - 建立前端 Ajax submit / replace flow。
-- `tips_count` 暫時仍是 required field，要確認 template 會 submit，或改成可選 / hidden default 0。
 - 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
-- Result partial context 應由 submit answer action 即場建立，包括 user answer、correct answer、是否答中、streak / stats 等資料。
+- Result partial 需要根據 `fallback_used` 決定是否提供 Next button；fallback 題完成後可引導 user 回 setting 或 user vocab list。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
@@ -649,29 +652,32 @@ Status badge：
 - 已決定自行計算 total weight，再用 cumulative weight + `bisect_left` 搵中獎項目。
 - `QuizService.pick_question()` 已建立初稿，會計算 total weight、cumulative weight，並用 `bisect_left` 抽題。
 - `UserVocab.weight` 已加入 `MinValueValidator(1)`，避免正常 form / admin validation 接受 0 或負數。
+- `UserVocab.weight` validator migration `0024_weight_add_min.py` 已建立。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
 - 每次答完題後，根據答題結果、tips used 同 streak 更新 weight。
 - 設定合理 max，並考慮 service layer 更新 weight 時用 clamp 保護 min / max。
-- 確認 `weight` validator migration 已建立並套用。
+- 確認 `weight` validator migration 已套用到目前 database。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Recent question skip**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Recent question skip**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `create_question_pool()` / `pick_question()` 已有初步 `order_by("-last_quiz_at")[10:]`，暫時避開最近 quiz 過嘅 10 個 `UserVocab`。
+- `create_question_pool()` 已改用 `last_quiz_at__isnull=False` 搵出最近 quiz 過嘅 10 個 `UserVocab` id，再由原本 `filtered_qs` 排除呢 10 個 id。
+- Recent skip 目標係避開最近出現過嘅 vocab，而唔係追蹤完整 question history。
+- 暫時以 `UserVocab.last_quiz_at` + ORM query 控制最近出現過嘅 vocab。
+- User vocab 少過或等於 10 個時，`create_question_pool()` 會暫時不套用 recent skip，避免 question pool 直接變空。
+- 如果 filter 後 question pool 變空，`create_question_pool()` 會 fallback 返 full active vocab pool。
+- `last_quiz_at=None` 嘅新 vocab 會保留喺原本 question pool 入面，唔會因為 recent skip 被抽走。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
 
-- 確認 `last_quiz_at=None` 嘅新 vocab 排序是否符合預期。
-- 建立 quiz answer / question history，或其他 per-user recent question tracking。
-- User vocab 少過或接近 10 個時要設計 fallback。
-- 如果 skip 最近 10 題後 question pool 變空，要 fallback 返未 skip 嘅 pool 或其他策略。
+- 如之後需要更精準嘅 recent skip，可只保存最近 10 個 vocab ids；暫時唔建立完整 question history model。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **UserVocab quiz stats and streak update**
@@ -683,6 +689,7 @@ Status badge：
 - 已決定 streak 基本規則。
 - `check_kana_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
 - `check_mc_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
+- `check_kana_answer()` / `check_mc_answer()` 已保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>

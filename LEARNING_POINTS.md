@@ -29,6 +29,7 @@
 - [DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA](#DJANGO-CONTEXT-PROCESSOR-NAVBAR-DATA)
 - [DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE](#DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE)
 - [DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT](#DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT)
+- [DJANGO-QUERYSET-EXCLUDE-RECENT-IDS](#DJANGO-QUERYSET-EXCLUDE-RECENT-IDS)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -554,6 +555,67 @@ quiz_question_partial.html
 ### 理解內容
 
 -
+
+<a id="DJANGO-QUERYSET-EXCLUDE-RECENT-IDS"></a>
+
+## [ ] `[DJANGO-QUERYSET-EXCLUDE-RECENT-IDS]` 由原本 queryset 排除最近問過嘅 vocab
+
+### 問題背景
+
+Quiz 出題想避免太快重複問返最近問過嘅字。
+
+一開始容易諗成直接：
+
+```python
+filtered_qs.order_by("-last_quiz_at")[10:]
+```
+
+但呢個寫法有兩個容易混亂嘅位：
+
+- `last_quiz_at=None` 嘅新字喺唔同 database 排序行為可能唔同。
+- 如果先將 `last_quiz_at__isnull=False` 分出嚟再直接用，可能會唔小心令未問過嘅新字消失。
+
+### 研究方向
+
+- `NULL` datetime 排序喺唔同 database 入面可能有咩差異。
+- 點樣只排除「最近問過嘅 10 隻字」，而唔影響未問過嘅字。
+- `values_list("id", flat=True)` 點樣用嚟做第二段 query 嘅 exclude 條件。
+- `exclude(id__in=...)` 同直接 slice queryset 有咩語意分別。
+
+### 你的解答
+
+比較清楚嘅做法係分兩步：
+
+第一步，先由目前已經套好 user / in_use / type / level / category filter 嘅 `filtered_qs` 入面，搵出「有 `last_quiz_at` 而且最近問過」嘅 10 個 id：
+
+```python
+recently_quizzed_ids = (
+    filtered_qs
+    .filter(last_quiz_at__isnull=False)
+    .order_by("-last_quiz_at")
+    .values_list("id", flat=True)[:10]
+)
+```
+
+第二步，再由原本完整嘅 `filtered_qs` 入面抽走呢 10 個 id：
+
+```python
+filtered_qs = filtered_qs.exclude(id__in=recently_quizzed_ids)
+```
+
+重點係最後用返原本嘅 `filtered_qs.exclude(...)`，而唔係只用 `last_quiz_at__isnull=False` 嗰個 queryset。
+
+所以結果係：
+
+- 未問過嘅字：`last_quiz_at=None`，唔會入 `recently_quizzed_ids`，會保留。
+- 問過但唔係最近 10 隻：會保留。
+- 最近問過 10 隻：會暫時抽走，避免太快重複出題。
+
+### 我的理解
+
+即係先喺 `filtered_qs` 入面搵有 `last_quiz_at` 嘅最新 10 個 id 出嚟，再由原本 `filtered_qs` 入面抽走呢 10 個。
+
+呢個理解重點係：「搵最近 10 個」只係用嚟建立排除名單，真正出題 pool 仍然係原本嗰個 `filtered_qs` 減走最近 10 個。
 
 <a id="DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT"></a>
 

@@ -937,3 +937,47 @@ Status: Quiz app has its first working foundation; flow is still rough and will 
 - CBV 入面 URL parameter 會放喺 `self.kwargs`，例如 `self.kwargs["user_vocab_id"]`。
 - Service function return object 定 pk 要事先諗清楚，因為會影響 view redirect、template display 同後續 result flow。
 - 初版 feature 可以先粗略接通，再用 TODO tracking 記低 no question fallback、result passing、answer history 同 weight update 等後續要執嘅位。
+
+## 2026-07-23 - Quiz partial endpoint flow restructure
+
+Commit: `3beeeb3`
+
+Status: Quiz play flow restructured around action endpoints and partial rendering; UI templates and full Ajax behavior still need completion
+
+### 主要改動
+
+- Quiz flow 由 question/result URL redirect 方向，改成 full page shell + partial endpoints。
+- `QuizPlayView` 負責 quiz play shell 同第一題 context。
+- 新增 `QuizSubmitAnswerView`，負責接收 answer submit、執行 answer checking，並回傳 `quiz_result_partial.html`。
+- `QuizNextView` 負責處理 result partial 入面嘅 Next action，抽下一題後回傳 `quiz_question_partial.html`。
+- 新增 `QuizSettingRequiredMixin`，喺 quiz play / submit / next actions 前檢查 session 是否已有 quiz settings。
+- `QuizForm` 加入 hidden `user_vocab_id` 同 `tips_count`，令 answer submit 可以知道目前題目同 tips 使用狀態。
+- `QuizNextForm` 建立成空 form，避免 Next action 被 answer fields validation 阻塞。
+- Recent-question skip 加入簡單 fallback：question pool 少於或等於 10 題時暫時不 skip，避免直接無題目。
+
+### Database 改動
+
+- `UserVocab` 新增 `last_answer`，準備保存 user 最近一次提交嘅答案。
+- 新增 migration `dictionary/migrations/0025_add_last_answer.py`。
+- `UserVocabAdmin` 顯示 `last_answer`，方便測試 quiz answer flow。
+
+### 技術重點
+
+- Ajax quiz flow 要分清楚 action endpoint 同 UI partial：partial file 不一定需要同名 view。
+- Submit answer action 應直接處理 answer checking / stats update，然後 render result partial。
+- Next action 應只負責抽下一題，然後 render question partial。
+- `render_to_response()` 適合 list page full/partial fallback；quiz 呢類 action-based endpoint 更適合喺 `form_valid()` / `post()` 直接 `render(...)`。
+- `dispatch()` 適合作為多個 quiz views 共用嘅 session gatekeeper。
+
+### 理由
+
+- Quiz 需要在同一頁內反覆切換 question / result state，獨立 full page result view 會令 flow 變得冗長。
+- 將 answer submit 同 next question 拆成兩個 action endpoints，可以避免第一題同後續題目使用不同處理路徑。
+- Hidden `user_vocab_id` 令每次 answer submit 都能明確對應到當前題目，而唔只依賴 session 最新狀態。
+
+### 學到咩
+
+- View 應該按 user action 分工，而 partial 只代表畫面狀態。
+- `get_context_data()` 應主要負責準備 render data，不適合放 answer checking 呢類會修改 database 嘅 side effect。
+- `FormView` 可以用喺 action endpoint，但要確保 form class 同該 action 真正需要提交嘅 fields 對應。
+- Session 適合保存 quiz settings；每題 submit 對應邊個 vocab 則更適合用 hidden field 跟住 form 一齊提交。

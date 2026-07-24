@@ -130,3 +130,6 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = 'accounts.User'
+
+
+QUIZ_MIN_IN_USE_VOCAB_COUNT = 10
