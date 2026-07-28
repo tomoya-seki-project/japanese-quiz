@@ -981,3 +981,45 @@ Status: Quiz play flow restructured around action endpoints and partial renderin
 - `get_context_data()` 應主要負責準備 render data，不適合放 answer checking 呢類會修改 database 嘅 side effect。
 - `FormView` 可以用喺 action endpoint，但要確保 form class 同該 action 真正需要提交嘅 fields 對應。
 - Session 適合保存 quiz settings；每題 submit 對應邊個 vocab 則更適合用 hidden field 跟住 form 一齊提交。
+
+## 2026-07-25 - Quiz fallback handling and active vocab guard
+
+Commit: `7cc32df`
+
+Status: Quiz question selection is more defensive; fallback behavior and minimum active vocab checks are now defined
+
+### 主要改動
+
+- `QuizSettingView` 加入 minimum active vocab guard，user 啟用 vocab 數量不足時會 redirect 去 user vocab list，避免進入無題可抽嘅 quiz flow。
+- 新增 `QUIZ_MIN_IN_USE_VOCAB_COUNT` project setting，集中管理開始 quiz 前需要嘅最低 active vocab 數量。
+- `QuizService.create_question_pool()` 加入 fallback behavior：當 user filter 條件抽唔到題時，會 fallback 返 user 嘅 full active vocab pool。
+- Quiz session 開始保存每題嘅 `fallback_used` flag，令 result partial 可以知道今次題目是否使用 fallback pool。
+- `QuizPlayView` / `QuizNextView` 已處理 no-question case，避免 random picker 收到空 pool 後直接爆錯。
+- Recent-question skip 改成先搵出最近 quiz 過嘅 10 個 `UserVocab` id，再由原本 pool exclude，保留 `last_quiz_at=None` 嘅新 vocab。
+- Answer checking 會保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
+- Base template 加入 messages display block，讓 quiz guard / fallback warning 可以顯示俾 user。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次主要係 quiz service、view guard、session state 同 template message display 調整。
+
+### 技術重點
+
+- No-question handling 應盡量喺進入 quiz flow 前做第一道檢查，但 picker 仍要保留 defensive handling，避免 direct request 或 edge case 令空 queryset 流入 random selection。
+- Filtered quiz pool 為空時，fallback 到 full active pool 可以令 user 繼續練習，同時用 `fallback_used` 保留「今次已偏離原本 filter」嘅狀態。
+- Recent skip 不應直接依賴 `order_by("-last_quiz_at")[10:]`，因為 `NULL` datetime 排序容易令人誤判；抽最近 id 再 exclude 會更清楚。
+- `last_answer` 屬於 quiz result display state，可以直接保存喺 `UserVocab`，方便目前階段快速顯示答題結果。
+
+### 理由
+
+- Quiz flow 開始進入實際可測階段，需要先處理「無足夠 vocab」、「filter 無結果」、「最近題目重複」呢類正常使用中會遇到嘅狀況。
+- 先用簡單 fallback 同 warning message 保持 flow 可用，之後再視乎 UX 需要決定是否禁止 next、要求 user 改 filter，或提供更清楚嘅 result state。
+- Recent-question skip 目前只需要避免短時間重複出現同一批 vocab，暫時未需要建立完整 question history model。
+
+### 學到咩
+
+- Guard 可以分層：setting page 做正常入口檢查，service / picker 再處理 defensive edge cases。
+- QuerySet 可以先用一段 query 取得排除名單，再用原本 query exclude，避免因為中途 filter 而不小心縮窄最終 pool。
+- `last_quiz_at=None` 呢類未發生過嘅狀態要特別考慮，唔可以假設 database 排序一定符合直覺。
+- Feature flow 接近可用時，錯誤處理同 fallback path 會開始變得同 happy path 一樣重要。

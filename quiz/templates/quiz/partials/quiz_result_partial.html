@@ -1,0 +1,6 @@
+<form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
+    {% csrf_token %}
+    {% if not fallback_used %}
+        <button type="submit">Next</button>
+    {% endif %}
+</form>

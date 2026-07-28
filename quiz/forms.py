@@ -23,10 +23,11 @@ class QuizSettingForm(forms.Form):
         required=False,
         widget = forms.CheckboxSelectMultiple,
     )
+    use_last_setting = forms.BooleanField(required=False)
 
 class QuizForm(forms.Form):
     user_vocab_id = forms.IntegerField(widget=forms.HiddenInput)
-    answer = forms.CharField(max_length=50, required=True)
+    answer = forms.CharField(max_length=50, required=True, widget=forms.HiddenInput)
     tips_count = forms.IntegerField(widget=forms.HiddenInput)
 
 class QuizNextForm(forms.Form):

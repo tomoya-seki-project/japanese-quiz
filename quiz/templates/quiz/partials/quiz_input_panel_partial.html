@@ -1,0 +1,30 @@
+{% if keyboard_rows %}
+    {% for row in keyboard_rows %}
+        <div class="kana-row">
+            {% for kana in row %}
+                {% if kana %}
+                    <button type="button" class="kana-key" data-kana="{{ kana }}">
+                        {{ kana }}
+                    </button>
+                {% else %}
+                    <span class="kana-placeholder"></span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endfor %}
+    <button type="button" class="kana-key" data-kana="backspace">
+        BS
+    </button>
+    <button type="button" class="kana-key" data-kana="hide">
+        Hide
+    </button>
+{% elif mc_rows %}
+    <div class="mc-row">
+        {% for mc in mc_rows %}
+            <button type="button" class="mc-key" data-mc="{{ mc }}">
+                {{ mc }}
+            </button>
+        {% endfor %}
+    </div>
+{% endif %}
+

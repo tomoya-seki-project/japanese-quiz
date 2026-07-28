@@ -1,0 +1,58 @@
+{% extends "core/base_clear.html" %}
+{% load static %}
+{% block content %}
+<h1>quiz play</h1>
+<div id="quiz-area-container">
+    {% include "quiz/partials/quiz_question_partial.html" %}
+</div>
+<div id="quiz-input-panel-container">
+    {% include "quiz/partials/quiz_input_panel_partial.html" %}
+</div>
+{% endblock %}
+{% block javascript %}
+<script src="{% static 'js/quiz/kana_input.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){
+        const quizAreaContainer = document.getElementById('quiz-area-container')
+        const quizInputPanelContainer = document.getElementById('quiz-input-panel-container')
+        quizAreaContainer.addEventListener('submit', function(e){
+            if(!e.target.classList.contains('quiz-ajax-form')){
+                return;
+            }
+            e.preventDefault();
+            const form = e.target;
+            fetch(form.action, {
+                method: form.method,
+                body: new FormData(form),
+                headers:{
+                    'X-Requested-With': "XMLHttpRequest"
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                quizAreaContainer.innerHTML = data.main_html;
+                quizInputPanelContainer.innerHTML = data.input_panel_html;
+                answerInput = document.getElementById("answer-input");
+                answerDisplay = document.getElementById("answer-display");
+            })
+        })
+
+        let answerInput = document.getElementById("answer-input");
+        let answerDisplay = document.getElementById("answer-display");
+
+        document.addEventListener('click', function(e){
+            if(!e.target.classList.contains('kana-key')){
+                return;
+            }
+            if(e.target.dataset.kana === "hide"){
+
+            }else{
+                let new_answer = handleAnswerInput(answerInput.value, e.target.dataset.kana);
+                answerInput.value = new_answer;
+                answerDisplay.textContent = new_answer;
+            }
+            
+        });
+    })
+</script>
+{% endblock %}

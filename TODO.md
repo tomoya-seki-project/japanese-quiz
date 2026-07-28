@@ -628,16 +628,22 @@ Status badge：
 - `QuizNextView` 已將新題目嘅 `fallback_used` flag 保存到 session，方便 submit answer 後 result partial 判斷是否顯示 Next。
 - `tips_count` 已改成 hidden field，準備由 question form 以 hidden/default value submit。
 - `UserVocab.last_answer` 已加入 model / migration / admin display，準備俾 result partial 顯示 user 最近一次答案。
+- `quiz_play.html` 已建立 full page shell，並用 `quiz-area-container` 包住可被 Ajax replace 嘅 question / result partial。
+- `quiz_question_partial.html` 已建立 answer POST form，包含 hidden `user_vocab_id` 同 hidden/default `tips_count`。
+- `quiz_result_partial.html` 已建立 next POST form，會 call `QuizNextView` 再換入下一題 partial。
+- 前端 Ajax submit / replace flow 已接上 `form.action`，可根據 answer form / next form 指向對應 view。
+- Result partial 已用 `fallback_used` 控制是否顯示 Next button。
+- Ajax quiz flow 已手動測試成功：50 音 keyboard 可將答案寫入 hidden input，submit answer 後可局部更新成 result partial，Next 可再局部更新成下一題。
+- Quiz Ajax response 已改成 JSON contract，分開回傳 `main_html` 同 `input_panel_html`，讓 main question/result area 同 input panel area 可以分開 replace。
+- `QuizNextView` 已根據下一題 `VocabType` 產生對應 input panel context，準備支援 hiragana keyboard / katakana keyboard / multiple choice panel。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 建立 `quiz_play.html` full page shell，並準備可被 Ajax replace 嘅 quiz area。
-- 建立 `quiz_question_partial.html`，包含 answer form、hidden `user_vocab_id`、hidden/default `tips_count`。
-- 建立 `quiz_result_partial.html`，顯示答題結果，並提供 call `QuizNextView` 嘅 Next button。
-- 建立前端 Ajax submit / replace flow。
+- `quiz_result_partial.html` 需要顯示答題結果內容，例如正確答案、user submitted answer、答啱 / 答錯狀態。
+- `quiz_no_question_partial.html` 需要加入基本訊息，避免 no-question case 顯示空白。
 - 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
-- Result partial 需要根據 `fallback_used` 決定是否提供 Next button；fallback 題完成後可引導 user 回 setting 或 user vocab list。
+- Fallback 題完成後如不顯示 Next，需要引導 user 回 setting 或 user vocab list。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
@@ -842,16 +848,35 @@ Status badge：
 ## UI / UX
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **50 音假名 keyboard**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **50 音假名 keyboard**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 只用喺 user 回答 quiz 嘅介面。
+- Vocab search、create request、update request 等其他 forms 繼續使用普通 keyboard。
+- 已建立平假名 / 片假名 keyboard rows constants，並由 quiz view 傳入 input panel partial。
+- 已建立 `quiz_input_panel_partial.html`，用 button rows render 假名 keyboard。
+- 已建立 `kana_input.js`，將 keyboard input 寫入 hidden answer input，並同步更新畫面顯示。
+- 按下假名後，可將文字插入 quiz answer hidden input。
+- 已初步支援 backspace、濁音、半濁音同小假名轉換。
+- 已將 kana input 字串處理 function 拆到 `static/js/quiz/kana_input.js`。
+- Input panel 已可按題目 type 使用平假名 rows 或片假名 rows。
+- Multiple choice panel 已有 `mc_rows` / `mc-key` placeholder 結構。
+- 濁音 / 半濁音 handler 已支援反向轉換，可由濁音 / 半濁音切回清音。
+- 小假名 handler 已加入促音 `っ` 處理。
+- 片假名 keyboard rows 已加入長音符號 `ー`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 只用喺 user 回答 quiz 嘅介面。
-- Vocab search、create request、update request 等其他 forms 繼續使用普通 keyboard。
-- 按下假名後，將文字插入 quiz answer input。
-- 支援平假名 / 片假名切換。
-- 支援濁音 / 半濁音 / 拗音 / 促音 / 長音符號。
+- 補完特殊鍵，例如 hide。
+- 完成 multiple choice panel 嘅實際選項產生、answer submit 同 backend checking。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 將 `quiz_play.html` 入面剩低嘅 Ajax submit / DOM replace JavaScript 再拆成獨立 static JS file，令 template 保持簡潔。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Ajax partial pagination**

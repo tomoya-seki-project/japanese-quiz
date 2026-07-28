@@ -30,6 +30,7 @@
 - [DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE](#DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE)
 - [DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT](#DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT)
 - [DJANGO-QUERYSET-EXCLUDE-RECENT-IDS](#DJANGO-QUERYSET-EXCLUDE-RECENT-IDS)
+- [AJAX-GET-LINK-VS-POST-FORM](#AJAX-GET-LINK-VS-POST-FORM)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -555,6 +556,176 @@ quiz_question_partial.html
 ### 理解內容
 
 -
+
+<a id="AJAX-GET-LINK-VS-POST-FORM"></a>
+
+## [ ] `[AJAX-GET-LINK-VS-POST-FORM]` Ajax 入面 GET link 同 POST form 嘅分工
+
+### 問題背景
+
+之前 `vocab_list` pagination / search 用 Ajax 做 partial update：
+
+```text
+click page link
+-> fetch link URL
+-> view return partial HTML
+-> replace list container
+```
+
+今次 quiz flow 想做到：
+
+```text
+submit answer
+-> check answer
+-> update quiz stats
+-> return result partial
+```
+
+一開始容易混淆：既然 vocab list 可以用 `<a href="...">` + `fetch(url)`，quiz submit answer 係咪都可以用同一種寫法？
+
+### 研究方向
+
+- GET request 同 POST request 嘅語意分別。
+- `<a href>` 適合做咩，`<form method="POST">` 適合做咩。
+- Ajax 是否只係「唔 reload 成頁」，而唔係改變 GET / POST 本質。
+- `FormData(form)` 點樣將 form fields、hidden inputs 同 CSRF token 一齊送去 view。
+- Django `FormView.form_valid()` 需要用咩 request method 先會正常觸發。
+
+### 你的解答
+
+#### 1. Vocab list pagination 適合 GET link
+
+`vocab_list` pagination / search 主要係讀資料：
+
+```text
+/vocab/list?page=2&keyword=abc
+```
+
+資料放喺 URL query string 入面，所以可以用：
+
+```html
+<a href="/vocab/list?page=2&keyword=abc">2</a>
+```
+
+配合：
+
+```javascript
+fetch(url)
+```
+
+呢種 pattern 適合：
+
+- pagination
+- search
+- filter
+- sort
+- 其他唔改 database 嘅讀取操作
+
+#### 2. Quiz submit answer 適合 POST form
+
+Quiz answer submit 會帶住：
+
+- `answer`
+- hidden `user_vocab_id`
+- hidden `tips_count`
+- CSRF token
+
+而且 submit 後會更新 database：
+
+- `correct_count`
+- `incorrect_count`
+- `streak`
+- `last_quiz_at`
+- `last_answer`
+
+所以應該用：
+
+```html
+<form method="POST" action="{% url 'quiz:quiz_submit_answer' %}">
+    {% csrf_token %}
+    <input type="hidden" name="user_vocab_id" value="{{ question_vocab.id }}">
+    <input type="hidden" name="tips_count" value="0">
+    <input type="text" name="answer">
+    <button type="submit">Enter</button>
+</form>
+```
+
+如果要 Ajax，就攔截 form submit：
+
+```javascript
+fetch(form.action, {
+    method: form.method,
+    body: new FormData(form),
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+    },
+})
+```
+
+重點係：Ajax 只係令畫面唔 full reload；佢唔會令 POST action 變成 GET link。
+
+#### 3. Logout form 同 quiz form 其實係同類概念
+
+Logout flow 通常係：
+
+```text
+POST form -> logout -> redirect
+```
+
+Quiz flow 係：
+
+```text
+POST form -> answer checking -> return partial HTML
+```
+
+所以 quiz 更似：
+
+```text
+logout-form 嘅 POST action
++
+vocab list 嘅 partial replace
+```
+
+#### 4. Ajax 指向邊個 view，取決於 form action
+
+Answer form：
+
+```django
+action="{% url 'quiz:quiz_submit_answer' %}"
+```
+
+代表 Ajax POST 會打去：
+
+```text
+QuizSubmitAnswerView
+```
+
+Next form：
+
+```django
+action="{% url 'quiz:quiz_next' %}"
+```
+
+代表 Ajax POST 會打去：
+
+```text
+QuizNextView
+```
+
+JavaScript 唔需要硬寫 view 名，只需要讀取：
+
+```javascript
+form.action
+```
+
+咁 template 決定 action URL，JS 只負責 submit 同 replace partial。
+
+### 理解內容
+
+- GET link Ajax：適合「去某個 URL 讀資料，再局部更新畫面」。
+- POST form Ajax：適合「提交 form data 去做 action，再局部更新畫面」。
+- Quiz answer / next 屬於 action flow，所以應該用 form submit，而唔係單純 `<a href="#">`。
+- `FormData(form)` 會將 form 入面所有有 `name` 嘅 input 一齊提交，包括 hidden input 同 CSRF token。
 
 <a id="DJANGO-QUERYSET-EXCLUDE-RECENT-IDS"></a>
 
