@@ -132,8 +132,9 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, FormVie
         )        
         question_data = self.request.session.get("question_vocab",{})
         fallback_used = question_data.get("fallback_used",False)
+        is_correct = False
         if question_vocab.vocab.type == VocabType.VOCAB:
-            QuizService.check_kana_answer(
+            is_correct = QuizService.check_kana_answer(
                 question_vocab=question_vocab,
                 answer=form.cleaned_data.get("answer"),
                 tips_count=form.cleaned_data.get("tips_count"),
@@ -143,6 +144,7 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, FormVie
             context={
                 "question_vocab":question_vocab,
                 "fallback_used":fallback_used,
+                "is_correct":is_correct,
             },
             request=self.request,
         )

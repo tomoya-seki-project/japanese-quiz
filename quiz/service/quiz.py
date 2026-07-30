@@ -70,6 +70,7 @@ class QuizService():
     
     @staticmethod
     def check_kana_answer(*, question_vocab=None, answer=None, tips_count=0):
+        is_correct = False
         if question_vocab is None:
             return -1
         
@@ -77,12 +78,14 @@ class QuizService():
             return -2
         
         if question_vocab.vocab.kana == answer:
+            is_correct = True
             question_vocab.correct_count += 1
             if question_vocab.streak < 0:
                 question_vocab.streak = 1
             else:
                 question_vocab.streak += 1
         else:
+            is_correct = False
             question_vocab.incorrect_count += 1
             if question_vocab.streak > 0:
                 question_vocab.streak = -1
@@ -95,6 +98,7 @@ class QuizService():
         question_vocab.save(
             update_fields=["streak", "correct_count", "incorrect_count", "weight", "last_quiz_at", "last_answer"]
         )
+        return is_correct
 
     @staticmethod
     def check_mc_answer(*, question_vocab=None, answer=None):

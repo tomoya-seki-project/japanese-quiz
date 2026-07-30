@@ -1,4 +1,7 @@
-<form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_submit_answer" %}">
+<form class="quiz-ajax-form" 
+    method="POST" 
+    action="{% url "quiz:quiz_submit_answer" %}"
+    data-correct-answer="{{ question_vocab.vocab.kana }}">
     {% csrf_token %}
     <input type="hidden" name="user_vocab_id" value="{{ question_vocab.id }}">
     <input type="hidden" name="tips_count" value="0" id="tips-count">
@@ -8,5 +11,6 @@
 
     <div id="answer-display"></div>
 
+    <button type="button" class="tips-button">Tip</button>
     <button type="submit">Enter</button>
 </form>

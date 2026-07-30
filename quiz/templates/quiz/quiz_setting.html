@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>quiz setting</h1>
+<h1>Quiz Settings</h1>
 <form method="POST">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">start</button>
+    <button type="submit">Start</button>
 </form>
 {% endblock %}

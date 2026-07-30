@@ -636,12 +636,15 @@ Status badge：
 - Ajax quiz flow 已手動測試成功：50 音 keyboard 可將答案寫入 hidden input，submit answer 後可局部更新成 result partial，Next 可再局部更新成下一題。
 - Quiz Ajax response 已改成 JSON contract，分開回傳 `main_html` 同 `input_panel_html`，讓 main question/result area 同 input panel area 可以分開 replace。
 - `QuizNextView` 已根據下一題 `VocabType` 產生對應 input panel context，準備支援 hiragana keyboard / katakana keyboard / multiple choice panel。
+- Quiz question form 已開始提供 tips button，並準備透過 `data-correct-answer` 俾前端讀取正確答案作提示處理。
+- `quiz_result_partial.html` 已顯示基本答題結果，包括題目、正確答案、user submitted answer 同 correct / wrong 狀態。
+- `quiz_no_question_partial.html` 已加入基本訊息同 back to settings link，避免 no-question case 顯示空白。
+- Tips button 前端提示邏輯已完成初稿，會按正確答案修正 / 補完 hidden answer input，並同步更新 answer display。
+- `tips_count` 已會隨 tips click 正確遞增，並會跟 answer form 一齊提交到 backend。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- `quiz_result_partial.html` 需要顯示答題結果內容，例如正確答案、user submitted answer、答啱 / 答錯狀態。
-- `quiz_no_question_partial.html` 需要加入基本訊息，避免 no-question case 顯示空白。
 - 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
 - Fallback 題完成後如不顯示 Next，需要引導 user 回 setting 或 user vocab list。
 
@@ -696,13 +699,14 @@ Status badge：
 - `check_kana_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
 - `check_mc_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
 - `check_kana_answer()` / `check_mc_answer()` 已保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
+- 已決定 tips button 只要被按下就應增加 `tips_count`，即使 user 原本已經輸入完整正確答案，因為「需要確認」本身代表掌握度未夠穩。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
 - 決定 kana answer 同 multiple choice answer 是否抽共用 helper。
 - 回傳答題結果，方便 view/template 顯示答啱或答錯。
-- 記錄 tips used，俾 weight calculation 使用。
+- 將 submitted `tips_count` 正式納入 stats / weight calculation。
 - Stats update 同 quiz answer history 應放入同一個 transaction。
 
 
@@ -866,11 +870,11 @@ Status badge：
 - 濁音 / 半濁音 handler 已支援反向轉換，可由濁音 / 半濁音切回清音。
 - 小假名 handler 已加入促音 `っ` 處理。
 - 片假名 keyboard rows 已加入長音符號 `ー`。
+- Hide keyboard button 已可收起 input panel，外層 show keyboard button 可再次顯示 input panel。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 補完特殊鍵，例如 hide。
 - 完成 multiple choice panel 嘅實際選項產生、answer submit 同 backend checking。
 
 

@@ -1,3 +1,12 @@
+{{ question_vocab.vocab.word }}
+{{ question_vocab.vocab.kana }}
+{% if is_correct %}
+<div>{{ question_vocab.last_answer }}</div>
+Correct
+{% else %}
+<div>{{ question_vocab.last_answer }}</div>
+Wrong
+{% endif %}
 <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
     {% csrf_token %}
     {% if not fallback_used %}

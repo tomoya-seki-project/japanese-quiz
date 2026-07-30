@@ -1023,3 +1023,45 @@ Status: Quiz question selection is more defensive; fallback behavior and minimum
 - QuerySet 可以先用一段 query 取得排除名單，再用原本 query exclude，避免因為中途 filter 而不小心縮窄最終 pool。
 - `last_quiz_at=None` 呢類未發生過嘅狀態要特別考慮，唔可以假設 database 排序一定符合直覺。
 - Feature flow 接近可用時，錯誤處理同 fallback path 會開始變得同 happy path 一樣重要。
+
+## 2026-07-28 - Ajax quiz play interface and kana input panel
+
+Commit: `41db40d`
+
+Status: First working Ajax quiz play interface with custom kana input; result UI and other answer types still need refinement
+
+### 主要改動
+
+- 建立 `quiz_play.html` 作為 quiz play shell，將 main question/result area 同 input panel area 分成兩個可獨立更新嘅 containers。
+- Quiz answer submit / next question flow 改成回傳 JSON，分別提供 `main_html` 同 `input_panel_html`，由前端局部替換對應區域。
+- 建立 `quiz_input_panel_partial.html`，按題目 type render hiragana keyboard、katakana keyboard 或 multiple choice panel placeholder。
+- 新增 `quiz/constants.py`，集中保存 hiragana / katakana keyboard rows。
+- 建立 `static/js/quiz/kana_input.js`，處理假名 keyboard 對 hidden answer input 嘅輸入、backspace、濁音、半濁音、小假名同相關轉換。
+- Quiz answer form 改用 hidden `answer` input，由 custom keyboard 更新答案，避免 user 直接使用一般輸入法輸入。
+- 已手動測試 50 音 keyboard + Ajax quiz flow：keyboard 輸入答案、submit answer、result partial、Next 抽下一題可以串起來運作。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次主要係 quiz frontend flow、template partial、static JavaScript 同 view response contract 調整。
+
+### 技術重點
+
+- Ajax response 由單一 HTML partial 進一步演進成 JSON contract，令 main content 同 input panel 可以分開更新。
+- Form action 仍然負責決定 submit answer / next question 指向邊個 view；Ajax 只負責攔截 submit、送出 `FormData` 同替換 partial。
+- Input panel 係跟題目 type 變化嘅 UI component，因此比固定 page-level keyboard 更適合獨立成 partial。
+- Hidden input 可以作為 backend form validation 所需嘅正式 answer field，而可見答案區域只負責 user feedback。
+- 假名處理適合拆成純 JavaScript string helper，將 DOM / Ajax 控制同 kana conversion logic 分開。
+
+### 理由
+
+- Quiz 需要避免普通輸入法提示影響答題，因此 custom kana keyboard 係核心互動設計之一。
+- Hiragana、katakana 同 multiple choice 將來會有不同輸入面板，將 input panel 同 main question/result area 分開能保留較大彈性。
+- 先完成可操作嘅 Ajax quiz loop，可以確認 view、form、session、service、template 同 JavaScript 之間嘅整體 contract 可行。
+
+### 學到咩
+
+- GET link partial update 同 POST form partial update 係兩個不同 pattern；quiz answer 屬於 POST action，不應直接照搬 pagination link pattern。
+- 外層 container 如果無被 replace，可以只取得一次 DOM reference；partial 入面被替換嘅元素，例如 answer input，Ajax 後需要重新取得。
+- `FormData(form)` 會帶住 hidden input 同 CSRF token，適合用嚟配合 Django `FormView`。
+- 前端 keyboard 操作只需要改 DOM / hidden input，唔需要每次按鍵都 Ajax；只有 submit answer / next question 先需要 backend。
