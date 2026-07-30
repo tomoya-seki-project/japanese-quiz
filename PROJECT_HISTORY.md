@@ -1065,3 +1065,46 @@ Status: First working Ajax quiz play interface with custom kana input; result UI
 - 外層 container 如果無被 replace，可以只取得一次 DOM reference；partial 入面被替換嘅元素，例如 answer input，Ajax 後需要重新取得。
 - `FormData(form)` 會帶住 hidden input 同 CSRF token，適合用嚟配合 Django `FormView`。
 - 前端 keyboard 操作只需要改 DOM / hidden input，唔需要每次按鍵都 Ajax；只有 submit answer / next question 先需要 backend。
+
+## 2026-07-30 - Initial Ajax quiz play UI completion
+
+Commit: `726517e`
+
+Status: Quiz play UI now has a usable first-pass interaction loop; weight tuning and non-vocab answer types remain future work
+
+### 主要改動
+
+- `quiz_result_partial.html` 加入基本答題結果顯示，包括題目、正確答案、user submitted answer 同 correct / wrong 狀態。
+- `QuizService.check_kana_answer()` 開始回傳 `is_correct`，令 result partial 可以用明確嘅 answer result 顯示結果，而唔只依賴 streak 推斷。
+- `quiz_no_question_partial.html` 加入基本 no-question message 同返回 setting link，避免 Ajax flow 遇到無題時顯示空白。
+- Quiz input panel 加入 show / hide flow，keyboard 預設可以收起，由 user 決定幾時打開。
+- Tips button 完成前端初稿：可讀取 form 上嘅 correct answer data、修正或補完 hidden answer input，並同步更新 answer display。
+- `tips_count` 會隨 tips click 遞增並跟 answer form submit 到 backend，準備之後納入 weight calculation。
+- Quiz page JavaScript 進一步拆到 `static/js/quiz/quiz_play.js`，template 主要負責載入 script 同初始化 handler。
+- Cleanup quiz UI wording 同 JavaScript comments，令目前互動流程更易讀。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次集中於 quiz UI、frontend behavior、answer result display 同 view context 調整。
+
+### 技術重點
+
+- Result display 應使用明確嘅 `is_correct` context，比 template 直接依賴 streak rule 更清楚。
+- Tips 係一個 learning signal：user 即使已輸入完整正確答案，只要按 tips，就代表需要確認，因此 `tips_count` 仍應增加。
+- Tips 前端邏輯要同時處理未輸入、部分輸入、錯字、超長輸入同完整正確答案等 edge cases。
+- Show / hide keyboard 屬於純前端 DOM state，不需要 Ajax 或 backend 參與。
+- Inline JavaScript 可以先用作驗證 flow，當互動邏輯穩定後再拆成 static JS file，讓 template 保持較清晰。
+
+### 理由
+
+- Quiz flow 已經能完成 question -> answer -> result -> next，但 user 需要明確知道自己答啱或答錯，先算有基本答題體驗。
+- Tips button 會直接影響學習判斷同之後 weight adjustment，因此先建立 `tips_count` 提交路徑，再處理正式 weight rule。
+- Keyboard show / hide 令 quiz 畫面不會長期被大型 input panel 佔住，亦保留 custom input 嘅可用性。
+
+### 學到咩
+
+- UI result state 應盡量由 view 提供語意清楚嘅 context，例如 `is_correct`，避免 template 知道太多 domain rule。
+- Hidden input、data attribute 同 visible display 可以分別承擔 backend submit、frontend reference 同 user feedback 三種不同責任。
+- Tips 呢類「輔助答題」功能要先定義產品語意，再寫 code；否則 edge cases 會令邏輯變得混亂。
+- 將已穩定嘅 JavaScript 由 template 搬到 static file，可以自然形成「DOM/Ajax handler」同「kana string helper」兩層分工。

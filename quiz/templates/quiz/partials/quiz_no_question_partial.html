@@ -1,2 +1,9 @@
+{% if messages %}
+    {% for message in messages %}
+        <div class="message {{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
 No questions are available.
 <a href="{% url "quiz:quiz_setting" %}">Back to Settings</a>

@@ -10,7 +10,12 @@
     {{ question_vocab.vocab.word }}
 
     <div id="answer-display"></div>
-
-    <button type="button" class="tips-button">Tip</button>
-    <button type="submit">Enter</button>
+    <div>
+        <button type="button" class="tips-button">Tip</button>
+        <button type="submit">Enter</button>
+    </div>
+</form>
+<form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_skip" %}">
+    {% csrf_token %}
+    <button type="submit">Skip</button>
 </form>

@@ -21,6 +21,7 @@ from .forms import (
     QuizSettingForm,
     QuizForm,
     QuizNextForm,
+    QuizSkipForm,
 )
 
 from dictionary.models import (
@@ -30,6 +31,97 @@ from dictionary.models import (
 
 from .service.quiz import QuizService
 from .constants import HIRAGANA_ROWS, KATAKANA_ROWS
+
+def get_input_panel_rows(*, question_vocab):
+    if question_vocab.vocab.type == VocabType.VOCAB:
+        keyboard_rows = HIRAGANA_ROWS
+        mc_rows = None
+    elif question_vocab.vocab.type == VocabType.KATAKANA:
+        keyboard_rows = KATAKANA_ROWS
+        mc_rows = None
+    else:
+        keyboard_rows = None
+        mc_rows = ["A", "B", "C", "D", "E"]
+    return keyboard_rows, mc_rows
+
+def render_quiz_question_payload_html(*, request, target_vocab, fallback_used):
+    keyboard_rows, mc_rows = get_input_panel_rows(question_vocab = target_vocab)
+    main_html = render_to_string(
+        "quiz/partials/quiz_question_partial.html",
+        context={
+            "question_vocab": target_vocab,
+            "fallback_used": fallback_used,
+        },
+        request=request,
+    )
+    input_panel_html = render_to_string(
+        "quiz/partials/quiz_input_panel_partial.html",
+        context={
+            "keyboard_rows": keyboard_rows,
+            "mc_rows":mc_rows,
+        },
+        request=request
+    )
+    return main_html, input_panel_html
+
+def build_next_question_payload(*, request):
+    settings = request.session.get("quiz_settings")
+
+    question_pool_qs, fallback_used = QuizService.create_question_pool(
+        user=request.user,
+        vocab_type=settings["vocab_type"],
+        level=settings["level"],
+        categories=settings["categories"],
+    )
+
+    if fallback_used:
+        messages.warning(
+            request,
+            "No vocab matched your selected filters, so the quiz is using your full active vocab pool."
+        )
+        return {
+            "main_html": render_to_string(
+                "quiz/partials/quiz_no_question_partial.html",
+                request=request,
+            ),
+            "input_panel_html": "",
+        }
+
+    user_vocab_id = QuizService.pick_random_vocab(
+        user=request.user,
+        queryset=question_pool_qs,
+    )
+
+    if user_vocab_id is None:
+        return {
+            "main_html": render_to_string(
+                "quiz/partials/quiz_no_question_partial.html",
+                request=request,
+            ),
+            "input_panel_html": "",
+        }
+
+    request.session["question_vocab"] = {
+        "user_vocab_id": user_vocab_id,
+        "fallback_used": fallback_used,
+    }
+
+    target_vocab = get_object_or_404(
+        UserVocab,
+        pk=user_vocab_id,
+        user=request.user,
+    )
+
+    main_html, input_panel_html = render_quiz_question_payload_html(
+        request=request,
+        target_vocab=target_vocab,
+        fallback_used=fallback_used,
+    )
+
+    return {
+        "main_html": main_html,
+        "input_panel_html": input_panel_html,
+    }
 
 class QuizSettingRequiredMixin:
     def dispatch(self, request, *args, **kwargs):
@@ -105,15 +197,7 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if self.question_vocab.vocab.type == VocabType.VOCAB:
-            keyboard_rows = HIRAGANA_ROWS
-            mc_rows = None
-        elif self.question_vocab.vocab.type == VocabType.KATAKANA:
-            keyboard_rows = KATAKANA_ROWS
-            mc_rows = None
-        else:
-            keyboard_rows = None
-            mc_rows = ["A", "B", "C", "D", "E"]
+        keyboard_rows, mc_rows = get_input_panel_rows(question_vocab = self.question_vocab)
             
         context["question_vocab"] = self.question_vocab
         context["fallback_used"] = self.fallback_used
@@ -157,68 +241,17 @@ class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, FormView):
     form_class = QuizNextForm
 
     def form_valid(self, form):
-        #context = self.get_context_data()
-        settings = self.request.session.get("quiz_settings")
-        question_pool_qs, fallback_used = QuizService.create_question_pool(
-            user=self.request.user,
-            vocab_type=settings["vocab_type"],
-            level=settings["level"],
-            categories=settings["categories"],
-        )
-        if fallback_used:
-            messages.warning(
-                self.request,
-                "No vocab matched your selected filters, so the quiz is using your full active vocab pool."
-            )
-        user_vocab_id = QuizService.pick_random_vocab(
-            user=self.request.user,
-            queryset=question_pool_qs,
-        )
-        if user_vocab_id is None:
-            main_html = render_to_string(
-                        "quiz/partials/quiz_no_question_partial.html",
-                        request=self.request,
-                    )
-            return JsonResponse({
-                    "main_html": main_html,
-                    "input_panel_html": "",
-                })
-        self.request.session["question_vocab"] = {
-            "user_vocab_id": user_vocab_id,
-            "fallback_used": fallback_used,
-        }
-        target_vocab = get_object_or_404(UserVocab, pk=user_vocab_id, user=self.request.user)
+        payload = build_next_question_payload(request=self.request)
+        return JsonResponse(payload)
 
-        if target_vocab.vocab.type == VocabType.VOCAB:
-            keyboard_rows = HIRAGANA_ROWS
-            mc_rows = None
-        elif target_vocab.vocab.type == VocabType.KATAKANA:
-            keyboard_rows = KATAKANA_ROWS
-            mc_rows = None
-        else:
-            keyboard_rows = None
-            mc_rows = ["A", "B", "C", "D", "E"]
+class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, FormView):
+    form_class = QuizSkipForm
 
-        main_html = render_to_string(
-            "quiz/partials/quiz_question_partial.html",
-            context={
-                "question_vocab": target_vocab,
-                "fallback_used": fallback_used,
-            },
-            request=self.request,
-        )
-        input_panel_html = render_to_string(
-            "quiz/partials/quiz_input_panel_partial.html",
-            context={
-                "keyboard_rows": keyboard_rows,
-                "mc_rows":mc_rows,
-            },
-            request=self.request
-        )
-        
-        return JsonResponse({
-            "main_html": main_html,
-            "input_panel_html": input_panel_html,
-        })
+    def form_valid(self, form):
+        skipped_question_vocab = self.request.session.get("question_vocab")
+        if skipped_question_vocab is not None:
+            QuizService.skip_question_punish(user=self.request.user, user_vocab_id=skipped_question_vocab["user_vocab_id"])
 
+        payload = build_next_question_payload(request=self.request)
+        return JsonResponse(payload)
     

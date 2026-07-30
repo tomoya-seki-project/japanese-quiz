@@ -641,12 +641,20 @@ Status badge：
 - `quiz_no_question_partial.html` 已加入基本訊息同 back to settings link，避免 no-question case 顯示空白。
 - Tips button 前端提示邏輯已完成初稿，會按正確答案修正 / 補完 hidden answer input，並同步更新 answer display。
 - `tips_count` 已會隨 tips click 正確遞增，並會跟 answer form 一齊提交到 backend。
+- `QuizSkipForm` / `QuizSkipView` / `quiz_skip` URL 已建立，question partial 已有獨立 skip form。
+- Skip form 已沿用 Ajax JSON contract，skip 後會局部更新下一題或 no-question partial。
+- `build_next_question_payload()` 已抽出共用 next-question payload 建立流程，供 `QuizNextView` 同 `QuizSkipView` 重用。
+- Skip 後如 user filter pool 已無可用題目，會回傳 no-question partial，引導 user 返設定 / vocab list。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 處理 `katakana` vocab type，目前 `QuizView` 只處理 `VocabType.VOCAB`。
-- Fallback 題完成後如不顯示 Next，需要引導 user 回 setting 或 user vocab list。
+- 處理 `katakana` vocab type 嘅 answer checking，目前 submit answer 主要只處理 `VocabType.VOCAB`。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- `quiz/views.py` 入面嘅 `get_input_panel_rows()`、`render_quiz_question_payload_html()`、`build_next_question_payload()` 暫時可以接受；之後 flow 穩定後可移去 `quiz/view_helpers.py`，令 views 保持專注處理 request / response。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
@@ -700,14 +708,15 @@ Status badge：
 - `check_mc_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
 - `check_kana_answer()` / `check_mc_answer()` 已保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
 - 已決定 tips button 只要被按下就應增加 `tips_count`，即使 user 原本已經輸入完整正確答案，因為「需要確認」本身代表掌握度未夠穩。
+- `skip_question_punish()` 已建立，skip 時會檢查 `UserVocab` 是否屬於目前 user，再更新 weight、streak 同 `last_quiz_at`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
 - 決定 kana answer 同 multiple choice answer 是否抽共用 helper。
-- 回傳答題結果，方便 view/template 顯示答啱或答錯。
+- Multiple choice answer flow 要回傳答題結果，方便 view/template 顯示答啱或答錯。
 - 將 submitted `tips_count` 正式納入 stats / weight calculation。
-- Stats update 同 quiz answer history 應放入同一個 transaction。
+- 如之後 stats update 牽涉多個 model / history record，再考慮用 transaction 包住整個更新流程。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Overdue weight boost**

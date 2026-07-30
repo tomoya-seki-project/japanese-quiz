@@ -32,3 +32,6 @@ class QuizForm(forms.Form):
 
 class QuizNextForm(forms.Form):
     pass
+
+class QuizSkipForm(forms.Form):
+    pass
