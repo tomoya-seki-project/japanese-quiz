@@ -2,11 +2,11 @@
 
 一個用 Django 開發嘅 Japanese vocabulary learning project。
 
-Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow，同之後 quiz system 需要用到嘅 `UserVocab` learning data。
+Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data，同初步 Ajax quiz flow。
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import 同部分 `UserVocab` data flow 已經建立，但 quiz、notification、完整 import/export 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation 同初步 quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -37,7 +37,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
 - Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
-> **未完善：** Approve UPDATE / RESTORE / DELETE request 前仍要補強 `original_vocab` validation；event notification flow 亦尚未建立。
+> **未完善：** Approve UPDATE / RESTORE / DELETE request 前仍要補強 `original_vocab` validation；event notification flow 已有初稿，但仍要補 UI / wording 同更多 event type。
 
 ### Admin
 
@@ -47,16 +47,31 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Vocab type 喺 admin change form 入面設為 readonly，避免 type/detail mismatch。
 - 可以查看 user learning stats，例如 weight、correct count、incorrect count 同 streak。
 
+### Quiz
+
+- 已有 quiz setting form，可按 vocab type、JLPT level 同 category 選擇出題範圍。
+- Quiz question pool 來自目前 user 嘅 `UserVocab(in_use=True)`。
+- 支援 weighted random selection，weight 越高越容易被抽中。
+- 會避開最近 quiz 過嘅 10 個 vocab，減少短時間重複出題。
+- Filter 無題時會 fallback 到 user full active vocab pool，並保留 `fallback_used` state。
+- Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
+- Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
+- Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 之後計算 weight 用。
+- Skip question flow 已建立，會增加 skipped vocab weight、更新 streak 同 `last_quiz_at`。
+
+### Events
+
+- 已建立 `Event` / `UserEvent` data model foundation。
+- Vocab request result event 同 vocab sync summary event 已有 service flow 初稿。
+- User event list / detail page 已可顯示基本 notification data。
+
 ## Planned Features
 
-- Weighted random quiz question selection。
-- Skip 最近出過嘅 10 題。
 - 根據 answer、tips used 同 streak 更新 vocab weight。
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
-- Event / notification system。
+- Multiple choice quiz answer flow。
+- Katakana quiz answer checking。
 - User-to-admin vocab message inbox。
-- Admin 整理資料後用 CSV 一次過 import vocab。
-- VocabRequest result event，同通知 user 有新 `UserVocab(in_use=False)` 可啟用。
 - Whole database CSV export / restore。
 - Account email activation。
 
@@ -93,6 +108,8 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 ### Core
 
 - `TimeStampedModel`：共用 create/update timestamps。
+- `Event`：系統事件 master record。
+- `UserEvent`：連接 user 同 event，保存 read status。
 - `AdminMessage`：初步 message model，功能仍未完善。
 
 ## Project Structure
@@ -102,7 +119,7 @@ accounts/      User model、authentication、account pages
 config/        Django settings、root URLs、WSGI / ASGI
 core/          Shared models、base templates、general pages
 dictionary/    Vocab models、forms、views、admin、request service
-quiz/          Quiz app placeholder，核心 logic 尚未實作
+quiz/          Quiz settings、weighted random service、Ajax quiz play flow
 ```
 
 其他 project documents：
@@ -193,7 +210,9 @@ python manage.py runserver
 | `/dictionary/vocab/list` | Active vocab list |
 | `/dictionary/vocab/create` | Create vocab request |
 | `/dictionary/user_vocab/list` | Current user vocab list |
-| `/quiz/` | Quiz placeholder |
+| `/quiz/` | Quiz home |
+| `/quiz/setting` | Quiz setting |
+| `/quiz/play` | Ajax quiz play page |
 | `/admin/` | Django Admin |
 
 ## Management Commands
@@ -212,7 +231,9 @@ python manage.py import_vocab list.csv
 - 只容許 superuser 執行。
 - 檢查必要 CSV headers。
 - 逐行呼叫 `VocabActionService.create_vocab()` 建立 vocab 同對應 detail model。
+- 支援 `category1`、`category2`、`category3`，配合 `Vocab.categories` ManyToManyField。
 - row-level validation / integrity error 會輸出錯誤並繼續處理下一行。
+- 輸出成功 / 失敗 row summary。
 
 預期 CSV headers：
 
@@ -220,7 +241,23 @@ python manage.py import_vocab list.csv
 word,kana,meaning,type,level,category1,category2,category3,native_japanese
 ```
 
-> **未完善：** 目前只實際使用 `category1`；`category2` / `category3` 係之後支援多 category 時預留。Command 仍未輸出 imported / skipped / failed summary。
+### Setup Categories
+
+`setup_categories` 用嚟由 CSV seed category data：
+
+```bash
+python manage.py setup_categories
+```
+
+### Development Clear Vocab
+
+`dev_clear_vocab` 用嚟喺開發期間清理 vocab 相關資料，方便重建測試資料：
+
+```bash
+python manage.py dev_clear_vocab
+```
+
+> **注意：** 呢個 command 只應用喺 local development / testing。
 
 ### Export / Restore
 
@@ -255,12 +292,11 @@ python manage.py test
 
 ## Current Limitations
 
-- Quiz app 暫時只係 placeholder。
-- VocabRequest approve/reject 已有基本 service flow，但 `original_vocab` validation 同 result event flow 仍要完善。
-- Event notification system 未建立。
-- `UserVocab(in_use=False)` 新字啟用 flow 尚未完成。
+- Quiz app 已有初步 Ajax play flow，但 weight adjustment、multiple choice answer flow 同 katakana checking 仍要完善。
+- VocabRequest approve/reject 已有基本 service flow，但 `original_vocab` validation 仍要補強。
+- Event notification system 已有 foundation，但 UI / wording 同更多 event type 仍要完善。
 - User-to-admin message flow 未建立。
-- CSV import 已有初步 admin-only command；summary、多 category 同完整 export / restore 尚未完成。
+- 完整 export / restore 尚未完成。
 - Requirements file 未建立。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。

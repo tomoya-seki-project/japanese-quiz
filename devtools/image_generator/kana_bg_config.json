@@ -1,0 +1,18 @@
+{
+  "font_sizes": [90, 72, 62, 40],
+  "font_size_weights": [0.10, 0.20, 0.30, 0.40],
+  "min_glyph_gap": 5,
+  "gray_levels": [
+    [142, 200, 228, 255],
+    [126, 178, 208, 255],
+    [112, 154, 184, 255],
+    [104, 134, 152, 255]
+  ],
+  "bg_color": [170, 232, 255, 255],
+  "target_counts": {
+    "katakana": 300,
+    "hiragana": 300,
+    "mixed": 300
+  },
+  "min_same_char_distance": 210
+}
