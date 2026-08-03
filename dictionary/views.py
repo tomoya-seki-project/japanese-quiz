@@ -311,12 +311,13 @@ class UserVocabListView(LoginRequiredMixin, ListView):
             word = form.cleaned_data.get("word")
             if word:
                 qs = qs.filter(vocab__word__icontains=word)
+
             kana = form.cleaned_data.get("kana")
             if kana:
                 qs = qs.filter(vocab__kana__icontains=kana)
             vocab_type = form.cleaned_data.get("vocab_type")
             if vocab_type:
-                qs = qs.filter(type=vocab_type)
+                qs = qs.filter(vocab__type=vocab_type)
             lv = form.cleaned_data.get("level")
             if lv:
                 qs = qs.filter(vocab__level=lv)

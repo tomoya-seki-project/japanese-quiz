@@ -1149,3 +1149,48 @@ Status: Quiz play flow now supports answer, result, next and skip actions throug
 - Ajax response 可以用 structured payload 承載多個 partial，例如 `main_html` 同 `input_panel_html`，前端再按固定 contract replace 對應 DOM。
 - Session 可以保存目前題目狀態，但使用時仍要用 user ownership query 再確認資料屬於目前 user。
 - Helper 抽取有層次之分：render partial / build response payload 屬於 view helper；weight、streak、抽題則屬於 service logic。
+
+## 2026-08-01 - Kana visual assets and image generation tools
+
+Commit: `7af87d6`
+
+Status: Quiz visual asset pipeline now has source files, exported kana images and a configurable background generator
+
+### 主要改動
+
+- 加入 hiragana / katakana kana image assets，準備用於 quiz answer display 同 wrong-answer visual feedback。
+- 加入 normal / incorrect answer state 對應嘅 exported kana image folders。
+- 加入 source PSD files，方便之後繼續調整 kana visual assets。
+- 建立 `devtools/image_generator/generate_kana_bg.py`，用嚟生成 seamless kana background tile。
+- 背景 generator 支援由 project root 執行，並固定輸出到 `assets/export/background/kana_bg_output_blue/`。
+- 將 generator 常調參數抽到 `kana_bg_config.json`，包括字色、底色、字體大小、大小比例、字數、字距同同字重複距離。
+- 加入 generator 專用 README，記錄 config 欄位用途同執行方式。
+- 加入 `requirements.txt` 同 `requirements-dev.txt`，開始明確分開 runtime dependencies 同 development / asset generation dependencies。
+- Project documents 已整理到 `docs/status/`，令 repo root 更集中保留 project entry files 同 source folders。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次集中於 visual assets、development tooling、dependency files 同 project documentation layout。
+
+### 技術重點
+
+- 原始素材、輸出素材同 runtime static assets 應分開管理；目前先用 `assets/source/` 保存 source files，用 `assets/export/` 保存 generated / exported assets。
+- 生成工具應使用 script file location 推導 project root，避免因為 CLI current working directory 不同而輸出到 repo 外。
+- Visual tuning values 放入 JSON config 後，可以反覆調色、密度同大小，而唔需要每次改 generator logic。
+- WSL 環境要特別處理 Windows font path，否則可能 fallback 到無日文字形嘅 font，生成出一堆 missing glyph boxes。
+- JSON 不支援 comments，因此需要用同層 README 解釋 config key 嘅語意。
+
+### 理由
+
+- Quiz 之後會越來越依賴視覺 feedback，例如 kana answer display、wrong-answer display 同背景氣氛，因此需要先建立可重用嘅 asset pipeline。
+- 保留 PSD source files 可以避免之後只得 exported PNG，令視覺調整變得困難。
+- 將 background generator 做成 configurable tool，可以用較低成本試唔同顏色、密度同字體大小，適合目前仍在探索 quiz UI 風格嘅階段。
+- Dependency files 開始補齊後，project 更容易喺新環境重建。
+
+### 學到咩
+
+- Asset pipeline 亦係 project architecture 一部分；source assets、exported assets 同 app static assets 要有清楚分工。
+- `Path(__file__).resolve()` 比相對路徑更適合 CLI tools，因為 script 可以由不同 working directory 執行。
+- 字體 fallback 要實際打開 preview 驗證，command 成功輸出唔代表圖像內容一定正確。
+- JSON config 適合保存 machine-readable values；人類解釋同調整指引應放喺 README。

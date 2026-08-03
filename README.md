@@ -75,7 +75,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Whole database CSV export / restore。
 - Account email activation。
 
-完整規劃可以睇 [TODO.md](TODO.md)。
+完整規劃可以睇 [docs/status/TODO.md](docs/status/TODO.md)。
 
 ## Tech Stack
 
@@ -116,26 +116,22 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 ```text
 accounts/      User model、authentication、account pages
+assets/        Source and exported visual assets
 config/        Django settings、root URLs、WSGI / ASGI
 core/          Shared models、base templates、general pages
+devtools/      Development-only helper tools, including image generators
 dictionary/    Vocab models、forms、views、admin、request service
+docs/          Project status notes, learning notes and modification reports
 quiz/          Quiz settings、weighted random service、Ajax quiz play flow
 ```
 
 其他 project documents：
 
-- [PROJECT_HISTORY.md](PROJECT_HISTORY.md)：主要開發歷史。
-- [TODO.md](TODO.md)：已發現問題、planned features 同 implementation notes。
+- [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)：主要開發歷史。
+- [docs/status/TODO.md](docs/status/TODO.md)：已發現問題、planned features 同 implementation notes。
+- [docs/status/LEARNING_POINTS.md](docs/status/LEARNING_POINTS.md)：開發期間整理嘅學習筆記。
 
 ## Local Setup
-
-### Requirements Status
-
-> **未準備完善**
-
-Project 暫時未有 `requirements.txt` 或 `pyproject.toml`。根據目前 settings，開發環境需要 Python 同 Django；其他 dependency 尚未正式整理。
-
-以下步驟只係目前嘅 provisional setup。
 
 ### 1. Clone Project
 
@@ -164,12 +160,18 @@ source .venv/bin/activate
 
 部分環境需要將 `python` 改成 `py` 或 `python3`。
 
-### 3. Install Django
+### 3. Install Dependencies
 
-正式 dependency file 未建立前，可以暫時安裝 settings 所顯示嘅 Django version：
+Runtime dependencies：
 
 ```bash
-python -m pip install Django==6.0.5
+python -m pip install -r requirements.txt
+```
+
+Development / asset-generation dependencies：
+
+```bash
+python -m pip install -r requirements-dev.txt
 ```
 
 ### 4. Apply Migrations
@@ -269,6 +271,40 @@ python manage.py export_whole <output_folder>
 
 `export_vocab_to_csv` 目前只係 placeholder；完整 database export / restore flow 尚未實作。
 
+## Visual Assets / Dev Tools
+
+Quiz visual assets are stored outside the Django static runtime folders while they are still being designed.
+
+Current asset layout:
+
+```text
+assets/source/      Source files, such as PSD files
+assets/export/      Exported/generated assets
+devtools/           Development helper scripts
+```
+
+### Kana Background Generator
+
+`devtools/image_generator/generate_kana_bg.py` generates reusable kana background tiles:
+
+```bash
+python devtools/image_generator/generate_kana_bg.py
+```
+
+The generator writes output to:
+
+```text
+assets/export/background/kana_bg_output_blue/
+```
+
+Visual tuning values such as font colors, background color, font sizes, density and character counts are configured in:
+
+```text
+devtools/image_generator/kana_bg_config.json
+```
+
+The generator has its own notes in [devtools/image_generator/README.md](devtools/image_generator/README.md).
+
 ## Testing
 
 > **未準備完善**
@@ -297,7 +333,6 @@ python manage.py test
 - Event notification system 已有 foundation，但 UI / wording 同更多 event type 仍要完善。
 - User-to-admin message flow 未建立。
 - 完整 export / restore 尚未完成。
-- Requirements file 未建立。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。
 - Production deployment settings 未準備。
@@ -316,7 +351,7 @@ python manage.py test
 
 ## Development History
 
-Project 由 2026-05-20 開始，主要改動同相關 code paths 記錄喺 [PROJECT_HISTORY.md](PROJECT_HISTORY.md)。
+Project 由 2026-05-20 開始，主要改動同相關 code paths 記錄喺 [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)。
 
 ## Contributing
 

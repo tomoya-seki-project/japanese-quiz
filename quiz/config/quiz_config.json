@@ -1,0 +1,15 @@
+{
+    "weight":{
+        "skip":50,
+        "tips":5,
+        "max_tips":50,
+        "wrong":30,
+        "correct":-10,
+        "streak_wrong":5,
+        "streak_correct":-3,
+        "min_weight":1
+    },
+    "pool":{
+        "min_in_use":10
+    }
+}

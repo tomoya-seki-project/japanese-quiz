@@ -1,4 +1,6 @@
 import random
+import json
+from pathlib import Path
 from bisect import bisect_left
 from django.utils import timezone
 
@@ -7,6 +9,14 @@ from dictionary.models import (
     UserVocab,
     Category,
 )
+
+
+def load_quiz_config(*,path):
+    config_path = (Path(__file__).resolve().parent.parent/path)
+    with config_path.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
+QUIZ_CONFIG = load_quiz_config(path="config/quiz_config.json")
 
 class QuizService():
     @staticmethod
@@ -22,11 +32,11 @@ class QuizService():
         if categories:
             filtered_qs = filtered_qs.filter(vocab__categories__in=categories).distinct()
 
-        if filtered_qs.count() > 10:
+        if filtered_qs.count() > QUIZ_CONFIG["pool"]["min_in_use"]:
             recently_quizzed_ids = (
                 filtered_qs.filter(last_quiz_at__isnull=False)
                 .order_by("-last_quiz_at")
-                .values_list("id", flat=True)[:10]
+                .values_list("id", flat=True)[:QUIZ_CONFIG["pool"]["min_in_use"]]
             )
             filtered_qs = filtered_qs.exclude(id__in=recently_quizzed_ids)
 
@@ -72,7 +82,7 @@ class QuizService():
     def skip_question_punish(*, user, user_vocab_id):
         skipped_user_vocab = UserVocab.objects.filter(pk=user_vocab_id, user=user).first()
         if skipped_user_vocab is not None:
-            skipped_user_vocab.weight += 50
+            skipped_user_vocab.weight += QUIZ_CONFIG["weight"]["skip"]
             if skipped_user_vocab.streak > 0:
                 skipped_user_vocab.streak = 0
             else:
@@ -90,7 +100,9 @@ class QuizService():
         
         if answer is None:
             return -2
-        
+        WEIGHT_CONFIG = QUIZ_CONFIG["weight"]
+        new_weight = min(WEIGHT_CONFIG["max_tips"], tips_count * WEIGHT_CONFIG["tips"])
+                
         if question_vocab.vocab.kana == answer:
             is_correct = True
             question_vocab.correct_count += 1
@@ -98,6 +110,7 @@ class QuizService():
                 question_vocab.streak = 1
             else:
                 question_vocab.streak += 1
+            new_weight += (WEIGHT_CONFIG["correct"] + (abs(question_vocab.streak) * WEIGHT_CONFIG["streak_correct"] ))
         else:
             is_correct = False
             question_vocab.incorrect_count += 1
@@ -105,7 +118,9 @@ class QuizService():
                 question_vocab.streak = -1
             else:
                 question_vocab.streak -= 1
+            new_weight += (WEIGHT_CONFIG["wrong"] + (abs(question_vocab.streak) * WEIGHT_CONFIG["streak_wrong"] ))
 
+        question_vocab.weight = max(WEIGHT_CONFIG["min_weight"], question_vocab.weight + new_weight)
         question_vocab.last_answer = answer
 
         question_vocab.last_quiz_at = timezone.now()

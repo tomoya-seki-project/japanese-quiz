@@ -7,6 +7,10 @@ from dictionary.models import (
 )
 
 class QuizSettingForm(forms.Form):
+    quiz_num = forms.ChoiceField(
+        choices=[(-1,"No Limit"), (10,"10"), (20,"20"), (30, "30")],
+        required=True,
+    )
     vocab_type = forms.MultipleChoiceField(
         choices=VocabType.choices,
         required=False,

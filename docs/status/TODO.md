@@ -1,7 +1,7 @@
 # Project TODO
 
 呢份 TODO 用嚟追蹤 project 本身嘅 bug、功能、flow 狀態、改良同擴展預想。  
-舊版 TODO 已保留喺 `TODO_O.md`。
+舊版 TODO 內容已整合入目前格式。
 
 Status badge：
 
@@ -624,10 +624,12 @@ Status badge：
 - `QuizForm` 已加入 hidden `user_vocab_id`，用嚟表示目前 answer form 對應邊個 `UserVocab`。
 - `QuizNextForm` 已建立成空 form，`QuizNextView` 已改用 next-only form，避免要求 answer fields。
 - `QuizSettingRequiredMixin` 已建立，並用 `dispatch()` 喺 `QuizPlayView` / `QuizNextView` 進入前檢查 session 入面是否有 `quiz_settings`。
+- `QuizSessionRequiredMixin` 已建立，並用喺 submit / next / skip 等需要現有 quiz session 嘅 endpoints。
 - `QuizSubmitAnswerView` 已從 session 讀取目前題目嘅 `fallback_used` flag，並傳入 result partial context。
 - `QuizNextView` 已將新題目嘅 `fallback_used` flag 保存到 session，方便 submit answer 後 result partial 判斷是否顯示 Next。
 - `tips_count` 已改成 hidden field，準備由 question form 以 hidden/default value submit。
 - `UserVocab.last_answer` 已加入 model / migration / admin display，準備俾 result partial 顯示 user 最近一次答案。
+- `quiz_session` 已同 `quiz_settings` 分開，開始追蹤目前題目、fallback 狀態、答題數、正確數、錯誤數、skip 數同 tips 總數。
 - `quiz_play.html` 已建立 full page shell，並用 `quiz-area-container` 包住可被 Ajax replace 嘅 question / result partial。
 - `quiz_question_partial.html` 已建立 answer POST form，包含 hidden `user_vocab_id` 同 hidden/default `tips_count`。
 - `quiz_result_partial.html` 已建立 next POST form，會 call `QuizNextView` 再換入下一題 partial。
@@ -645,11 +647,16 @@ Status badge：
 - Skip form 已沿用 Ajax JSON contract，skip 後會局部更新下一題或 no-question partial。
 - `build_next_question_payload()` 已抽出共用 next-question payload 建立流程，供 `QuizNextView` 同 `QuizSkipView` 重用。
 - Skip 後如 user filter pool 已無可用題目，會回傳 no-question partial，引導 user 返設定 / vocab list。
+- Skip 後會先清空 `quiz_session["question_user_vocab_id"]`，再嘗試抽下一題，避免已 skip 題目被當成未完成題目。
+- `QuizUnfinishedView` 已可按 session 入面未完成題目重新 render quiz page；如 session 無目前題目，會嘗試抽一題新題繼續。
+- 暫時所有 quiz answer submit 都走 kana answer checking flow，避免 katakana 題目未正式拆 type 前被直接當 wrong。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 處理 `katakana` vocab type 嘅 answer checking，目前 submit answer 主要只處理 `VocabType.VOCAB`。
+- 之後要將臨時 kana-only checking 拆返做正式 type-specific answer flow。
+- `VocabType.VOCAB` / `VocabType.KATAKANA` 應走 kana checking，multiple choice type 應走 MC checking。
+- Submit answer 時要再確認 POST 入嚟嘅 `user_vocab_id` 等於 `quiz_session["question_user_vocab_id"]`，避免同一 user 提交非目前題目嘅 hidden id。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -657,7 +664,7 @@ Status badge：
 - `quiz/views.py` 入面嘅 `get_input_panel_rows()`、`render_quiz_question_payload_html()`、`build_next_question_payload()` 暫時可以接受；之後 flow 穩定後可移去 `quiz/view_helpers.py`，令 views 保持專注處理 request / response。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Weighted random question selection**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Weighted random question selection**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -670,13 +677,17 @@ Status badge：
 - `QuizService.pick_question()` 已建立初稿，會計算 total weight、cumulative weight，並用 `bisect_left` 抽題。
 - `UserVocab.weight` 已加入 `MinValueValidator(1)`，避免正常 form / admin validation 接受 0 或負數。
 - `UserVocab.weight` validator migration `0024_weight_add_min.py` 已建立。
+- Weight adjustment 參數已抽到 `quiz/config/quiz_config.json`。
+- `check_kana_answer()` 已根據 answer result、tips count 同 streak 更新 weight。
+- `skip_question_punish()` 已根據 config 增加 skipped vocab weight。
+- Service layer 已用 `min_weight` clamp，避免 weight 跌穿最低值。
+- `streak_correct` / `streak_wrong` 已改成較清楚嘅 config key。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 每次答完題後，根據答題結果、tips used 同 streak 更新 weight。
-- 設定合理 max，並考慮 service layer 更新 weight 時用 clamp 保護 min / max。
-- 確認 `weight` validator migration 已套用到目前 database。
+- 之後實際玩一段時間後，再調整 `correct`、`wrong`、`skip`、`tips`、`streak_correct`、`streak_wrong` 等數值是否合理。
+- 之後可再考慮是否需要 `max_weight`，避免長期錯題 weight 過高。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Recent question skip**
@@ -709,14 +720,32 @@ Status badge：
 - `check_kana_answer()` / `check_mc_answer()` 已保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
 - 已決定 tips button 只要被按下就應增加 `tips_count`，即使 user 原本已經輸入完整正確答案，因為「需要確認」本身代表掌握度未夠穩。
 - `skip_question_punish()` 已建立，skip 時會檢查 `UserVocab` 是否屬於目前 user，再更新 weight、streak 同 `last_quiz_at`。
+- `check_kana_answer()` 已將 submitted `tips_count` 納入 weight calculation。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
 - 決定 kana answer 同 multiple choice answer 是否抽共用 helper。
 - Multiple choice answer flow 要回傳答題結果，方便 view/template 顯示答啱或答錯。
-- 將 submitted `tips_count` 正式納入 stats / weight calculation。
 - 如之後 stats update 牽涉多個 model / history record，再考慮用 transaction 包住整個更新流程。
+
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz session summary tracking**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `quiz_session` 已開始保存整局 quiz 嘅統計資料，包括 `aims_quiz_num`、`quizzed_count`、`correct_count`、`wrong_count`、`skipped_count`、`total_tips_count`。
+- Answer submit 後已會更新 correct / wrong count、tips total，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
+- Skip 後已會更新 skipped count，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
+- Next / skip 抽到新題時已會更新 `question_user_vocab_id`、`fallback_used` 同 `quizzed_count`。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- `QuizSummaryView` / summary template / 完成 quiz 嘅入口未正式實作。
+- 決定一局 quiz 點樣完結：固定題數、手動 finish button，定係兩者都支援。
+- Summary page 要顯示本局答題數、正確數、錯誤數、skip 數、tips 使用量等資料。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Overdue weight boost**
@@ -791,12 +820,13 @@ Status badge：
 - Admin concurrency / reviewed request readonly tests。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 E：Project dependencies file**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 E：Project dependencies file**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 加 `requirements.txt` 或 `pyproject.toml`。
+- 已加入 `requirements.txt`，記錄目前 project runtime dependencies。
+- 已加入 `requirements-dev.txt`，記錄 development / asset generation 需要嘅 dependencies，例如 Pillow。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 F：Production settings hardening**
@@ -880,6 +910,7 @@ Status badge：
 - 小假名 handler 已加入促音 `っ` 處理。
 - 片假名 keyboard rows 已加入長音符號 `ー`。
 - Hide keyboard button 已可收起 input panel，外層 show keyboard button 可再次顯示 input panel。
+- Quiz Ajax submit / DOM replace / tips / keyboard toggle JS 已移到 `static/js/quiz/quiz_play.js`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
@@ -889,7 +920,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 將 `quiz_play.html` 入面剩低嘅 Ajax submit / DOM replace JavaScript 再拆成獨立 static JS file，令 template 保持簡潔。
+- 之後可再將 `quiz_play.html` 入面剩低嘅 inline initializer 整理成更正式嘅 JS init pattern，令 template 更乾淨。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz kana background asset generator**

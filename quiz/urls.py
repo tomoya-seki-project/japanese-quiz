@@ -9,6 +9,8 @@ from .views import (
     QuizSubmitAnswerView,
     QuizNextView,
     QuizSkipView,
+    QuizUnfinishedView,
+    QuizSummaryView,
 )
 
 app_name = 'quiz'
@@ -20,4 +22,6 @@ urlpatterns = [
     path('submit_answer', QuizSubmitAnswerView.as_view(), name='quiz_submit_answer'),
     path('next/', QuizNextView.as_view(), name='quiz_next'),
     path('skip/', QuizSkipView.as_view(), name='quiz_skip'),
+    path('unfinished/', QuizUnfinishedView.as_view(), name='quiz_unfinished'),
+    path('summary/', QuizSummaryView.as_view(), name='quiz_summary'),
 ]
