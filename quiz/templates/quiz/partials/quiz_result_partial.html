@@ -1,3 +1,10 @@
+<div id="quiz-count">
+    {% if total_quiz_num > 0 %}
+        {{ current_quiz_num }}/{{ total_quiz_num }}問
+    {% else %}
+        第{{ current_quiz_num }}問
+    {% endif %}
+</div>
 {{ question_vocab.vocab.word }}
 {{ question_vocab.vocab.kana }}
 {% if is_correct %}
@@ -7,9 +14,17 @@ Correct
 <div>{{ question_vocab.last_answer }}</div>
 Wrong
 {% endif %}
-<form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
-    {% csrf_token %}
-    {% if not fallback_used %}
-        <button type="submit">Next</button>
+{% if total_quiz_num < 0 or total_quiz_num == current_quiz_num %}
+    <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_summary" %}">
+        {% csrf_token %}
+            <button type="submit">Summary</button>
+    </form>
+{% endif %}
+{% if not fallback_used %}
+    {% if total_quiz_num < 0 or total_quiz_num > current_quiz_num %}
+        <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
+            {% csrf_token %}
+                <button type="submit">Next</button>
+        </form>
     {% endif %}
-</form>
+{% endif %}

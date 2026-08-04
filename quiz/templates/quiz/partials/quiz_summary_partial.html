@@ -1,0 +1,11 @@
+<div id="quiz-count">
+    {% if total_quiz_num > 0 %}
+        {{ current_quiz_num }}/{{ total_quiz_num }}問
+    {% else %}
+        第{{ current_quiz_num }}問
+    {% endif %}
+</div>
+total correct : {{ correct_count }}
+total wrong : {{ wrong_count }}
+total skipped : {{ skipped_count }}
+total tips : {{ total_tips_count }}

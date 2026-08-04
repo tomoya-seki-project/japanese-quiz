@@ -623,9 +623,12 @@ Status badge：
 - 已移除 answer data 放 URL path 嘅方向，改由 POST body / form data 傳入。
 - `QuizForm` 已加入 hidden `user_vocab_id`，用嚟表示目前 answer form 對應邊個 `UserVocab`。
 - `QuizNextForm` 已建立成空 form，`QuizNextView` 已改用 next-only form，避免要求 answer fields。
+- `QuizSettingForm.quiz_num` 已改用 `TypedChoiceField(coerce=int)`，避免 quiz count 由 form / session 傳到 template 後變成 string 而影響大小比較。
 - `QuizSettingRequiredMixin` 已建立，並用 `dispatch()` 喺 `QuizPlayView` / `QuizNextView` 進入前檢查 session 入面是否有 `quiz_settings`。
 - `QuizSessionRequiredMixin` 已建立，並用喺 submit / next / skip 等需要現有 quiz session 嘅 endpoints。
 - `QuizSubmitAnswerView` 已從 session 讀取目前題目嘅 `fallback_used` flag，並傳入 result partial context。
+- `QuizSubmitAnswerView` 已檢查 POST 入嚟嘅 `user_vocab_id` 是否等於 `quiz_session["question_user_vocab_id"]`，避免 hidden id 指向非目前題目時污染 stats / weight。
+- Hidden id mismatch 時，如 session 仍有目前題目，會重新 render session 入面真正題目；如 session 已無目前題目，會回 no-question partial。
 - `QuizNextView` 已將新題目嘅 `fallback_used` flag 保存到 session，方便 submit answer 後 result partial 判斷是否顯示 Next。
 - `tips_count` 已改成 hidden field，準備由 question form 以 hidden/default value submit。
 - `UserVocab.last_answer` 已加入 model / migration / admin display，準備俾 result partial 顯示 user 最近一次答案。
@@ -635,6 +638,7 @@ Status badge：
 - `quiz_result_partial.html` 已建立 next POST form，會 call `QuizNextView` 再換入下一題 partial。
 - 前端 Ajax submit / replace flow 已接上 `form.action`，可根據 answer form / next form 指向對應 view。
 - Result partial 已用 `fallback_used` 控制是否顯示 Next button。
+- Result partial 已按 `total_quiz_num` / `current_quiz_num` 控制 Summary button 同 Next button 顯示。
 - Ajax quiz flow 已手動測試成功：50 音 keyboard 可將答案寫入 hidden input，submit answer 後可局部更新成 result partial，Next 可再局部更新成下一題。
 - Quiz Ajax response 已改成 JSON contract，分開回傳 `main_html` 同 `input_panel_html`，讓 main question/result area 同 input panel area 可以分開 replace。
 - `QuizNextView` 已根據下一題 `VocabType` 產生對應 input panel context，準備支援 hiragana keyboard / katakana keyboard / multiple choice panel。
@@ -648,7 +652,10 @@ Status badge：
 - `build_next_question_payload()` 已抽出共用 next-question payload 建立流程，供 `QuizNextView` 同 `QuizSkipView` 重用。
 - Skip 後如 user filter pool 已無可用題目，會回傳 no-question partial，引導 user 返設定 / vocab list。
 - Skip 後會先清空 `quiz_session["question_user_vocab_id"]`，再嘗試抽下一題，避免已 skip 題目被當成未完成題目。
+- Skip flow 已傳入 `is_skip=True`，令 skip 後抽出嘅下一題不會增加 `quizzed_count`，避免有限題 quiz 因大量 skip 而超出目標題數。
 - `QuizUnfinishedView` 已可按 session 入面未完成題目重新 render quiz page；如 session 無目前題目，會嘗試抽一題新題繼續。
+- `QuizUnfinishedView` 已補返 `current_quiz_num` / `total_quiz_num` context，避免由 unfinished flow 入返 quiz page 時 quiz count 顯示唔到。
+- `QuizSettingView` 已處理有限題 quiz 中途離開後返回嘅 lifecycle：未答題會 resume 同一題，result page 離開但未答晒會繼續下一題，有限題已完成則清走 `quiz_session`。
 - 暫時所有 quiz answer submit 都走 kana answer checking flow，避免 katakana 題目未正式拆 type 前被直接當 wrong。
 
 
@@ -656,7 +663,6 @@ Status badge：
 
 - 之後要將臨時 kana-only checking 拆返做正式 type-specific answer flow。
 - `VocabType.VOCAB` / `VocabType.KATAKANA` 應走 kana checking，multiple choice type 應走 MC checking。
-- Submit answer 時要再確認 POST 入嚟嘅 `user_vocab_id` 等於 `quiz_session["question_user_vocab_id"]`，避免同一 user 提交非目前題目嘅 hidden id。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -739,13 +745,16 @@ Status badge：
 - Answer submit 後已會更新 correct / wrong count、tips total，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
 - Skip 後已會更新 skipped count，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
 - Next / skip 抽到新題時已會更新 `question_user_vocab_id`、`fallback_used` 同 `quizzed_count`。
+- Skip 抽下一題時已不增加 `quizzed_count`，所以 skipped question 不計入已答題數。
+- `QuizSummaryForm` / `QuizSummaryView` / `quiz_summary_partial.html` 已有初稿。
+- Summary partial 已可顯示本局答題數、目標題數、正確數、錯誤數、skip 數同 tips 使用量。
+- Summary response render 完後已用 `session.pop("quiz_session", None)` 清走 quiz session，避免完成後再入 setting 被誤判成 unfinished quiz。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- `QuizSummaryView` / summary template / 完成 quiz 嘅入口未正式實作。
 - 決定一局 quiz 點樣完結：固定題數、手動 finish button，定係兩者都支援。
-- Summary page 要顯示本局答題數、正確數、錯誤數、skip 數、tips 使用量等資料。
+- Summary page wording / layout 之後可再整理；目前先以 logic flow 可測試為主。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Overdue weight boost**

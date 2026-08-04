@@ -7,8 +7,9 @@ from dictionary.models import (
 )
 
 class QuizSettingForm(forms.Form):
-    quiz_num = forms.ChoiceField(
+    quiz_num = forms.TypedChoiceField(
         choices=[(-1,"No Limit"), (10,"10"), (20,"20"), (30, "30")],
+        coerce=int,
         required=True,
     )
     vocab_type = forms.MultipleChoiceField(
@@ -38,4 +39,7 @@ class QuizNextForm(forms.Form):
     pass
 
 class QuizSkipForm(forms.Form):
+    pass
+
+class QuizSummaryForm(forms.Form):
     pass
