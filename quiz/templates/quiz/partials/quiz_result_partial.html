@@ -28,3 +28,9 @@ Wrong
         </form>
     {% endif %}
 {% endif %}
+
+
+
+{% for item in compare_result.result %}
+    {{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }}
+{% endfor %}

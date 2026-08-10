@@ -30,6 +30,8 @@
 - [DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE](#DJANGO-ADMIN-RELATED-OBJECTS-IN-USER-PAGE)
 - [DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT](#DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT)
 - [DJANGO-QUERYSET-EXCLUDE-RECENT-IDS](#DJANGO-QUERYSET-EXCLUDE-RECENT-IDS)
+- [DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE](#DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE)
+- [PYTHON-JSON-CONFIG-MAP-LOOKUP](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
 - [AJAX-GET-LINK-VS-POST-FORM](#AJAX-GET-LINK-VS-POST-FORM)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
@@ -341,6 +343,187 @@ container.addEventListener("click", function (e) {
 ```
 
 因為 event delegation 更適合長期維護動態 partial DOM。
+
+### 理解內容
+
+-
+
+<a id="PYTHON-JSON-CONFIG-MAP-LOOKUP"></a>
+
+## [ ] `[PYTHON-JSON-CONFIG-MAP-LOOKUP]` 用 JSON config map 查 subtype / 設定值
+
+### 問題背景
+
+Quiz answer compare 需要根據兩個 kana 判斷 wrong subtype，例如：
+
+```text
+correct=は, user=ば -> DAKUTEN
+correct=つ, user=っ -> SMALL_KANA
+```
+
+呢類資料本質上係 mapping data，唔一定適合硬寫喺 function 入面。抽成 JSON 後，可以集中維護 data，function 只負責查表。
+
+### 研究方向
+
+- `json.load()` 點樣將 JSON file 讀成 Python dict。
+- 共用 `load_json()` 時，path 應該用 project root 做基準，避免因為 caller 喺唔同 app 而搵錯 file。
+- nested dict 點樣安全讀取資料。
+- `.get()` 同直接用 `dict[key]` 嘅差異。
+
+### 我的理解
+
+JSON 可以設計成簡單 nested map：
+
+```json
+{
+  "は": {
+    "ば": "DAKUTEN",
+    "ぱ": "HANDAKUTEN"
+  },
+  "つ": {
+    "っ": "SMALL_KANA"
+  }
+}
+```
+
+讀入 Python 後會變成：
+
+```python
+COMPARE_SUBTYPE = load_json(path="quiz/config/compare_answer_subtype.json")
+```
+
+安全查 subtype 可以寫：
+
+```python
+subtype = COMPARE_SUBTYPE.get(correct_letter, {}).get(user_letter)
+return subtype if subtype is not None else "NORMAL"
+```
+
+意思：
+
+1. `COMPARE_SUBTYPE.get(correct_letter, {})`
+   - 如果有 correct letter，就回傳入面嗰個 dict。
+   - 如果冇，就回傳空 dict `{}`。
+
+2. `.get(user_letter)`
+   - 喺內層 dict 搵 user letter。
+   - 搵唔到就回傳 `None`。
+
+3. 如果最後係 `None`，就當普通錯誤：
+
+```python
+"NORMAL"
+```
+
+### 點解唔直接用 `COMPARE_SUBTYPE[correct_letter][user_letter]`
+
+直接用 square bracket：
+
+```python
+COMPARE_SUBTYPE[correct_letter][user_letter]
+```
+
+如果其中一層 key 唔存在，就會直接 `KeyError`。
+
+例如：
+
+```text
+correct=あ, user=か
+```
+
+呢組唔係特別 subtype，只係普通 wrong。如果用 `[]`，程式會爆 error；如果用 `.get()`，就可以正常 fallback 去 `NORMAL`。
+
+### 重點
+
+- JSON config 適合放「查表式 data」。
+- Function 應該負責查資料同 fallback，不應該塞大量 hard-coded mapping。
+- 巢狀 dict 查資料時，用 `.get(key, {})` 可以避免第一層 key 唔存在時爆 `KeyError`。
+- 如果 `None` 係不合法結果，就要顯式轉成 default value，例如 `NORMAL`。
+
+### 理解內容
+
+-
+
+<a id="DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE"></a>
+
+## [ ] `[DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE]` QuerySet `values_list()` 同避免重複 SQL
+
+### 問題背景
+
+Quiz weighted random 抽題時，最初做法係：
+
+```python
+if queryset.count() == 0:
+    return None
+
+vocab_list = list(queryset)
+```
+
+呢個寫法清楚，但會有兩個成本：
+
+1. `queryset.count()` 會打一個 SQL 問 database 有幾多 row。
+2. `list(queryset)` 又會再打一個 SQL，並將完整 model objects 拉入 Python。
+
+如果最後只需要 `id` 同 `weight` 去抽題，拉完整 `UserVocab` object 其實多咗。
+
+### 研究方向
+
+- QuerySet 幾時真正打 SQL。
+- `count()`、`exists()`、`list(queryset)` 分別會觸發咩查詢。
+- `values_list("id", "weight")` 同完整 model object 嘅差異。
+- 先將必要欄位拉成 Python list，再喺 memory 入面做計算，適合咩場景。
+
+### 我的理解
+
+可以改成一次過只拉需要嘅欄位：
+
+```python
+weight_rows = list(queryset.values_list("id", "weight"))
+
+if not weight_rows:
+    return None
+```
+
+`weight_rows` 會係一個 tuple list，例如：
+
+```python
+[
+    (12, 5),
+    (18, 20),
+    (25, 3),
+]
+```
+
+所以之後 loop 時唔可以再寫：
+
+```python
+for user_vocab in weight_rows:
+    total_weight += user_vocab.weight
+```
+
+因為 `user_vocab` 已經唔係 `UserVocab` object，而係 tuple。
+
+正確方向係拆開 tuple：
+
+```python
+for user_vocab_id, weight in weight_rows:
+    total_weight += weight
+    cumulative_weight.append(total_weight)
+```
+
+最後抽中 index 後，直接回傳 tuple 入面第 0 個值：
+
+```python
+return weight_rows[index][0]
+```
+
+### 重點
+
+- `count()` 只係問 database 數量。
+- `list(queryset)` 會真正拉資料。
+- 如果本身都要拉資料，就可以用 `if not list_data` 判斷有冇資料，未必需要先 `.count()`。
+- `values_list()` 適合用喺「只需要少數欄位」嘅情況。
+- `values_list("id", "weight")` 回傳 tuple，不再係 model object。
 
 ### 理解內容
 

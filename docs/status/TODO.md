@@ -1,20 +1,21 @@
 # Project TODO
 
-呢份 TODO 用嚟追蹤 project 本身嘅 bug、功能、flow 狀態、改良同擴展預想。  
+呢份 TODO 用嚟追蹤 project 本身嘅 bug、功能、flow 狀態同改良。
 舊版 TODO 內容已整合入目前格式。
+未承諾、未納入目前 scope 嘅未來擴展 idea 統一放喺 `FUTURE_IDEAS.md`。
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（50）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（5）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
 
 ## 目錄
 
 - [已 Check 到嘅問題 / Fix Tracking](#已-check-到嘅問題--fix-tracking)
-- [Vocab Future Work](#vocab-future-work)
+- [Vocab Planned Work](#vocab-planned-work)
 - [VocabRequest Result / UserVocab Flow](#vocabrequest-result--uservocab-flow)
-- [Account Email Activation](#account-email-activation)
+- [Account / User Management](#account--user-management)
 - [Event Notification System](#event-notification-system)
 - [Data Import / Export / Database Migration](#data-import--export--database-migration)
 - [User Message to Admin](#user-message-to-admin)
@@ -221,13 +222,6 @@ Status badge：
 - 目前 public registration 同 admin Add User 共用 `RegistForm`。
 
 
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 實作 email activation 時，拆成 public registration form 同 `UserCreationAdminForm`。
-- Public registration 建立 `is_active=False` 的 user，等待 email activation。
-- Admin 建立 user 時可以直接設定 `is_active=True`。
-
-
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 19 點（Account Login）：移除 login flow 入面冇實際作用嘅 `user.save()`**
 
 
@@ -261,7 +255,7 @@ Status badge：
 - 檢查 `original_vocab` 狀態是否符合 request type。
 - 如果資料異常，要停止 approve 並回傳清楚 error result。
 
-## Vocab Future Work
+## Vocab Planned Work
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Category multiple selection**
@@ -340,7 +334,7 @@ Status badge：
 
 - 舊資料或 future bypass service 嘅情況，可以之後用 data audit / tests 檢查。
 
-## Account Email Activation
+## Account / User Management
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Custom User Admin foundation**
@@ -356,11 +350,6 @@ Status badge：
 - `date_joined` / `last_login` 已放入 user detail readonly area。
 
 
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 實作 email activation 時，拆開 public registration form 同 admin user creation form。
-
-
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserProfile auto creation**
 
 
@@ -371,16 +360,6 @@ Status badge：
 - `INSTALLED_APPS` 已改用 explicit `AppConfig` path，確保 `AccountsConfig.ready()` 載入 signals。
 - 目前 database 已重新 migrate，新 user 會自動有 profile。
 
-
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Account email activation**
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 設計 registration 後是否即時限制 login。
-- 建立 activation link flow。
-- 決定 activation link expiry。
-- 設計 resend activation email flow。
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab sync and in-use flow**
 
@@ -425,11 +404,6 @@ Status badge：
 - `Event` 已註冊到 admin。
 
 
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- Site announcement 可以之後加入 publish time、expire time、importance level、active status、target user group。
-
-
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **EventService helpers**
 
 
@@ -453,11 +427,6 @@ Status badge：
 - Reject request 後會建立 `VOCAB_REQUEST_RESULT` event 通知 request owner。
 - User 已可喺 notification page 查看 request result event。
 - User 已可將 result event mark as read。
-
-
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 之後可以加入 reviewer reason 或更詳細 result message。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Vocab sync summary event**
@@ -574,16 +543,10 @@ Status badge：
 - Admin 整理資料後可建立 CSV，再用 `import_vocab` 加入 database。
 - 處理完成後經 event system 通知 user。
 
-
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 保留原本 user message 同最後 import batch 嘅關係，方便追蹤處理結果。
-- 如果同一批 vocab 由多個 users 提出，要確保每個相關 user 都收到處理結果。
-
 ## Quiz Question Logic
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz question filter**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz question filter**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -600,12 +563,12 @@ Status badge：
 - `QuizSettingView` 已用 `QUIZ_MIN_IN_USE_VOCAB_COUNT` 檢查 user active vocab 數量；不足時會 redirect 去 user vocab list 並顯示 warning message。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - Filter fallback / no active vocab warning message 之後可再配合 template 顯示得更清楚。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz view routing and result flow**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz view routing and result flow**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -659,12 +622,6 @@ Status badge：
 - 暫時所有 quiz answer submit 都走 kana answer checking flow，避免 katakana 題目未正式拆 type 前被直接當 wrong。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 之後要將臨時 kana-only checking 拆返做正式 type-specific answer flow。
-- `VocabType.VOCAB` / `VocabType.KATAKANA` 應走 kana checking，multiple choice type 應走 MC checking。
-
-
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - `quiz/views.py` 入面嘅 `get_input_panel_rows()`、`render_quiz_question_payload_html()`、`build_next_question_payload()` 暫時可以接受；之後 flow 穩定後可移去 `quiz/view_helpers.py`，令 views 保持專注處理 request / response。
@@ -709,12 +666,7 @@ Status badge：
 - `last_quiz_at=None` 嘅新 vocab 會保留喺原本 question pool 入面，唔會因為 recent skip 被抽走。
 
 
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 如之後需要更精準嘅 recent skip，可只保存最近 10 個 vocab ids；暫時唔建立完整 question history model。
-
-
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **UserVocab quiz stats and streak update**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab quiz stats and streak update**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -729,14 +681,41 @@ Status badge：
 - `check_kana_answer()` 已將 submitted `tips_count` 納入 weight calculation。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 決定 kana answer 同 multiple choice answer 是否抽共用 helper。
-- Multiple choice answer flow 要回傳答題結果，方便 view/template 顯示答啱或答錯。
+- 決定 kana answer 同其他 answer checking flow 是否抽共用 helper。
 - 如之後 stats update 牽涉多個 model / history record，再考慮用 transaction 包住整個更新流程。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz session summary tracking**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz result answer difference display**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `QuizService.answer_compare()` 已建立初版，可產生 `MATCH`、`WRONG`、`MISSING`、`EXTRA` compare result。
+- Compare logic 已處理 correct answer / user answer 長度唔同嘅情況，避免其中一邊無下一隻 kana 時 index error。
+- Compare logic 已加入 `match_count` tie-break，優先保留更多對得返位置嘅 kana。
+- `compare_answer_subtype.json` 已建立，用嚟判斷 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA`。
+- `kana_graphic_map.json` 已生成初版，用嚟由 kana + compare type / subtype 查對應 image path 同 `font_width`。
+- `QuizService.gen_answer_image()` 已建立初版，將 compare result 轉成 answer graphic data。
+- `QuizSubmitAnswerView` 已開始將 `compare_result` 傳入 `quiz_result_partial.html`。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- 喺 `quiz_result_partial.html` 顯示 user answer 同 correct answer 差異，幫 user 睇清楚錯喺邊個 kana / 位置。
+- 將 `gen_answer_image()` 正式接入 `QuizSubmitAnswerView` context。
+- 用 `answer_graphic` 喺 result partial render 圖片版 compare result。
+- 確認 image path 是否需要由 `assets/export/...` 搬去 Django static path，或者加 path conversion。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 之後可以為 `MISSING` 生成專用 `_missing_red` 圖：黑字配紅色 underline，表示正確答案有呢隻 kana 但 user 漏咗。
+- 之後可以為 `EXTRA` 生成專用 `_extra_red` 圖：黑字配紅色 crossout，表示 user 多輸入咗呢隻 kana。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz session summary tracking**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -749,11 +728,13 @@ Status badge：
 - `QuizSummaryForm` / `QuizSummaryView` / `quiz_summary_partial.html` 已有初稿。
 - Summary partial 已可顯示本局答題數、目標題數、正確數、錯誤數、skip 數同 tips 使用量。
 - Summary response render 完後已用 `session.pop("quiz_session", None)` 清走 quiz session，避免完成後再入 setting 被誤判成 unfinished quiz。
+- Quiz 已支援固定題數完結。
+- Quiz 已支援手動 finish button 完結。
+- Summary page 已加入返回 Home 嘅 link，提供明確離開路徑。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 決定一局 quiz 點樣完結：固定題數、手動 finish button，定係兩者都支援。
 - Summary page wording / layout 之後可再整理；目前先以 logic flow 可測試為主。
 
 
@@ -783,12 +764,6 @@ Status badge：
 - 輸出正式 log，而唔只係 terminal message。
 - Log 記低 import file、執行 admin、執行時間、成功筆數、失敗筆數、failed row 原因。
 - 可以先做 terminal summary + log file。
-
-
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 之後可考慮 database import history model。
-- User message / admin inbox 如觸發 CSV import，可以用 import report 回寫處理結果。
 
 ## General Improvements
 
@@ -846,12 +821,13 @@ Status badge：
 - 正式 deploy 前，將 `SECRET_KEY`、`DEBUG` 等 settings 搬去 environment variables。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 G：Whitespace cleanup**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 G：Whitespace cleanup**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 清理 `git diff --check` 報告嘅 trailing whitespace。
+- 已執行 `git diff --check` 檢查目前 diff。
+- 檢查完成後沒有需要繼續追蹤嘅 whitespace cleanup item。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 H：Approve request final validation**
@@ -889,18 +865,23 @@ Status badge：
 - 已放棄用 `UserVocabInline` 長期顯示大量 user vocab。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 L：Quiz question pool query performance review**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 L：Quiz question pool query performance review**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- Review `QuizService.create_question_pool()` 入面 `qs.count()` + `pick_random_vocab()` 入面 `list(queryset)` 造成兩次 SQL 嘅 trade-off。
-- 目前寫法清楚易明，暫時可接受；之後如 quiz pool 變大，再評估是否需要改成更適合大量資料嘅抽題策略。
+- `QuizService.pick_random_vocab()` 已改用 `values_list("id", "weight")`，只拉抽題需要嘅欄位。
+- 已移除抽題前額外 `.count()` 嘅需要，改用 Python list 判斷有冇候選題。
+- Weighted random 仍然保留 total weight、cumulative weight 同 `bisect_left` 嘅做法。
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 如果日後 quiz pool 大到現有 Python list 計算變慢，再研究 DB-level weighted random 或更完整嘅抽題 cache strategy。
 
 ## UI / UX
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **50 音假名 keyboard**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **50 音假名 keyboard**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -920,11 +901,6 @@ Status badge：
 - 片假名 keyboard rows 已加入長音符號 `ー`。
 - Hide keyboard button 已可收起 input panel，外層 show keyboard button 可再次顯示 input panel。
 - Quiz Ajax submit / DOM replace / tips / keyboard toggle JS 已移到 `static/js/quiz/quiz_play.js`。
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 完成 multiple choice panel 嘅實際選項產生、answer submit 同 backend checking。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>

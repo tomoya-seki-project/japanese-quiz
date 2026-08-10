@@ -26,7 +26,7 @@ from dictionary.models import (
     VocabType,
 )
 
-from .service.quiz import QuizService, load_quiz_config
+from .service.quiz import QuizService
 from .helper import (
     get_question_pool,
     get_target_user_vocab_id,
@@ -35,7 +35,9 @@ from .helper import (
     render_quiz_question_payload_html,
 )
 
-QUIZ_CONFIG = load_quiz_config(path="config/quiz_config.json")
+from core.service.core import load_json
+
+QUIZ_CONFIG = load_json(path="quiz/config/quiz_config.json")
 
 class QuizSettingRequiredMixin:
     def dispatch(self, request, *args, **kwargs):
@@ -193,6 +195,10 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 "question_vocab":question_vocab,
                 "fallback_used":fallback_used,
                 "is_correct":is_correct,
+                "compare_result": QuizService.compare_kana_answer(
+                                        correct_answer=question_vocab.vocab.kana, 
+                                        user_answer=form.cleaned_data.get("answer")
+                                    )
             },
             request=self.request,
         )

@@ -1,6 +1,4 @@
 import random
-import json
-from pathlib import Path
 from bisect import bisect_left
 from django.utils import timezone
 
@@ -10,13 +8,11 @@ from dictionary.models import (
     Category,
 )
 
+from core.service.core import load_json
 
-def load_quiz_config(*,path):
-    config_path = (Path(__file__).resolve().parent.parent/path)
-    with config_path.open("r", encoding="utf-8") as file:
-        return json.load(file)
-
-QUIZ_CONFIG = load_quiz_config(path="config/quiz_config.json")
+QUIZ_CONFIG = load_json(path="quiz/config/quiz_config.json")
+COMPARE_SUBTYPE = load_json(path="quiz/config/compare_answer_subtype.json")
+KANA_GRAPHIC_MAP = load_json(path="quiz/config/kana_graphic_map.json")
 
 class QuizService():
     @staticmethod
@@ -54,15 +50,16 @@ class QuizService():
         if queryset is None:
             queryset, fallback_used = QuizService.create_question_pool(user=user)
 
-        if queryset.count() == 0:
+        weight_rows = list(queryset.values_list("id", "weight"))
+
+        if not weight_rows:
             return None
 
-        vocab_list = list(queryset)
         total_weight = 0
         cumulative_weight = []
 
-        for user_vocab in vocab_list:
-            total_weight += user_vocab.weight
+        for user_vocab_id, weight in weight_rows:
+            total_weight += weight
             cumulative_weight.append(total_weight)
 
         # Normally every vocab should have at least 1 weight, so total_weight should not be 0.
@@ -76,7 +73,7 @@ class QuizService():
             random_number,
         )
 
-        return vocab_list[index].pk
+        return weight_rows[index][0]
 
     @staticmethod
     def skip_question_punish(*, user, user_vocab_id):
@@ -157,3 +154,182 @@ class QuizService():
             update_fields=["streak", "correct_count", "incorrect_count", "weight", "last_quiz_at", "last_answer"]
         )
 
+    
+
+    @staticmethod
+    def gen_answer_image(*, compared_result):
+        answer_graphic = []
+        for letter_result in compared_result["result"]:
+            if letter_result["type"] == "WRONG":
+                kana_config = KANA_GRAPHIC_MAP.get(letter_result["correct"], {})
+                type_config = kana_config.get(letter_result["type"], {})
+                subtype_config = type_config.get(letter_result["sub_type"], type_config.get("NORMAL", {}))
+                answer_graphic.append(
+                    {
+                        "type": letter_result["type"],
+                        "sub_type": letter_result["sub_type"],
+                        "correct": letter_result["correct"],
+                        "answer": letter_result["answer"],
+                        "image_path": subtype_config.get("image_path"),
+                        "font_width": subtype_config.get("font_width", 500)
+                    }
+                )
+
+            elif letter_result["type"] in ["MATCH", "MISSING"]:
+                kana_config = KANA_GRAPHIC_MAP.get(letter_result["correct"], {})
+                type_config = kana_config.get(letter_result["type"], {})
+                answer_graphic.append(
+                    {
+                        "type": letter_result["type"],
+                        "sub_type": letter_result["sub_type"],
+                        "correct": letter_result["correct"],
+                        "answer": letter_result["answer"],
+                        "image_path": type_config.get("image_path"),
+                        "font_width": type_config.get("font_width", 500)
+                    }
+                )
+            else:
+                kana_config = KANA_GRAPHIC_MAP.get(letter_result["answer"], {})
+                type_config = kana_config.get(letter_result["type"], {})
+                answer_graphic.append(
+                    {
+                        "type": letter_result["type"],
+                        "sub_type": letter_result["sub_type"],
+                        "correct": letter_result["correct"],
+                        "answer": letter_result["answer"],
+                        "image_path": type_config.get("image_path"),
+                        "font_width": type_config.get("font_width", 500)
+                    }
+                )
+        return answer_graphic
+
+    @staticmethod
+    def compare_kana_answer(*, correct_answer, user_answer):
+        return QuizService.answer_compare(
+            correct_answer=correct_answer or "",
+            user_answer=user_answer or "",
+            pos_of_correct=0,
+            pos_of_user=0,
+        )
+
+    @staticmethod
+    def define_wrong_sub_type(*, correct_letter, user_letter):
+        subtype = COMPARE_SUBTYPE.get(correct_letter, {}).get(user_letter)
+        return subtype if subtype is not None else "NORMAL"
+
+    @staticmethod
+    def answer_compare(*, correct_answer, user_answer, pos_of_correct, pos_of_user):
+        if pos_of_correct >= len(correct_answer) and pos_of_user >= len(user_answer):
+            return {
+                "cost": 0,
+                "match_count": 0,
+                "result": [],
+            }
+        if pos_of_correct >= len(correct_answer):
+            return {
+                "cost": len(user_answer) - pos_of_user,
+                "match_count": 0,
+                "result": [
+                    {
+                        "type": "EXTRA",
+                        "sub_type": None,
+                        "correct": None,
+                        "answer": char,
+                    }
+                    for char in user_answer[pos_of_user:]
+                ]
+            }
+        if pos_of_user >= len(user_answer):
+            return {
+                "cost": len(correct_answer) - pos_of_correct,
+                "match_count": 0,
+                "result": [
+                    {
+                        "type": "MISSING",
+                        "sub_type": None,
+                        "correct": char,
+                        "answer": None,
+                    }
+                    for char in correct_answer[pos_of_correct:]
+                ]
+            }
+        if correct_answer[pos_of_correct] == user_answer[pos_of_user]:
+            next_compare_result = QuizService.answer_compare(
+                correct_answer=correct_answer,
+                user_answer=user_answer,
+                pos_of_correct=pos_of_correct+1,
+                pos_of_user=pos_of_user+1,
+            )
+            return {
+                "cost": next_compare_result["cost"],
+                "match_count": 1 + next_compare_result["match_count"],
+                "result": [
+                    {
+                        "type": "MATCH",
+                        "sub_type": None,
+                        "correct": correct_answer[pos_of_correct],
+                        "answer": user_answer[pos_of_user],
+                    },
+                ] + next_compare_result["result"],
+            }
+        wrong_next = QuizService.answer_compare(
+            correct_answer=correct_answer,
+            user_answer=user_answer,
+            pos_of_correct=pos_of_correct+1,
+            pos_of_user=pos_of_user+1,
+        )
+        wrong = {
+            "cost": 1 + wrong_next["cost"],
+            "match_count": wrong_next["match_count"],
+            "result": [
+                {
+                    "type": "WRONG",
+                    "sub_type": QuizService.define_wrong_sub_type(
+                                                correct_letter=correct_answer[pos_of_correct],
+                                                user_letter=user_answer[pos_of_user]
+                                            ),
+                    "correct": correct_answer[pos_of_correct],
+                    "answer": user_answer[pos_of_user],
+                },
+            ] + wrong_next["result"],
+        }
+
+        missing_next = QuizService.answer_compare(
+            correct_answer=correct_answer,
+            user_answer=user_answer,
+            pos_of_correct=pos_of_correct+1,
+            pos_of_user=pos_of_user,
+        )
+        missing = {
+            "cost": 1 + missing_next["cost"],
+            "match_count": missing_next["match_count"],
+            "result": [
+                {
+                    "type": "MISSING",
+                    "sub_type": None,
+                    "correct": correct_answer[pos_of_correct],
+                    "answer": None,
+                },
+            ] + missing_next["result"],
+        }
+
+        extra_next = QuizService.answer_compare(
+            correct_answer=correct_answer,
+            user_answer=user_answer,
+            pos_of_correct=pos_of_correct,
+            pos_of_user=pos_of_user+1,
+        )
+        extra = {
+            "cost": 1 + extra_next["cost"],
+            "match_count": extra_next["match_count"],
+            "result": [
+                {
+                    "type": "EXTRA",
+                    "sub_type": None,
+                    "correct": None,
+                    "answer": user_answer[pos_of_user],
+                },
+            ] + extra_next["result"],
+        }
+
+        return min(wrong, missing, extra, key=lambda result: (result["cost"], -result["match_count"]))

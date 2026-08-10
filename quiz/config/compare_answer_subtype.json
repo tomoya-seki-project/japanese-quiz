@@ -1,0 +1,434 @@
+{
+  "あ": {
+    "ぁ": "SMALL_KANA"
+  },
+  "ぁ": {
+    "あ": "SMALL_KANA"
+  },
+  "い": {
+    "ぃ": "SMALL_KANA"
+  },
+  "ぃ": {
+    "い": "SMALL_KANA"
+  },
+  "う": {
+    "ぅ": "SMALL_KANA"
+  },
+  "ぅ": {
+    "う": "SMALL_KANA"
+  },
+  "え": {
+    "ぇ": "SMALL_KANA"
+  },
+  "ぇ": {
+    "え": "SMALL_KANA"
+  },
+  "お": {
+    "ぉ": "SMALL_KANA"
+  },
+  "ぉ": {
+    "お": "SMALL_KANA"
+  },
+  "か": {
+    "が": "DAKUTEN"
+  },
+  "が": {
+    "か": "DAKUTEN"
+  },
+  "き": {
+    "ぎ": "DAKUTEN"
+  },
+  "ぎ": {
+    "き": "DAKUTEN"
+  },
+  "く": {
+    "ぐ": "DAKUTEN"
+  },
+  "ぐ": {
+    "く": "DAKUTEN"
+  },
+  "け": {
+    "げ": "DAKUTEN"
+  },
+  "げ": {
+    "け": "DAKUTEN"
+  },
+  "こ": {
+    "ご": "DAKUTEN"
+  },
+  "ご": {
+    "こ": "DAKUTEN"
+  },
+  "さ": {
+    "ざ": "DAKUTEN"
+  },
+  "ざ": {
+    "さ": "DAKUTEN"
+  },
+  "し": {
+    "じ": "DAKUTEN"
+  },
+  "じ": {
+    "し": "DAKUTEN"
+  },
+  "す": {
+    "ず": "DAKUTEN"
+  },
+  "ず": {
+    "す": "DAKUTEN"
+  },
+  "せ": {
+    "ぜ": "DAKUTEN"
+  },
+  "ぜ": {
+    "せ": "DAKUTEN"
+  },
+  "そ": {
+    "ぞ": "DAKUTEN"
+  },
+  "ぞ": {
+    "そ": "DAKUTEN"
+  },
+  "た": {
+    "だ": "DAKUTEN"
+  },
+  "だ": {
+    "た": "DAKUTEN"
+  },
+  "ち": {
+    "ぢ": "DAKUTEN"
+  },
+  "ぢ": {
+    "ち": "DAKUTEN"
+  },
+  "つ": {
+    "づ": "DAKUTEN",
+    "っ": "SMALL_KANA"
+  },
+  "づ": {
+    "つ": "DAKUTEN",
+    "っ": "SMALL_KANA"
+  },
+  "っ": {
+    "つ": "SMALL_KANA",
+    "づ": "SMALL_KANA"
+  },
+  "て": {
+    "で": "DAKUTEN"
+  },
+  "で": {
+    "て": "DAKUTEN"
+  },
+  "と": {
+    "ど": "DAKUTEN"
+  },
+  "ど": {
+    "と": "DAKUTEN"
+  },
+  "は": {
+    "ば": "DAKUTEN",
+    "ぱ": "HANDAKUTEN"
+  },
+  "ば": {
+    "は": "DAKUTEN",
+    "ぱ": "HANDAKUTEN"
+  },
+  "ぱ": {
+    "は": "HANDAKUTEN",
+    "ば": "HANDAKUTEN"
+  },
+  "ひ": {
+    "び": "DAKUTEN",
+    "ぴ": "HANDAKUTEN"
+  },
+  "び": {
+    "ひ": "DAKUTEN",
+    "ぴ": "HANDAKUTEN"
+  },
+  "ぴ": {
+    "ひ": "HANDAKUTEN",
+    "び": "HANDAKUTEN"
+  },
+  "ふ": {
+    "ぶ": "DAKUTEN",
+    "ぷ": "HANDAKUTEN"
+  },
+  "ぶ": {
+    "ふ": "DAKUTEN",
+    "ぷ": "HANDAKUTEN"
+  },
+  "ぷ": {
+    "ふ": "HANDAKUTEN",
+    "ぶ": "HANDAKUTEN"
+  },
+  "へ": {
+    "べ": "DAKUTEN",
+    "ぺ": "HANDAKUTEN"
+  },
+  "べ": {
+    "へ": "DAKUTEN",
+    "ぺ": "HANDAKUTEN"
+  },
+  "ぺ": {
+    "へ": "HANDAKUTEN",
+    "べ": "HANDAKUTEN"
+  },
+  "ほ": {
+    "ぼ": "DAKUTEN",
+    "ぽ": "HANDAKUTEN"
+  },
+  "ぼ": {
+    "ほ": "DAKUTEN",
+    "ぽ": "HANDAKUTEN"
+  },
+  "ぽ": {
+    "ほ": "HANDAKUTEN",
+    "ぼ": "HANDAKUTEN"
+  },
+  "や": {
+    "ゃ": "SMALL_KANA"
+  },
+  "ゃ": {
+    "や": "SMALL_KANA"
+  },
+  "ゆ": {
+    "ゅ": "SMALL_KANA"
+  },
+  "ゅ": {
+    "ゆ": "SMALL_KANA"
+  },
+  "よ": {
+    "ょ": "SMALL_KANA"
+  },
+  "ょ": {
+    "よ": "SMALL_KANA"
+  },
+  "わ": {
+    "ゎ": "SMALL_KANA"
+  },
+  "ゎ": {
+    "わ": "SMALL_KANA"
+  },
+  "ア": {
+    "ァ": "SMALL_KANA"
+  },
+  "ァ": {
+    "ア": "SMALL_KANA"
+  },
+  "イ": {
+    "ィ": "SMALL_KANA"
+  },
+  "ィ": {
+    "イ": "SMALL_KANA"
+  },
+  "ウ": {
+    "ゥ": "SMALL_KANA",
+    "ヴ": "DAKUTEN"
+  },
+  "ゥ": {
+    "ウ": "SMALL_KANA"
+  },
+  "ヴ": {
+    "ウ": "DAKUTEN"
+  },
+  "エ": {
+    "ェ": "SMALL_KANA"
+  },
+  "ェ": {
+    "エ": "SMALL_KANA"
+  },
+  "オ": {
+    "ォ": "SMALL_KANA"
+  },
+  "ォ": {
+    "オ": "SMALL_KANA"
+  },
+  "カ": {
+    "ガ": "DAKUTEN",
+    "ヵ": "SMALL_KANA"
+  },
+  "ガ": {
+    "カ": "DAKUTEN"
+  },
+  "ヵ": {
+    "カ": "SMALL_KANA"
+  },
+  "キ": {
+    "ギ": "DAKUTEN"
+  },
+  "ギ": {
+    "キ": "DAKUTEN"
+  },
+  "ク": {
+    "グ": "DAKUTEN"
+  },
+  "グ": {
+    "ク": "DAKUTEN"
+  },
+  "ケ": {
+    "ゲ": "DAKUTEN",
+    "ヶ": "SMALL_KANA"
+  },
+  "ゲ": {
+    "ケ": "DAKUTEN"
+  },
+  "ヶ": {
+    "ケ": "SMALL_KANA"
+  },
+  "コ": {
+    "ゴ": "DAKUTEN"
+  },
+  "ゴ": {
+    "コ": "DAKUTEN"
+  },
+  "サ": {
+    "ザ": "DAKUTEN"
+  },
+  "ザ": {
+    "サ": "DAKUTEN"
+  },
+  "シ": {
+    "ジ": "DAKUTEN"
+  },
+  "ジ": {
+    "シ": "DAKUTEN"
+  },
+  "ス": {
+    "ズ": "DAKUTEN"
+  },
+  "ズ": {
+    "ス": "DAKUTEN"
+  },
+  "セ": {
+    "ゼ": "DAKUTEN"
+  },
+  "ゼ": {
+    "セ": "DAKUTEN"
+  },
+  "ソ": {
+    "ゾ": "DAKUTEN"
+  },
+  "ゾ": {
+    "ソ": "DAKUTEN"
+  },
+  "タ": {
+    "ダ": "DAKUTEN"
+  },
+  "ダ": {
+    "タ": "DAKUTEN"
+  },
+  "チ": {
+    "ヂ": "DAKUTEN"
+  },
+  "ヂ": {
+    "チ": "DAKUTEN"
+  },
+  "ツ": {
+    "ヅ": "DAKUTEN",
+    "ッ": "SMALL_KANA"
+  },
+  "ヅ": {
+    "ツ": "DAKUTEN",
+    "ッ": "SMALL_KANA"
+  },
+  "ッ": {
+    "ツ": "SMALL_KANA",
+    "ヅ": "SMALL_KANA"
+  },
+  "テ": {
+    "デ": "DAKUTEN"
+  },
+  "デ": {
+    "テ": "DAKUTEN"
+  },
+  "ト": {
+    "ド": "DAKUTEN"
+  },
+  "ド": {
+    "ト": "DAKUTEN"
+  },
+  "ハ": {
+    "バ": "DAKUTEN",
+    "パ": "HANDAKUTEN"
+  },
+  "バ": {
+    "ハ": "DAKUTEN",
+    "パ": "HANDAKUTEN"
+  },
+  "パ": {
+    "ハ": "HANDAKUTEN",
+    "バ": "HANDAKUTEN"
+  },
+  "ヒ": {
+    "ビ": "DAKUTEN",
+    "ピ": "HANDAKUTEN"
+  },
+  "ビ": {
+    "ヒ": "DAKUTEN",
+    "ピ": "HANDAKUTEN"
+  },
+  "ピ": {
+    "ヒ": "HANDAKUTEN",
+    "ビ": "HANDAKUTEN"
+  },
+  "フ": {
+    "ブ": "DAKUTEN",
+    "プ": "HANDAKUTEN"
+  },
+  "ブ": {
+    "フ": "DAKUTEN",
+    "プ": "HANDAKUTEN"
+  },
+  "プ": {
+    "フ": "HANDAKUTEN",
+    "ブ": "HANDAKUTEN"
+  },
+  "ヘ": {
+    "ベ": "DAKUTEN",
+    "ペ": "HANDAKUTEN"
+  },
+  "ベ": {
+    "ヘ": "DAKUTEN",
+    "ペ": "HANDAKUTEN"
+  },
+  "ペ": {
+    "ヘ": "HANDAKUTEN",
+    "ベ": "HANDAKUTEN"
+  },
+  "ホ": {
+    "ボ": "DAKUTEN",
+    "ポ": "HANDAKUTEN"
+  },
+  "ボ": {
+    "ホ": "DAKUTEN",
+    "ポ": "HANDAKUTEN"
+  },
+  "ポ": {
+    "ホ": "HANDAKUTEN",
+    "ボ": "HANDAKUTEN"
+  },
+  "ヤ": {
+    "ャ": "SMALL_KANA"
+  },
+  "ャ": {
+    "ヤ": "SMALL_KANA"
+  },
+  "ユ": {
+    "ュ": "SMALL_KANA"
+  },
+  "ュ": {
+    "ユ": "SMALL_KANA"
+  },
+  "ヨ": {
+    "ョ": "SMALL_KANA"
+  },
+  "ョ": {
+    "ヨ": "SMALL_KANA"
+  },
+  "ワ": {
+    "ヮ": "SMALL_KANA"
+  },
+  "ヮ": {
+    "ワ": "SMALL_KANA"
+  }
+}

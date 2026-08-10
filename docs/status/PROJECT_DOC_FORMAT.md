@@ -1,15 +1,16 @@
 # Project Documentation Format
 
-呢份文件記錄本 project 目前採用嘅 documentation / TODO 格式規則。  
-之後其他 project 可以直接參考呢套格式，避免 TODO、history、learning notes 混埋一齊。
+呢份文件記錄一套可重用嘅 project documentation format。  
+佢唔係某一個 project 嘅進度文件，而係之後其他 project 都可以直接參考嘅文件分工 / TODO 格式規則。
 
-## 三份主要文件角色
+## 主要文件角色
 
-Project 主要使用三份 markdown 文件，各自負責唔同層面。
+Project 可以使用以下 markdown 文件，各自負責唔同層面。
 
 | 文件 | 角色 | 應該記錄 | 唔應該記錄 |
 | --- | --- | --- | --- |
-| `TODO.md` | Project status / task tracking | Bug、未完成 feature、已完成 decision、改良、擴展預想 | 純 learning note、已更新某份 doc 呢類 meta 操作 |
+| `TODO.md` | Project status / task tracking | 目前 scope 內嘅 bug、未完成 feature、已完成 decision、改良 | 純 learning note、已更新某份 doc 呢類 meta 操作、未承諾 future idea |
+| `FUTURE_IDEAS.md` | Future idea parking lot | 將來可能做、但目前未承諾 / 未納入 scope 嘅 idea | 目前正在做或近期必須處理嘅 task |
 | `LEARNING_POINTS.md` | 個人學習 / review 筆記 | 未理解清楚嘅概念、Django/Python pattern、之後想複習嘅解釋 | Project 完成度、task status、每日進度 |
 | `PROJECT_HISTORY.md` | Project 里程碑 / 技術決策紀錄 | 重要功能完成、架構改動、database schema 改動、主要取捨、commit | 細碎 wording cleanup、普通 TODO update、單純 learning note 更新 |
 
@@ -17,14 +18,16 @@ Project 主要使用三份 markdown 文件，各自負責唔同層面。
 
 ```text
 TODO.md             = 而家仲有咩要做 / 咩已完成
+FUTURE_IDEAS.md     = 將來可能做，但未承諾
 LEARNING_POINTS.md  = 我學過咩 / 仲有咩概念想之後複習
 PROJECT_HISTORY.md  = project 重要階段發生過咩事
 ```
 
 ## TODO.md 格式
 
-`TODO.md` 主要負責記錄 project 本身嘅待辦、bug、flow 狀態、已完成 decision 同將來可做嘅功能。  
+`TODO.md` 主要負責記錄 project 本身目前 scope 內嘅待辦、bug、flow 狀態、已完成 decision 同改良。  
 唔需要記錄「已寫入 learning notes」呢類 meta-doc 操作。
+未承諾、未納入目前 scope 嘅未來擴展 idea 應放入 `FUTURE_IDEAS.md`，唔放入 `TODO.md`。
 
 ## 目錄
 
@@ -36,7 +39,7 @@ PROJECT_HISTORY.md  = project 重要階段發生過咩事
 ## 目錄
 
 - [待 Fix Bug](#待-fix-bug)
-- [Vocab Future Work](#vocab-future-work)
+- [Vocab Planned Work](#vocab-planned-work)
 - [VocabRequest Result / UserVocab Flow](#vocabrequest-result--uservocab-flow)
 - [Account Email Activation](#account-email-activation)
 - [Event Notification System](#event-notification-system)
@@ -52,7 +55,7 @@ PROJECT_HISTORY.md  = project 重要階段發生過咩事
 大 tag 用嚟分 project area，例如：
 
 - 待 Fix Bug
-- Vocab Future Work
+- Vocab Planned Work
 - VocabRequest Result / UserVocab Flow
 - Account Email Activation
 - Event Notification System
@@ -77,6 +80,18 @@ WORKING
 TODO
 ```
 
+`TODO.md` 頂部 status legend 應該同步顯示目前每種 status 嘅 item 數量，方便一眼睇到 project tracking 狀態。
+
+例子：
+
+```md
+- <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（50）：核心功能已完成，或已有明確 decision
+- <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（4）：已開始處理，但仍有必要項目未完成
+- <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
+```
+
+計數時只計 sub tag heading badge，唔計頂部 legend 自己。
+
 建議寫法：
 
 ```md
@@ -100,9 +115,10 @@ TODO
 
 ### Status 判斷規則
 
-- 有 `已完成`，而且無 `未完成`，只剩 `改良` / `擴展預想`：用 `DONE`。
+- 有 `已完成`，而且無 `未完成`，只剩 `改良`：用 `DONE`。
 - 有 `已完成`，同時仲有 `未完成`：用 `WORKING`。
 - 只有 `未完成`，未有實質完成內容：用 `TODO`。
+- 如果只係將來可能加嘅功能，放入 `FUTURE_IDEAS.md`，唔影響 `TODO.md` 狀態。
 
 例子：
 
@@ -128,12 +144,6 @@ TODO    = 未開始，或暫時只係計劃
 - 呢個 sub tag 要真正完成前仍然必須處理嘅事項。
 
 
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 將來可行、適合目前學習程度或 project 方向嘅擴展功能。
-- 不影響目前核心完成度。
-
-
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - 核心已完成，但之後可以寫得更好、更穩、更清楚或更好維護嘅地方。
@@ -142,13 +152,13 @@ TODO    = 未開始，或暫時只係計劃
 如果某個 section 無內容，可以省略。  
 例如一個完成度高嘅 sub tag 可以只有 `已完成` 同 `改良`。
 
-## 未完成 vs 改良 vs 擴展預想
+## 未完成 vs 改良 vs Future Idea
 
 三者要分清楚：
 
 - `未完成`：會影響該 feature / flow 是否真正完成。
 - `改良`：已經 work，但之後可以優化。
-- `擴展預想`：唔係目前 scope，只係將來可能加。
+- `Future Idea`：唔係目前 scope，只係將來可能加；應放入 `FUTURE_IDEAS.md`。
 
 例子：
 
@@ -166,12 +176,40 @@ TODO    = 未開始，或暫時只係計劃
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - 將來如資料量變大，可以再優化 query performance。
-
-
-<p style="margin-left:1.5em;"><strong>擴展預想</strong></p>
-
-- 之後可以加入 event importance level 或 target user group。
 ```
+
+如果想記「之後可以加入 event importance level 或 target user group」，應放入 `FUTURE_IDEAS.md`，唔放喺呢個 DONE task 入面。
+
+## FUTURE_IDEAS.md 格式
+
+`FUTURE_IDEAS.md` 用嚟保存未承諾 idea。  
+佢嘅作用係保留靈感，但唔製造 TODO 壓力。
+
+建議結構：
+
+```md
+# Future Ideas
+
+呢份文件用嚟記低「將來可能做，但目前未承諾 / 未納入開發 scope」嘅想法。
+當某個 idea 真正開始進入近期開發，先搬返去 `TODO.md`，改成 `TODO` 或 `WORKING`。
+
+## 目錄
+
+- [Quiz](#quiz)
+- [Event Notification](#event-notification)
+
+## Quiz
+
+- 正式加入 katakana answer flow。
+- 正式加入 multiple choice question / answer flow。
+```
+
+規則：
+
+- 只記未承諾 idea，唔記目前正在做嘅 task。
+- 當 idea 開始實作，就從 `FUTURE_IDEAS.md` 搬返 `TODO.md`。
+- `FUTURE_IDEAS.md` 唔需要 `DONE / WORKING / TODO` badge。
+- 如果 future idea 已經影響目前現有 flow，就唔應繼續停喺 future ideas，要移入 `TODO.md` 當 bug / risk / unfinished task。
 
 ## Bug Fix 編號
 
@@ -401,4 +439,5 @@ Status: 一句講清楚呢個階段完成咗咩，或者目前狀態係咩。
 
 如果一件事只係「幫自己理解」，放 `LEARNING_POINTS.md`。  
 如果一件事係「project 仲要做 / 已做」，放 `TODO.md`。  
+如果一件事只係「將來可能做，但目前唔承諾」，放 `FUTURE_IDEAS.md`。  
 如果一件事係「project 重要階段 / 技術決策」，放 `PROJECT_HISTORY.md`。
