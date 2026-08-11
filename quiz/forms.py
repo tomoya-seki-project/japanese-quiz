@@ -1,5 +1,7 @@
 from django import forms
 
+from django.core.exceptions import ValidationError
+
 from dictionary.models import (
     VocabType,
     VocabLevel,

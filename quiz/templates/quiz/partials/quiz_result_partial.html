@@ -29,8 +29,12 @@ Wrong
     {% endif %}
 {% endif %}
 
-
-
-{% for item in compare_result.result %}
-    {{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }}
+{% load static %}
+<div class="compared-answer-result">
+{% for result_image in compared_result %}
+    <img src="{% static result_image.image_path %}" style="width:100px;height:100px;object-fit:contain;">
+{% endfor %}
+</div>
+{% for item in compared_result %}
+    <div>{{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }}</div>
 {% endfor %}

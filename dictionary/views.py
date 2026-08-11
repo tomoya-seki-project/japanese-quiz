@@ -102,6 +102,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
         if not hasattr(self, "_target_vocab"):
             self._target_vocab = get_object_or_404(
                 Vocab,
+                is_active=True,
                 pk = self.kwargs["vocab_id"]
             )
         return self._target_vocab
@@ -153,6 +154,7 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         if not hasattr(self, "_target_vocab"):
             self._target_vocab = get_object_or_404(
                 Vocab,
+                is_active=True,
                 pk = self.kwargs["vocab_id"]
             )
         return self._target_vocab
@@ -178,6 +180,9 @@ class VocabDetailView(DetailView):
     model = Vocab
     template_name = "dictionary/vocab_detail.html"
     context_object_name = "vocab"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_active=True)
 
     # def get_context_data(self, **kwargs):
     #     context = super().get_context_data(**kwargs)
@@ -297,7 +302,7 @@ class UserVocabListView(LoginRequiredMixin, ListView):
         qs = super().get_queryset()
 
         if self.request.user.is_authenticated:
-            qs = UserVocab.objects.filter(user=self.request.user).select_related("vocab")
+            qs = UserVocab.objects.filter(user=self.request.user, vocab__is_active=True).select_related("vocab")
         form = UserVocabSearchForm(self.request.GET)
 
         if form.is_valid():
@@ -331,6 +336,9 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
     model = UserVocab
     template_name = "dictionary/user_vocab_detail.html"
     context_object_name = "user_vocab"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user, vocab__is_active=True)
 
 class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
     template_name = "dictionary/select_vocab.html"

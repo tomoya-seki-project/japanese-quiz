@@ -6,7 +6,7 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（50）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（54）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（5）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
 
@@ -255,6 +255,36 @@ Status badge：
 - 檢查 `original_vocab` 狀態是否符合 request type。
 - 如果資料異常，要停止 approve 並回傳清楚 error result。
 
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 21 點（UserVocab / Quiz Pool）：避免 inactive vocab 進入 quiz 出題範圍**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `UserVocabService.get_new_vocab()` 已只 sync `is_active=True` vocab。
+- `QuizService.create_question_pool()` 已加入 `vocab__is_active=True`，避免 inactive vocab 進入 quiz pool。
+- `QuizSettingView.get()` 入面檢查 active vocab 數量時，已同樣使用 `vocab__is_active=True`。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 22 點（Vocab URL Boundary）：inactive vocab detail / update / delete 直入 URL 處理**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `VocabDetailView.get_queryset()` 已限制 `is_active=True`。
+- `VocabUpdateRequestView.target_vocab` 已用 `get_object_or_404(..., is_active=True)`。
+- `VocabDeleteRequestView.target_vocab` 已用 `get_object_or_404(..., is_active=True)`。
+- Inactive vocab 直入 detail / update / delete URL 會走 404，restore request flow 保持分開。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 23 點（UserVocab Detail Permission）：`UserVocabDetailView` object ownership guard**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `UserVocabDetailView.get_queryset()` 已限制 `user=self.request.user`。
+- `UserVocabDetailView.get_queryset()` 已加入 `vocab__is_active=True`，避免 inactive vocab detail 被普通 user 查看。
+
 ## Vocab Planned Work
 
 
@@ -449,6 +479,7 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - 如資料量變大，可以再優化 query 數量同 summary generation performance。
+- 如 login / profile 兩個 request 同時觸發 `gen_vocab_sync_event()`，可能讀到同一個 `last_vocab_sync_at` 並建立重複 summary event；之後可考慮 profile row lock 或 event window idempotency。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Notification read / history**
@@ -566,6 +597,15 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - Filter fallback / no active vocab warning message 之後可再配合 template 顯示得更清楚。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz setting use-last-setting guard**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 如果 user 第一次進入 quiz setting 就勾選 `use_last_setting`，但 session 入面未有 `quiz_settings`，會回到 invalid form。
+- `QuizSettingView.form_valid()` 已檢查 previous settings 是否存在；不存在時會加 `use_last_setting` field error。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz view routing and result flow**
@@ -699,20 +739,24 @@ Status badge：
 - `kana_graphic_map.json` 已生成初版，用嚟由 kana + compare type / subtype 查對應 image path 同 `font_width`。
 - `QuizService.gen_answer_image()` 已建立初版，將 compare result 轉成 answer graphic data。
 - `QuizSubmitAnswerView` 已開始將 `compare_result` 傳入 `quiz_result_partial.html`。
+- `QuizSubmitAnswerView` 已將 `gen_answer_image()` 產生嘅 graphic data 傳入 `quiz_result_partial.html`。
+- `quiz_result_partial.html` 已可 render answer compare 圖片，初版能顯示錯位 kana 圖。
+- Font image 已 copy 到 `static/rec/font/...`，`kana_graphic_map.json` 已改用 template static 可讀嘅 path。
+- Compare logic 已加入 `non_normal_wrong_count` tie-break；當 cost 同 `match_count` 一樣時，會優先保留能產生 `DAKUTEN` / `HANDAKUTEN` / `SMALL_KANA` subtype 嘅 route。
+- 已處理 correct `そうぞう`、answer `そそく` 呢類 case，讓結果偏向 `MISSING う`、`WRONG ぞ/そ DAKUTEN`、`WRONG う/く NORMAL`。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 喺 `quiz_result_partial.html` 顯示 user answer 同 correct answer 差異，幫 user 睇清楚錯喺邊個 kana / 位置。
-- 將 `gen_answer_image()` 正式接入 `QuizSubmitAnswerView` context。
-- 用 `answer_graphic` 喺 result partial render 圖片版 compare result。
-- 確認 image path 是否需要由 `assets/export/...` 搬去 Django static path，或者加 path conversion。
+- `compare_answer_subtype.json` 目前包含 `ぁ`、`ぃ`、`ぅ`、`ぇ`、`ぉ`、`ゎ`、`ヴ`、`ヵ`、`ヮ`，但現有 static image / `kana_graphic_map.json` 未有對應圖。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - 之後可以為 `MISSING` 生成專用 `_missing_red` 圖：黑字配紅色 underline，表示正確答案有呢隻 kana 但 user 漏咗。
 - 之後可以為 `EXTRA` 生成專用 `_extra_red` 圖：黑字配紅色 crossout，表示 user 多輸入咗呢隻 kana。
+- `gen_answer_image()` 之後可以加入 fallback image / fallback text，避免 mapping 漏項時 render 出 broken image path。
+- `answer_compare()` 目前用 recursive branch 搜尋；短 kana 答案可以接受，如果將來支援較長 answer，可考慮 memoization / DP。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz session summary tracking**

@@ -6,7 +6,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation 同初步 quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation 同 Ajax quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -56,8 +56,11 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Filter 無題時會 fallback 到 user full active vocab pool，並保留 `fallback_used` state。
 - Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
 - Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
-- Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 之後計算 weight 用。
+- Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。
 - Skip question flow 已建立，會增加 skipped vocab weight、更新 streak 同 `last_quiz_at`。
+- Quiz result 已可顯示 kana-by-kana answer comparison visual feedback，支援 match、wrong、missing 同 extra kana 顯示。
+- Answer comparison 會判斷 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA` wrong subtype，並用 static kana image assets 顯示初版錯位圖。
+- Quiz summary flow 已可統計答題數、正確數、錯誤數、skip 數同 tips 使用量。
 
 ### Events
 
@@ -67,7 +70,6 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 ## Planned Features
 
-- 根據 answer、tips used 同 streak 更新 vocab weight。
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
 - Multiple choice quiz answer flow。
 - Katakana quiz answer checking。

@@ -1194,3 +1194,47 @@ Status: Quiz visual asset pipeline now has source files, exported kana images an
 - `Path(__file__).resolve()` 比相對路徑更適合 CLI tools，因為 script 可以由不同 working directory 執行。
 - 字體 fallback 要實際打開 preview 驗證，command 成功輸出唔代表圖像內容一定正確。
 - JSON config 適合保存 machine-readable values；人類解釋同調整指引應放喺 README。
+
+## 2026-08-11 - Kana answer comparison visual feedback
+
+Commit: `a8af3c5`
+
+Status: Quiz result page can now render kana-by-kana answer comparison feedback using generated image mapping data
+
+### 主要改動
+
+- 建立 `QuizService.answer_compare()`，將 correct answer 同 user answer 拆成 `MATCH`、`WRONG`、`MISSING`、`EXTRA` result。
+- Answer compare 已支援長度不同嘅答案，包括 user 漏字同多字。
+- 加入 `match_count` tie-break，讓 diff result 優先保留更多位置上仍然對得返嘅 kana。
+- 加入 `non_normal_wrong_count` tie-break，當 cost 同 match count 相同時，優先保留 `DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA` 等更有教學意義嘅 wrong subtype。
+- 建立 `compare_answer_subtype.json`，用 data map 判斷 kana pair 屬於 `NORMAL`、`DAKUTEN`、`HANDAKUTEN` 或 `SMALL_KANA`。
+- 建立 `kana_graphic_map.json`，將 kana、compare type 同 subtype 對應到 static image path 同 font width。
+- 將 exported kana font images copy 到 `static/rec/font/...`，讓 template 可以透過 Django static path 顯示。
+- `QuizSubmitAnswerView` 開始產生 compare result graphic data，並傳入 `quiz_result_partial.html`。
+- `quiz_result_partial.html` 已可 render 初版錯位 kana 圖。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次集中於 quiz answer comparison service、JSON config data、static image mapping 同 result partial rendering。
+
+### 技術重點
+
+- Answer diff 唔只係計最低 edit cost；同分時要再用 domain-specific signal 決定邊條 route 更適合教學顯示。
+- `NORMAL` wrong 同 `DAKUTEN` / `HANDAKUTEN` / `SMALL_KANA` wrong 對 user feedback 價值唔同，因此需要額外 tie-break 權重。
+- Compare subtype 判斷同 image selection 應分開：前者係 answer logic，後者係 presentation mapping。
+- JSON mapping 適合保存大量固定 kana data，但 service 讀取時要有 fallback，避免未知 pair 直接變成 exception。
+- Template 顯示 static image 時，JSON 應保存 static-relative path，例如 `rec/font/...`，再由 `{% static %}` 轉成實際 URL。
+
+### 理由
+
+- User 答錯時只顯示 correct / wrong 唔足夠；逐 kana 顯示錯位能更清楚指出係漏字、多字、濁音錯、半濁音錯，定係普通錯字。
+- 使用 image feedback 可以延續 quiz 內自訂 kana keyboard 同 visual asset pipeline，令答題結果更直觀。
+- 先用 `_red` 圖完成初版 flow，再將 missing underline / extra crossout 放入改良，可以避免 visual polish 阻住核心 logic。
+
+### 學到咩
+
+- Recursive diff algorithm 要先處理 base case，再進入 index access，否則長短答案會造成 out-of-range error。
+- Python `min(..., key=lambda result: (...))` 可以用 tuple 做多層 tie-break，例如 cost、match count、non-normal subtype count。
+- 字串比較應用 `!=`，唔應用 `is not`；後者係 object identity comparison。
+- 一份 config file 最好只負責一種責任：`compare_answer_subtype.json` 判斷錯誤類型，`kana_graphic_map.json` 判斷顯示圖片。

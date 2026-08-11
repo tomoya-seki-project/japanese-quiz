@@ -17,7 +17,7 @@ KANA_GRAPHIC_MAP = load_json(path="quiz/config/kana_graphic_map.json")
 class QuizService():
     @staticmethod
     def create_question_pool(*, user, vocab_type=None, level=None, categories=None):
-        full_qs = UserVocab.objects.filter(user=user, in_use=True).select_related("vocab").distinct()
+        full_qs = UserVocab.objects.filter(user=user, in_use=True, vocab__is_active=True).select_related("vocab").distinct()
 
         filtered_qs = full_qs
 
@@ -223,12 +223,14 @@ class QuizService():
             return {
                 "cost": 0,
                 "match_count": 0,
+                "non_normal_wrong_count": 0,
                 "result": [],
             }
         if pos_of_correct >= len(correct_answer):
             return {
                 "cost": len(user_answer) - pos_of_user,
                 "match_count": 0,
+                "non_normal_wrong_count": 0,
                 "result": [
                     {
                         "type": "EXTRA",
@@ -243,6 +245,7 @@ class QuizService():
             return {
                 "cost": len(correct_answer) - pos_of_correct,
                 "match_count": 0,
+                "non_normal_wrong_count": 0,
                 "result": [
                     {
                         "type": "MISSING",
@@ -263,6 +266,7 @@ class QuizService():
             return {
                 "cost": next_compare_result["cost"],
                 "match_count": 1 + next_compare_result["match_count"],
+                "non_normal_wrong_count": next_compare_result["non_normal_wrong_count"],
                 "result": [
                     {
                         "type": "MATCH",
@@ -278,16 +282,18 @@ class QuizService():
             pos_of_correct=pos_of_correct+1,
             pos_of_user=pos_of_user+1,
         )
+        sub_type = QuizService.define_wrong_sub_type(
+                        correct_letter=correct_answer[pos_of_correct],
+                        user_letter=user_answer[pos_of_user]
+                    )
         wrong = {
             "cost": 1 + wrong_next["cost"],
             "match_count": wrong_next["match_count"],
+            "non_normal_wrong_count": wrong_next["non_normal_wrong_count"] + (1 if sub_type != "NORMAL" else 0),
             "result": [
                 {
                     "type": "WRONG",
-                    "sub_type": QuizService.define_wrong_sub_type(
-                                                correct_letter=correct_answer[pos_of_correct],
-                                                user_letter=user_answer[pos_of_user]
-                                            ),
+                    "sub_type": sub_type,
                     "correct": correct_answer[pos_of_correct],
                     "answer": user_answer[pos_of_user],
                 },
@@ -303,6 +309,7 @@ class QuizService():
         missing = {
             "cost": 1 + missing_next["cost"],
             "match_count": missing_next["match_count"],
+            "non_normal_wrong_count": missing_next["non_normal_wrong_count"],
             "result": [
                 {
                     "type": "MISSING",
@@ -322,6 +329,7 @@ class QuizService():
         extra = {
             "cost": 1 + extra_next["cost"],
             "match_count": extra_next["match_count"],
+            "non_normal_wrong_count": extra_next["non_normal_wrong_count"],
             "result": [
                 {
                     "type": "EXTRA",
@@ -332,4 +340,13 @@ class QuizService():
             ] + extra_next["result"],
         }
 
-        return min(wrong, missing, extra, key=lambda result: (result["cost"], -result["match_count"]))
+        return min(
+                wrong, 
+                missing, 
+                extra, 
+                key=lambda result: (
+                    result["cost"], 
+                    -result["match_count"],
+                    -result["non_normal_wrong_count"],
+                )
+            )

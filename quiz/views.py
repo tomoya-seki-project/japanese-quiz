@@ -71,7 +71,7 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             if last_aims_quiz_num > 0 and last_aims_quiz_num <= last_quizzed_count:
                 self.request.session.pop("quiz_session", None)
 
-        in_use_count = UserVocab.objects.filter(user=request.user, in_use=True).count()
+        in_use_count = UserVocab.objects.filter(user=request.user, in_use=True, vocab__is_active=True).count()
 
         min_count = QUIZ_CONFIG["pool"]["min_in_use"]
         if in_use_count < min_count:
@@ -89,6 +89,9 @@ class QuizSettingView(LoginRequiredMixin, FormView):
         categories = list(form.cleaned_data["categories"].values_list("id", flat=True))
         if form.cleaned_data["use_last_setting"] == True:
             quiz_settings = self.request.session.get("quiz_settings")
+            if quiz_settings is None:
+                form.add_error("use_last_setting", "No previous quiz settings were found.")
+                return self.form_invalid(form)
             quiz_num=quiz_settings["quiz_num"]
             level=quiz_settings["level"]
             vocab_type=quiz_settings["vocab_type"]
@@ -187,18 +190,24 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 answer=form.cleaned_data.get("answer"),
                 tips_count=form.cleaned_data.get("tips_count"),
             )
+        
+        if question_vocab.vocab.type == VocabType.VOCAB or question_vocab.vocab.type == VocabType.KATAKANA:
+            compared_data = QuizService.compare_kana_answer(
+                                correct_answer=question_vocab.vocab.kana, 
+                                user_answer=form.cleaned_data.get("answer")
+                            )
+            compared_result = QuizService.gen_answer_image(compared_result=compared_data)
+        else:
+            compared_result = None
         main_html = render_to_string(
             "quiz/partials/quiz_result_partial.html",
             context={
                 "current_quiz_num": quiz_session["quizzed_count"],
                 "total_quiz_num": quiz_session["aims_quiz_num"],
-                "question_vocab":question_vocab,
-                "fallback_used":fallback_used,
-                "is_correct":is_correct,
-                "compare_result": QuizService.compare_kana_answer(
-                                        correct_answer=question_vocab.vocab.kana, 
-                                        user_answer=form.cleaned_data.get("answer")
-                                    )
+                "question_vocab": question_vocab,
+                "fallback_used": fallback_used,
+                "is_correct": is_correct,
+                "compared_result": compared_result,
             },
             request=self.request,
         )
