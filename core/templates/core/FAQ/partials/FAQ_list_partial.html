@@ -1,0 +1,41 @@
+<table>
+    <thead>
+        <tr>
+            <th>user</th>
+            <th>Type</th>
+            <th>context</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for FAQ in FAQs %}
+        <tr>
+            <td>{{ FAQ.user }}</td>
+            <td>{{ FAQ.type }}</td>
+            <td>{{ FAQ.context }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if is_paginated %}
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+    {% else %}
+        Prev
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            {{ num }}
+        {% else %}
+            <a href="?page={{ num }}" class="page-change">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+    {% else %}
+        Next
+    {% endif %}
+</div>
+{% endif %}

@@ -7,8 +7,8 @@
 Status badge：
 
 -  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（54）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（5）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（7）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（7）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -411,6 +411,25 @@ Status badge：
 - 如將來 user 需要大量管理 `in_use`，可以再改善 filtering / bulk action UI。
 
 
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **UserVocab detail single-item management**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `UserVocabDetailView` 已有 ownership guard，限制目前 user 只能查看自己嘅 active user vocab。
+- 已決定 `UserVocabDetail` 會分開顯示「My Vocab / quiz 狀態」同「Vocab master data」兩部分。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- 將 `UserVocabDetailView` 正式接入 URL 同 list item link。
+- Detail page 加單字 `in_use` update form，用嚟控制該 vocab 是否加入自己嘅 quiz pool。
+- Detail page 上半部顯示 user-specific data，例如 `in_use`、weight、streak、correct / incorrect count、last quiz、last answer。
+- Detail page 下半部顯示 vocab master data，例如 word、kana、meaning、level、categories、type。
+- 在 vocab master data 區域加入 request update / request removal entry。
+- Button wording 要避免令 user 誤會「request removal」只係從自己 list 移除；真正自己唔想考應使用 `in_use=False`。
+
+
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab selection page scope decision**
 
 
@@ -562,16 +581,28 @@ Status badge：
 ## User Message to Admin
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **User-to-admin message flow**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **User-to-admin message flow**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已建立初版 message model / form / create view / list view / detail view 骨架。
+- User 可以由前台提交 message 內容。
+- Admin 可以進入 message list / detail 初步查看 user 提交內容。
+- Create view 已有 `success_url`，submit 後可返回正常頁面。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 俾一般 user 用普通 message 發一批想加入嘅 vocab 俾 admin。
-- Message 唔需要 user 填 reading、meaning、type、category。
-- Admin 可以喺後台睇 user message。
+- 將目前 `FAQ` 命名整理成更符合用途嘅名稱，例如 `UserMessage`。
+- 支援 anonymous user submit：`user` 需要可為空，或者加入 contact email / contact name 等欄位。
+- Message form 內容長度要配合用途；如果會用嚟提交大量 vocab suggestion，`context` 唔應該限制得太短。
+- Admin list / detail 權限應改用 `UserPassesTestMixin`、`staff_member_required` 或 `dispatch()` 統一處理，而唔只係喺 `get()` 入面判斷。
 - Message 可以有 `UNREAD`、`READ`、`PROCESSING`、`DONE` 等狀態。
-- Admin 整理資料後可建立 CSV，再用 `import_vocab` 加入 database。
+- Reply form 如正式使用，要改成真正 form field，例如 `forms.CharField(widget=forms.Textarea)`。
+- `reply_at` / `reply_by` 改成 nullable 後，需要建立並套用 migration。
+- `reply_by` 如果想保留回覆紀錄，之後應考慮由 `CASCADE` 改成 `SET_NULL`。
+- Admin 整理 vocab suggestion 後可建立 CSV，再用 `import_vocab` 加入 database。
 - 處理完成後經 event system 通知 user。
 
 ## Quiz Question Logic
@@ -744,19 +775,23 @@ Status badge：
 - Font image 已 copy 到 `static/rec/font/...`，`kana_graphic_map.json` 已改用 template static 可讀嘅 path。
 - Compare logic 已加入 `non_normal_wrong_count` tie-break；當 cost 同 `match_count` 一樣時，會優先保留能產生 `DAKUTEN` / `HANDAKUTEN` / `SMALL_KANA` subtype 嘅 route。
 - 已處理 correct `そうぞう`、answer `そそく` 呢類 case，讓結果偏向 `MISSING う`、`WRONG ぞ/そ DAKUTEN`、`WRONG う/く NORMAL`。
+- 已補齊 `ぁ`、`ぃ`、`ぅ`、`ぇ`、`ぉ`、`ゎ`、`ヴ`、`ヵ`、`ヮ` 嘅 static kana images 同 `kana_graphic_map.json` mapping。
+- `kana_graphic_map.json` 已加入 `sub_image_path`，支援主 kana 圖加共用 overlay mark 嘅設計。
+- `MISSING` / `EXTRA` mapping 已改用正常黑字 kana 圖作主圖，再用 `missing_mark_big/small` 或 `extra_mark_big/small` 作 overlay。
+- `QuizService.gen_answer_image()` 已將 `sub_image_path` 傳入 result graphic data。
+- `quiz_result_partial.html` 已初步 render `sub_image_path`，missing / extra mark 圖已可由 template 讀到。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- `compare_answer_subtype.json` 目前包含 `ぁ`、`ぃ`、`ぅ`、`ぇ`、`ぉ`、`ゎ`、`ヴ`、`ヵ`、`ヮ`，但現有 static image / `kana_graphic_map.json` 未有對應圖。
+- `quiz_result_partial.html` 未正式將 `image_path` 同 `sub_image_path` 疊圖顯示；目前只係順序 render 兩張圖。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 之後可以為 `MISSING` 生成專用 `_missing_red` 圖：黑字配紅色 underline，表示正確答案有呢隻 kana 但 user 漏咗。
-- 之後可以為 `EXTRA` 生成專用 `_extra_red` 圖：黑字配紅色 crossout，表示 user 多輸入咗呢隻 kana。
 - `gen_answer_image()` 之後可以加入 fallback image / fallback text，避免 mapping 漏項時 render 出 broken image path。
 - `answer_compare()` 目前用 recursive branch 搜尋；短 kana 答案可以接受，如果將來支援較長 answer，可考慮 memoization / DP。
+- 之後 UI polish 時，將 missing / extra mark 改成 CSS overlay，令 mark 圖疊喺 kana 主圖上，而唔係另佔一個位置。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz session summary tracking**

@@ -3,11 +3,17 @@ from django.conf import settings
 from datetime import date, datetime
 
 class EventType(models.TextChoices):
-    VOCAB_REQUEST_RESULT = "vocab_request_result","Vocab Request Result"
-    NEW_VOCAB_REQUEST = "new_vocab_request","New Vocab Request Result"
-    VOCAB = "vocab","Vocab"
-    WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system","Weight Update by System"
+    VOCAB_REQUEST_RESULT = "vocab_request_result", "Vocab Request Result"
+    NEW_VOCAB_REQUEST = "new_vocab_request", "New Vocab Request Result"
+    VOCAB = "vocab", "Vocab"
+    WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system", "Weight Update by System"
+    FAQ_REPLY = "FAQ_reply", "FAQ Reply"
 
+class FAQType(models.TextChoices):
+    DICTIONARY_RELATED = "dictionary_related", "Dictionary Related"
+    QUIZ_RELATED = "quiz_related", "Quiz Related"
+    ACCOUNT_RELATED = "account_related", "Account Related"
+    OTHERS = "others", "Others"
 
 class TimeStampedModel(models.Model):
     create_at = models.DateTimeField(auto_now_add=True)
@@ -58,5 +64,34 @@ class UserEvent(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'event'],
                 name='user_event_unique',
+            )
+        ]
+
+class FAQ(TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='FAQs'
+    )
+    type = models.CharField(
+        max_length=50,
+        choices=FAQType.choices
+    )
+    context = models.TextField()
+
+    reply_at = models.DateTimeField(blank=True, null=True)
+    reply_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        blank=True, null=True,
+        related_name='Replied_FAQs'
+    )
+
+    class Meta:
+        db_table = 'FAQ'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'type', 'context'],
+                name='FAQ_unique',
             )
         ]

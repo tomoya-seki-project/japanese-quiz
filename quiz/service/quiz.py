@@ -171,6 +171,7 @@ class QuizService():
                         "correct": letter_result["correct"],
                         "answer": letter_result["answer"],
                         "image_path": subtype_config.get("image_path"),
+                        "sub_image_path": subtype_config.get("sub_image_path", ""),
                         "font_width": subtype_config.get("font_width", 500)
                     }
                 )
@@ -185,6 +186,7 @@ class QuizService():
                         "correct": letter_result["correct"],
                         "answer": letter_result["answer"],
                         "image_path": type_config.get("image_path"),
+                        "sub_image_path": type_config.get("sub_image_path", ""),
                         "font_width": type_config.get("font_width", 500)
                     }
                 )
@@ -198,6 +200,7 @@ class QuizService():
                         "correct": letter_result["correct"],
                         "answer": letter_result["answer"],
                         "image_path": type_config.get("image_path"),
+                        "sub_image_path": type_config.get("sub_image_path", ""),
                         "font_width": type_config.get("font_width", 500)
                     }
                 )

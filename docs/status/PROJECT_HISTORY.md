@@ -1238,3 +1238,45 @@ Status: Quiz result page can now render kana-by-kana answer comparison feedback 
 - Python `min(..., key=lambda result: (...))` 可以用 tuple 做多層 tie-break，例如 cost、match count、non-normal subtype count。
 - 字串比較應用 `!=`，唔應用 `is not`；後者係 object identity comparison。
 - 一份 config file 最好只負責一種責任：`compare_answer_subtype.json` 判斷錯誤類型，`kana_graphic_map.json` 判斷顯示圖片。
+
+## 2026-08-11 - Active vocab safeguards and web image resizing helper
+
+Commit: `f41fe5d`
+
+Status: Dictionary / quiz boundary checks are tightened, and the kana visual asset workflow now has a web-size PNG resize helper
+
+### 主要改動
+
+- 全面 review dictionary、event、quiz 三個角度，重新確認已完成 flow 同仍需追蹤嘅 TODO。
+- `UserVocabService.get_new_vocab()` 已只 sync active vocab，避免新 user / login sync 時加入 inactive vocab。
+- Quiz question pool 已限制 `vocab__is_active=True`，避免 inactive vocab 被抽中出題。
+- Quiz setting active vocab count 已同樣以 active vocab 為基準，避免 setting page 放行但 play page 無題。
+- Vocab detail、update request、delete request 已收窄到 active vocab；inactive vocab 直入 URL 會交由 404 處理。
+- `UserVocabDetailView` 已加入 ownership guard，限制只能查看目前 user 自己嘅 active user vocab。
+- `use_last_setting` 已加入 previous settings guard，避免第一次使用時讀取不存在嘅 session data。
+- 新增 `devtools/image_generator/resize_kana_font_png.py`，用 Pillow 將 exported kana PNG resize 成 web 用尺寸。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次集中於 queryset boundary、quiz session guard、TODO tracking 同 development asset tooling。
+
+### 技術重點
+
+- DetailView 入面嘅 access boundary 應優先用 `get_queryset()` 收窄 object scope；object 不存在或不符合條件時，交由 Django 回 404。
+- `get_queryset()` 應只負責回 QuerySet；redirect 應放喺 view action level，例如 `get()`，而唔係喺 queryset building 入面。
+- Active vocab policy 要喺多個入口一致處理：sync、list、detail、request action、quiz setting count 同 quiz pool。
+- Development helper 可以保留原始 500x500 PNG 喺 `assets/export/`，再輸出 150x150 web PNG 到 `static/rec/`，減少頁面載入時嘅 image decode 成本。
+
+### 理由
+
+- Inactive vocab 如果只係 list 隱藏，但 detail、request URL 或 quiz pool 仍可碰到，會令 soft delete policy 變得唔一致。
+- UserVocab detail 即使暫時未正式接 URL，都應先建立 ownership guard，避免之後接入時出現 pk guessing 問題。
+- Quiz result partial 會一次 render 多張 kana 圖；先用 web-size PNG 比立即轉 SVG 更穩定，亦避免 PNG trace SVG 造成碎 path 同更大檔案。
+
+### 學到咩
+
+- Empty QuerySet 不是 `None`；DetailView 搵唔到 object 時會自然 404。
+- `vocab__is_active=True` 呢類 double-underscore lookup 可以跨 ForeignKey filter related model fields。
+- 由 PNG 轉 SVG 不是單純 resize，而是 vector tracing；如果 source 本身不是 vector，輸出可能比小尺寸 PNG 更複雜。
+- Pillow 適合做 bitmap resize / optimize，但不適合將 PNG 轉成真正乾淨嘅 SVG。

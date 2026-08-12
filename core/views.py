@@ -5,12 +5,12 @@ from django.utils import timezone
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 
-from django.views.generic import ListView
+from django.views.generic import ListView, FormView
 from django.views.generic.detail import DetailView
 
-from .forms import UserEventIsReadedUpdateForm
+from .forms import UserEventIsReadedUpdateForm, FAQCreateForm
 
-from .models import Event, UserEvent
+from .models import Event, UserEvent, FAQ, FAQType
 
 from .service.event import EventService
 
@@ -65,3 +65,49 @@ class UserEventDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return UserEvent.objects.filter(user=self.request.user).select_related('event')
+
+class FAQCreateView(FormView):
+    template_name = "core/FAQ/FAQ_create.html"
+    form_class = FAQCreateForm
+    success_url = reverse_lazy("HomePage")
+
+    def form_valid(self, form):
+        FAQ_TYPE = form.cleaned_data["FAQ_TYPE"]
+        context = form.cleaned_data["context"]
+        user_FAQ, created = FAQ.objects.get_or_create(
+            user=self.request.user,
+            type=FAQ_TYPE,
+            context=context,
+        )
+        return super().form_valid(form)
+
+class FAQListView(LoginRequiredMixin, ListView):
+    template_name = "core/FAQ/FAQ_list.html"
+    model = FAQ
+    context_object_name = "FAQs"
+    paginate_by = 10
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_superuser == False:
+            return redirect("HomePage")
+        return super().get(request, *args, **kwargs)
+
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return render(self.request, 'core/FAQ/partials/FAQ_list_partial.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
+
+class FAQDetailView(LoginRequiredMixin, DetailView):
+    template_name = "core/FAQ/FAQ_detail.html"
+    model = FAQ
+    context_object_name = "FAQ"
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_superuser == False:
+            return redirect("HomePage")
+        return super().get(request, *args, **kwargs)
+        
+
