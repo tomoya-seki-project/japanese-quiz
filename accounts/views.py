@@ -24,7 +24,7 @@ from .forms import (
 from dictionary.service.user_vocab_action import UserVocabService
 from core.service.event import EventService
 
-class HomeView(TemplateView):
+class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_home.html'
 
 class RegistUserView(CreateView):

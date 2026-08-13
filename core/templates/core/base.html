@@ -17,10 +17,8 @@
                 <a class="navbar-brand" href="{% url "accounts:user_login" %}">login</a>
             {% endif %}
             <a class="navbar-brand" href="{% url "dictionary:vocab_home" %}">vocab</a>
-            {% if user.is_authenticated and user.is_superuser%}
-                <a class="navbar-brand" href="{% url "core:FAQ_list" %}">FAQ List</a>
-            {% else %}
-                <a class="navbar-brand" href="{% url "core:FAQ_create" %}">FAQ</a>
+            {% if user.is_authenticated %}
+                <a class="navbar-brand" href="{% url "core:feedback" %}">feedback</a>
             {% endif %}
         </nav>
         {% block messages %}

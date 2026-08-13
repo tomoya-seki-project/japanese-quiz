@@ -4,14 +4,20 @@
             <th>user</th>
             <th>Type</th>
             <th>context</th>
+            <th>check it</th>
         </tr>
     </thead>
     <tbody>
-        {% for FAQ in FAQs %}
+        {% for feedback in feedbacks %}
         <tr>
-            <td>{{ FAQ.user }}</td>
-            <td>{{ FAQ.type }}</td>
-            <td>{{ FAQ.context }}</td>
+            <td>{{ feedback.user }}</td>
+            <td>{{ feedback.type }}</td>
+            <td>{{ feedback.context }}</td>
+            <td>
+                <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
+                    Detail
+                </a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>

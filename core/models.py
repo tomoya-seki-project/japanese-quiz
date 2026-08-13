@@ -7,13 +7,18 @@ class EventType(models.TextChoices):
     NEW_VOCAB_REQUEST = "new_vocab_request", "New Vocab Request Result"
     VOCAB = "vocab", "Vocab"
     WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system", "Weight Update by System"
-    FAQ_REPLY = "FAQ_reply", "FAQ Reply"
+    FEEDBACK_REPLY = "feedback_reply", "Feedback Reply"
 
-class FAQType(models.TextChoices):
-    DICTIONARY_RELATED = "dictionary_related", "Dictionary Related"
-    QUIZ_RELATED = "quiz_related", "Quiz Related"
-    ACCOUNT_RELATED = "account_related", "Account Related"
+class FeedbackType(models.TextChoices):
+    VOCAB_SUGGESTION = "vocab_suggestion", "Vocab Suggestion"
+    BULK_VOCAB_REQUEST = "bulk_vocab_request", "Bulk Vocab Request"
+    BUG_REPORT = "bug_report", "Bug Report"
+    FEATURE_REQUEST = "feature_request", "Feature Request"
     OTHERS = "others", "Others"
+
+class FeedbackStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    REPLIED = "replied", "Replied"
 
 class TimeStampedModel(models.Model):
     create_at = models.DateTimeField(auto_now_add=True)
@@ -67,31 +72,36 @@ class UserEvent(models.Model):
             )
         ]
 
-class FAQ(TimeStampedModel):
+class Feedback(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='FAQs'
+        related_name='feedbacks'
     )
     type = models.CharField(
         max_length=50,
-        choices=FAQType.choices
+        choices=FeedbackType.choices
+    )
+    status = models.CharField(
+        max_length=50,
+        blank=True,null=True,
+        choices=FeedbackStatus.choices
     )
     context = models.TextField()
 
     reply_at = models.DateTimeField(blank=True, null=True)
     reply_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         blank=True, null=True,
-        related_name='Replied_FAQs'
+        related_name='Replied_feedbacks'
     )
 
     class Meta:
-        db_table = 'FAQ'
+        db_table = 'feedback'
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'type', 'context'],
-                name='FAQ_unique',
+                name='Feedback_unique',
             )
         ]

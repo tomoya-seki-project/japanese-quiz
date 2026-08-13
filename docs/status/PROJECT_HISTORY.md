@@ -2,6 +2,50 @@
 
 呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
+## 2026-08-13 - User feedback flow
+
+Commit: 未 commit
+
+Status: Logged-in users can submit feedback, and superusers can review and reply through the site flow
+
+### 主要改動
+
+- 將原本 FAQ 方向整理成 `Feedback` flow，令用途更貼近 user-to-admin message / suggestion / bug report。
+- 建立 feedback 入口 redirect：superuser 會進入 feedback list，普通登入 user 會進入 feedback create。
+- Feedback create flow 已限制為 logged-in user 使用，暫時不開 anonymous public form。
+- Feedback list 加入固定 ordering，避免 paginated queryset 順序不穩。
+- Feedback list 已提供 detail link，admin 可以由 list 進入單一 feedback detail。
+- 建立 feedback reply flow，admin reply 後會更新 feedback 狀態，並建立 event 通知提交者。
+- 已實測 user create、superuser list / detail / reply、feedback status update 同 user event creation。
+
+### Database 改動
+
+- `FAQ` model rename / transition 成 `Feedback` model。
+- Feedback 加入 `FeedbackType`，支援 vocab suggestion、bulk vocab request、bug report、feature request 同 others。
+- Feedback 加入 `FeedbackStatus`，目前使用 `PENDING` 同 `REPLIED` 兩種狀態。
+- Feedback reply metadata 使用 `reply_by` 同 `reply_at` 保存回覆者同回覆時間。
+- Event type 加入 `FEEDBACK_REPLY`，用作 feedback reply notification。
+
+### 技術重點
+
+- 用 `RedirectView.get_redirect_url()` 可以建立只負責 routing decision 嘅入口 view，令 navbar 只需要連去一個 feedback endpoint。
+- `UserPassesTestMixin.test_func()` 只負責回傳權限判斷結果；redirect 行為由 mixin 或 `handle_no_permission()` 處理。
+- `get_object_or_404()` 係 shortcut function，不是 model manager method；要由 `django.shortcuts` import 後直接呼叫。
+- `FormView.form_valid()` 最後需要 success URL；如果無 `success_url` 或 `get_success_url()`，成功 submit 後會出錯。
+- Pagination queryset 應有穩定 ordering，避免同一頁資料順序不穩。
+
+### 理由
+
+- Feedback 主要用途係登入 user 向 admin 提出 vocab suggestion、bug report 或 feature request；綁住 user 可以直接使用 event notification 回覆。
+- 暫時不支援 anonymous feedback，可避免過早處理 spam、contact email、rate limit 同 public form abuse 問題。
+- Feedback status 暫時保留 `PENDING` / `REPLIED`，因為目前 admin handling flow 未複雜到需要更多狀態。
+
+### 學到咩
+
+- 名稱應貼近實際 domain；FAQ 偏向常見問題展示，Feedback 更適合 user-to-admin submission flow。
+- Django system check 未必捉到 view method 內部嘅 runtime error，實際 request flow 測試仍然必要。
+- Migration rename 要小心；model rename 唔應該誤生成 `CreateModel` 去建立已存在嘅 table。
+
 ## 2026-05-20 - Project foundation
 
 Commit: `ad4deee`

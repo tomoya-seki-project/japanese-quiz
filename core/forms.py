@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Event, UserEvent, FAQType, FAQ
+from .models import Event, UserEvent, FeedbackType, Feedback
 
 class UserEventIsReadedUpdateForm(forms.Form):
     selectable_ids = forms.ModelMultipleChoiceField(
@@ -19,9 +19,9 @@ class UserEventIsReadedUpdateForm(forms.Form):
             self.fields["selectable_ids"].queryset = user_event_queryset
             self.fields["selected_ids"].queryset = user_event_queryset
 
-class FAQCreateForm(forms.Form):
-    FAQ_TYPE = forms.ChoiceField(choices=FAQType.choices)
+class FeedbackCreateForm(forms.Form):
+    feedback_type = forms.ChoiceField(choices=FeedbackType.choices)
     context = forms.CharField(max_length=255, widget=forms.Textarea)
 
-class FAQReplyForm(forms.Form):
-    context = forms.Textarea()
+class FeedbackReplyForm(forms.Form):
+    context = forms.CharField(max_length=255, widget=forms.Textarea)

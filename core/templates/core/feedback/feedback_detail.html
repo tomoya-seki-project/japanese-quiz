@@ -1,0 +1,8 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h1>vocab detail</h1>
+{{ feedback.user }}
+{{ feedback.type }}
+{{ feedback.context }}
+<a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
+{% endblock %}

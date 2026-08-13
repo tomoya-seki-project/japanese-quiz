@@ -1,16 +1,19 @@
-from django.shortcuts import render, redirect
-from django.urls import reverse_lazy
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
+
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 
-from django.views.generic import ListView, FormView
+from django.views.generic import ListView, FormView, View
+from django.views.generic.base import RedirectView
 from django.views.generic.detail import DetailView
 
-from .forms import UserEventIsReadedUpdateForm, FAQCreateForm
+from .forms import UserEventIsReadedUpdateForm, FeedbackCreateForm, FeedbackReplyForm
 
-from .models import Event, UserEvent, FAQ, FAQType
+from .models import Event, EventType, UserEvent, Feedback, FeedbackType, FeedbackStatus
 
 from .service.event import EventService
 
@@ -66,48 +69,91 @@ class UserEventDetailView(LoginRequiredMixin, DetailView):
     def get_queryset(self):
         return UserEvent.objects.filter(user=self.request.user).select_related('event')
 
-class FAQCreateView(FormView):
-    template_name = "core/FAQ/FAQ_create.html"
-    form_class = FAQCreateForm
+class FeedbackView(LoginRequiredMixin, RedirectView):
+    url = reverse_lazy("core:feedback_create")
+
+    def get_redirect_url(self, *args, **kwargs):
+        if self.request.user.is_superuser:
+            return reverse("core:feedback_list")
+        return super().get_redirect_url(*args, **kwargs)
+
+class FeedbackCreateView(LoginRequiredMixin, FormView):
+    template_name = "core/feedback/feedback_create.html"
+    form_class = FeedbackCreateForm
     success_url = reverse_lazy("HomePage")
 
     def form_valid(self, form):
-        FAQ_TYPE = form.cleaned_data["FAQ_TYPE"]
+        feedback_type = form.cleaned_data["feedback_type"]
         context = form.cleaned_data["context"]
-        user_FAQ, created = FAQ.objects.get_or_create(
+        user_feedback, created = Feedback.objects.get_or_create(
             user=self.request.user,
-            type=FAQ_TYPE,
+            type=feedback_type,
+            status=FeedbackStatus.PENDING,
             context=context,
         )
         return super().form_valid(form)
 
-class FAQListView(LoginRequiredMixin, ListView):
-    template_name = "core/FAQ/FAQ_list.html"
-    model = FAQ
-    context_object_name = "FAQs"
+class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    template_name = "core/feedback/feedback_list.html"
+    model = Feedback
+    context_object_name = "feedbacks"
+    ordering = ["-create_at"]
     paginate_by = 10
 
-    def get(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser == False:
-            return redirect("HomePage")
-        return super().get(request, *args, **kwargs)
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        return redirect("HomePage")
 
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return render(self.request, 'core/FAQ/partials/FAQ_list_partial.html', context)
+            return render(self.request, 'core/feedback/partials/feedback_list_partial.html', context)
         return super().render_to_response(context, **response_kwargs)
 
 
-class FAQDetailView(LoginRequiredMixin, DetailView):
-    template_name = "core/FAQ/FAQ_detail.html"
-    model = FAQ
-    context_object_name = "FAQ"
+class FeedbackDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    template_name = "core/feedback/feedback_detail.html"
+    model = Feedback
+    context_object_name = "feedback"
 
-    def get(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser == False:
-            return redirect("HomePage")
-        return super().get(request, *args, **kwargs)
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        return redirect("HomePage")
+
+class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+    template_name = "core/feedback/feedback_reply.html"
+    form_class = FeedbackReplyForm
+    success_url = reverse_lazy("HomePage")
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        return redirect("HomePage")
+
+    def form_valid(self, form):
+        context = form.cleaned_data["context"]
+        with transaction.atomic():
+            reply_event = EventService.create_event(
+                event_type=EventType.FEEDBACK_REPLY,
+                event_title="Thank you for your feedback!",
+                event_msg=context
+            )
+            target_feedback = get_object_or_404(Feedback, pk=self.kwargs['feedback_pk'])
+            EventService.assign_event_to_user(
+                user=target_feedback.user,
+                event=reply_event,
+            )    
+            target_feedback.status = FeedbackStatus.REPLIED
+            target_feedback.reply_by = self.request.user
+            target_feedback.reply_at = timezone.now()
+            target_feedback.update_at = timezone.now()
+            target_feedback.save(update_fields=["status", "reply_by", "reply_at", "update_at"])
+        return super().form_valid(form)
+    
+
         
 

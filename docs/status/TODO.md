@@ -6,8 +6,8 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（54）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（7）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（55）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（6）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（7）：未開始或暫時只係計劃
 
 ## 目錄
@@ -581,29 +581,34 @@ Status badge：
 ## User Message to Admin
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **User-to-admin message flow**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **User-to-admin feedback flow**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已建立初版 message model / form / create view / list view / detail view 骨架。
-- User 可以由前台提交 message 內容。
-- Admin 可以進入 message list / detail 初步查看 user 提交內容。
-- Create view 已有 `success_url`，submit 後可返回正常頁面。
+- 已將原本 FAQ 方向整理成 `Feedback` flow。
+- 已建立 `Feedback` model / type / status 基礎。
+- Feedback 暫時採用登入 user 才可提交，不開 anonymous public form。
+- 普通 user 可以由前台提交 feedback。
+- Feedback create 後會以 `PENDING` 作初始狀態。
+- Superuser 進入 feedback 入口會 redirect 到 feedback list。
+- 普通 user 進入 feedback 入口會 redirect 到 feedback create。
+- Feedback list 已有固定 ordering，避免 pagination 使用 unordered queryset。
+- Admin 可以進入 feedback list / detail 查看提交內容。
+- Feedback list 已提供 detail link。
+- Admin 可以 reply feedback。
+- Reply 後 feedback status 會更新成 `REPLIED`，並寫入 `reply_by` / `reply_at`。
+- Reply 後會建立 `FEEDBACK_REPLY` event 並 assign 俾提交 feedback 嘅 user。
+- 已手動測試普通 user create、superuser list / detail / reply、feedback status update 同 user event creation。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 將目前 `FAQ` 命名整理成更符合用途嘅名稱，例如 `UserMessage`。
-- 支援 anonymous user submit：`user` 需要可為空，或者加入 contact email / contact name 等欄位。
-- Message form 內容長度要配合用途；如果會用嚟提交大量 vocab suggestion，`context` 唔應該限制得太短。
-- Admin list / detail 權限應改用 `UserPassesTestMixin`、`staff_member_required` 或 `dispatch()` 統一處理，而唔只係喺 `get()` 入面判斷。
-- Message 可以有 `UNREAD`、`READ`、`PROCESSING`、`DONE` 等狀態。
-- Reply form 如正式使用，要改成真正 form field，例如 `forms.CharField(widget=forms.Textarea)`。
-- `reply_at` / `reply_by` 改成 nullable 後，需要建立並套用 migration。
-- `reply_by` 如果想保留回覆紀錄，之後應考慮由 `CASCADE` 改成 `SET_NULL`。
-- Admin 整理 vocab suggestion 後可建立 CSV，再用 `import_vocab` 加入 database。
-- 處理完成後經 event system 通知 user。
+- Feedback form 內容長度之後可按實際用途調整；如果會用嚟提交大量 vocab suggestion，`context` 可能要放寬。
+- 如 admin handling 變複雜，再考慮加入更多 status，例如 `PROCESSING` / `DONE`。
+- 如日後需要 public contact form，再另外設計 anonymous feedback / contact email / anti-spam flow。
+- Admin 整理 vocab suggestion 後，可建立 CSV，再用 `import_vocab` 加入 database。
+- Feedback list / detail / reply UI wording 之後可再 polish。
 
 ## Quiz Question Logic
 

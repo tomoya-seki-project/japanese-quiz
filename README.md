@@ -2,11 +2,11 @@
 
 一個用 Django 開發嘅 Japanese vocabulary learning project。
 
-Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data，同初步 Ajax quiz flow。
+Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data、event notification、user feedback flow，同初步 Ajax quiz flow。
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation 同 Ajax quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation、user feedback flow 同 Ajax quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -68,12 +68,19 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Vocab request result event 同 vocab sync summary event 已有 service flow 初稿。
 - User event list / detail page 已可顯示基本 notification data。
 
+### Feedback
+
+- Logged-in user 可以提交 feedback，例如 vocab suggestion、bulk vocab request、bug report 或 feature request。
+- Feedback 入口會按 user role redirect：superuser 去 feedback list，普通 user 去 feedback create。
+- Superuser 可以查看 feedback list / detail。
+- Superuser 可以 reply feedback。
+- Reply 後會將 feedback status 由 `PENDING` 更新成 `REPLIED`，並建立 `FEEDBACK_REPLY` event 通知提交者。
+
 ## Planned Features
 
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
 - Multiple choice quiz answer flow。
 - Katakana quiz answer checking。
-- User-to-admin vocab message inbox。
 - Whole database CSV export / restore。
 - Account email activation。
 
@@ -113,6 +120,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `Event`：系統事件 master record。
 - `UserEvent`：連接 user 同 event，保存 read status。
 - `AdminMessage`：初步 message model，功能仍未完善。
+- `Feedback`：保存 user feedback、suggestion、bug report、reply status 同 admin reply metadata。
 
 ## Project Structure
 
@@ -217,6 +225,9 @@ python manage.py runserver
 | `/quiz/` | Quiz home |
 | `/quiz/setting` | Quiz setting |
 | `/quiz/play` | Ajax quiz play page |
+| `/core/feedback/` | Feedback entry redirect |
+| `/core/feedback/create/` | Submit feedback |
+| `/core/feedback/list/` | Superuser feedback list |
 | `/admin/` | Django Admin |
 
 ## Management Commands
@@ -333,7 +344,7 @@ python manage.py test
 - Quiz app 已有初步 Ajax play flow，但 weight adjustment、multiple choice answer flow 同 katakana checking 仍要完善。
 - VocabRequest approve/reject 已有基本 service flow，但 `original_vocab` validation 仍要補強。
 - Event notification system 已有 foundation，但 UI / wording 同更多 event type 仍要完善。
-- User-to-admin message flow 未建立。
+- Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
 - 完整 export / restore 尚未完成。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。
