@@ -18,8 +18,6 @@ from django.views.generic import (
 )
 from django.views.generic.detail import DetailView
 
-
-
 from .forms import (
     VocabCreateRequestForm,
     VocabUpdateRequestForm,
@@ -28,6 +26,7 @@ from .forms import (
     UserVocabSearchForm,
     UserVocabSelectForm,
     UserVocabInUseUpdateForm,
+    UserVocabInUseSingleUpdateForm,
     UserVocabInUse,
 )
 from .models import (
@@ -46,6 +45,7 @@ from .models import (
 
 from .service.vocab_request import VocabRequestService
 from .service.user_vocab_action import UserVocabService
+from quiz.service.quiz import QuizService
 
 class VocabHomeView(TemplateView):
     template_name = "dictionary/vocab_home.html"
@@ -336,6 +336,44 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
     model = UserVocab
     template_name = "dictionary/user_vocab_detail.html"
     context_object_name = "user_vocab"
+
+    def post(self, request, *args, **kwargs):
+        user_vocab = self.get_object()
+
+        form = UserVocabInUseSingleUpdateForm(
+            request.POST
+        )
+
+        if form.is_valid():
+            user_vocab.in_use = form.cleaned_data["in_use"]
+            user_vocab.save(update_fields=["in_use","update_at"])
+            return redirect(request.get_full_path())
+        self.object = user_vocab
+        context = self.get_context_data(object=user_vocab)
+        context["in_use_form"] = form
+        return self.render_to_response(context)
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        target_user_vocab = context["user_vocab"]
+        if target_user_vocab.last_answer is not None:
+            if target_user_vocab.vocab.type == VocabType.VOCAB or target_user_vocab.vocab.type == VocabType.KATAKANA:
+                compared_data = QuizService.compare_kana_answer(
+                                    correct_answer=target_user_vocab.vocab.kana, 
+                                    user_answer=target_user_vocab.last_answer
+                                )
+                compared_result = QuizService.gen_answer_image(compared_result=compared_data)
+            else:
+                compared_result = None
+
+            if compared_result:
+                context["compared_result"] = compared_result
+        if "in_use_form" not in context:
+            context["in_use_form"] = UserVocabInUseSingleUpdateForm(
+                initial={"in_use":self.object.in_use}
+            )
+        return context
 
     def get_queryset(self):
         return super().get_queryset().filter(user=self.request.user, vocab__is_active=True)

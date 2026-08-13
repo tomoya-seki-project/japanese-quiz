@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（55）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（6）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（7）：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（56）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（5）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -411,24 +411,22 @@ Status badge：
 - 如將來 user 需要大量管理 `in_use`，可以再改善 filtering / bulk action UI。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **UserVocab detail single-item management**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab detail single-item management**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `UserVocabDetailView` 已有 ownership guard，限制目前 user 只能查看自己嘅 active user vocab。
 - 已決定 `UserVocabDetail` 會分開顯示「My Vocab / quiz 狀態」同「Vocab master data」兩部分。
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 將 `UserVocabDetailView` 正式接入 URL 同 list item link。
-- Detail page 加單字 `in_use` update form，用嚟控制該 vocab 是否加入自己嘅 quiz pool。
-- Detail page 上半部顯示 user-specific data，例如 `in_use`、weight、streak、correct / incorrect count、last quiz、last answer。
-- Detail page 下半部顯示 vocab master data，例如 word、kana、meaning、level、categories、type。
-- 在 vocab master data 區域加入 request update / request removal entry。
-- Button wording 要避免令 user 誤會「request removal」只係從自己 list 移除；真正自己唔想考應使用 `in_use=False`。
-
+- `UserVocabDetailView` 已正式接入 URL。
+- `UserVocabListView` item 已加入 detail link，可以由 user vocab list 進入單一 user vocab detail。
+- Detail page 已開始顯示 user-specific data，例如 weight、streak、correct / incorrect count、last quiz、last answer。
+- Detail page 已開始顯示 vocab master data，例如 word、kana、meaning、type 同 categories。
+- Detail page 已加入 request update / request delete entry，連到既有 vocab request flow。
+- Detail page 已加入單字 `in_use` update form，用嚟控制該 vocab 是否加入自己嘅 quiz pool。
+- Detail page 已顯示 `in_use` checkbox。
+- `UserVocabDetailView` 已可處理 POST，更新目前 object 嘅 `in_use` 後 redirect 返 detail page。
+- `get_context_data()` 已避免覆蓋 POST invalid 時傳入嘅 bound form。
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab selection page scope decision**
 
@@ -1044,3 +1042,15 @@ Status badge：
 - 之後可以整理 layout。
 - 之後可以整理 read / unread visual state。
 - 之後可以整理 wording 同 notification summary。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Japanese UI language and wording polish**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- Site UI language 之後統一改用日文。
+- Button wording 之後集中整理，避免 logic phase 被 wording 細節卡住。
+- Vocab request update / delete wording 要避免 user 誤會 request removal 係從自己 list 移除。
+- Feedback / event / quiz result / user vocab detail wording 之後一併 polish。
+- UserVocab detail page 之後整理 HTML 結構同 UI layout。

@@ -9,6 +9,7 @@ from .views import (
     VocabDeleteRequestView,
     VocabListView,
     UserVocabListView, 
+    UserVocabDetailView,
 )
 
 app_name = 'dictionary'
@@ -21,4 +22,5 @@ urlpatterns = [
     path('vocab/<int:vocab_id>/delete/', VocabDeleteRequestView.as_view(), name='vocab_delete'),
     path('vocab/list', VocabListView.as_view(), name='vocab_list'),
     path('user_vocab/list', UserVocabListView.as_view(), name='user_vocab_list'),
+    path('user_vocab/<int:pk>', UserVocabDetailView.as_view(), name='user_vocab_detail'),
 ]

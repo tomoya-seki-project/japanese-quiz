@@ -33,6 +33,7 @@
 - [DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE](#DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE)
 - [PYTHON-JSON-CONFIG-MAP-LOOKUP](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
 - [AJAX-GET-LINK-VS-POST-FORM](#AJAX-GET-LINK-VS-POST-FORM)
+- [DJANGO-DETAILVIEW-WITH-MINI-FORM](#DJANGO-DETAILVIEW-WITH-MINI-FORM)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
 
@@ -343,6 +344,186 @@ container.addEventListener("click", function (e) {
 ```
 
 因為 event delegation 更適合長期維護動態 partial DOM。
+
+### 理解內容
+
+-
+
+<a id="DJANGO-DETAILVIEW-WITH-MINI-FORM"></a>
+
+## [ ] `[DJANGO-DETAILVIEW-WITH-MINI-FORM]` DetailView 入面放一張小型 Form
+
+### 問題背景
+
+`UserVocabDetailView` 本身係 `DetailView`，主要責任係根據 URL 入面嘅 `pk` 取得一個 `UserVocab` object，然後 render detail page。
+
+但 detail page 入面又想加入一個細功能：只更新目前呢一個 `UserVocab.in_use`。
+
+呢種情況唔係完整 `FormView`，而係：
+
+```text
+DetailView 負責顯示 object
+同一頁額外放一張 mini form
+POST 時手動處理呢張 form
+```
+
+### 研究方向
+
+- `DetailView` 同 `FormView` 分工有咩唔同。
+- 點解 `DetailView` 唔會自動提供 `get_form()` / `form_valid()` lifecycle。
+- 點樣喺 `get_context_data()` 放一張 initial form。
+- 點樣喺 `post()` 入面手動建立 bound form。
+- `get_queryset()` ownership guard 點樣保護 user 只能改自己嘅 object。
+- 點解某啲 form 需要額外 kwargs，例如 queryset / target object，而某啲簡單 form 唔需要。
+
+### 概念整理與解答
+
+#### 1. FormView 係「form 做主角」
+
+`FormView` 內建 form lifecycle：
+
+```text
+get_form_class()
+get_form()
+get_form_kwargs()
+form_valid()
+form_invalid()
+```
+
+所以 create / update / request submission 呢類「submit form 係主流程」嘅頁面，用 `FormView` 會自然好多。
+
+#### 2. DetailView 係「object 做主角」
+
+`DetailView` 主要使用 `SingleObjectMixin`：
+
+```python
+self.object = self.get_object()
+```
+
+然後將 object 放入 context：
+
+```python
+context["object"]
+context["user_vocab"]  # 如果 context_object_name = "user_vocab"
+```
+
+所以 detail page 入面想加 form，就要自己處理：
+
+- GET：喺 `get_context_data()` 放 initial form。
+- POST：喺 `post()` 手動 instantiate form、validate、save object。
+
+#### 3. UserVocab detail in_use form pattern
+
+Form 可以好簡單：
+
+```python
+class UserVocabInUseSingleUpdateForm(forms.Form):
+    in_use = forms.BooleanField(required=False)
+```
+
+因為 checkbox 無 tick 時，browser 不會 submit 該欄位，所以 `required=False` 好重要。
+
+DetailView 可以用：
+
+```python
+class UserVocabDetailView(LoginRequiredMixin, DetailView):
+    model = UserVocab
+    template_name = "dictionary/user_vocab_detail.html"
+    context_object_name = "user_vocab"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            user=self.request.user,
+            vocab__is_active=True,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["in_use_form"] = UserVocabInUseSingleUpdateForm(
+            initial={"in_use": self.object.in_use}
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        user_vocab = self.get_object()
+        form = UserVocabInUseSingleUpdateForm(request.POST)
+
+        if form.is_valid():
+            user_vocab.in_use = form.cleaned_data["in_use"]
+            user_vocab.save(update_fields=["in_use", "update_at"])
+            return redirect(request.get_full_path())
+
+        self.object = user_vocab
+        context = self.get_context_data(object=user_vocab)
+        context["in_use_form"] = form
+        return self.render_to_response(context)
+```
+
+#### 4. 點解今次 form 唔需要傳 `user_vocab`
+
+今次 form 只做：
+
+```python
+in_use = forms.BooleanField(required=False)
+```
+
+佢只需要接收一個 boolean value。
+
+真正要保護「只能更新自己嘅 UserVocab」嘅地方，係：
+
+```python
+def get_queryset(self):
+    return super().get_queryset().filter(user=self.request.user)
+```
+
+然後 `post()` 入面：
+
+```python
+user_vocab = self.get_object()
+```
+
+會經過同一個 queryset guard。
+
+所以呢張 form 唔需要：
+
+```python
+UserVocabInUseSingleUpdateForm(request.POST, user_vocab=user_vocab)
+```
+
+除非 form 本身要根據 `user_vocab` 做 validation，先需要自訂 `__init__()` 接額外 kwarg。
+
+#### 5. Template 寫法
+
+```django
+<form method="POST">
+    {% csrf_token %}
+    {{ in_use_form.in_use }}
+    <button type="submit">Update</button>
+</form>
+```
+
+Checkbox 勾選時會 submit `in_use=on`，form 會 clean 成 `True`。
+
+Checkbox 無勾時不會 submit `in_use`，因為 `required=False`，form 會 clean 成 `False`。
+
+#### 6. 重點
+
+```text
+DetailView + mini form
+= object 顯示由 DetailView 負責
+= form GET context 自己加
+= POST validation 自己寫
+= object ownership 仍然靠 get_queryset() 收窄
+```
+
+呢個 pattern 適合細型 toggle / update，例如：
+
+- 單一 `UserVocab.in_use`
+- mark one item as read
+- toggle favorite
+- update one small setting
+
+如果 form 開始變複雜，或者有多個 action，就可以考慮拆成獨立 `FormView` / action endpoint。
 
 ### 理解內容
 

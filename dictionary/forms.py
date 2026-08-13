@@ -179,3 +179,6 @@ class UserVocabInUseUpdateForm(forms.Form):
         if user_vocab_queryset is not None:
             self.fields["selectable_ids"].queryset = user_vocab_queryset
             self.fields["selected_ids"].queryset = user_vocab_queryset
+
+class UserVocabInUseSingleUpdateForm(forms.Form):
+    in_use = forms.BooleanField(required=False)

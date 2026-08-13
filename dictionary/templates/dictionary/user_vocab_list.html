@@ -1,6 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>user vocab list</h1>
+
+<a href="{% url "dictionary:vocab_create" %}" class="btn btn-primary">Create Vocab</a>
+please using feedback "bulk vocab request" if you have a lot of vocab want to create
 <form method="GET">
     {{ search_form.as_p }}
     <button type="submit">confirm</button>

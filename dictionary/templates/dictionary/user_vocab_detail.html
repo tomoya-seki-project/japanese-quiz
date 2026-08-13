@@ -1,7 +1,46 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>user vocab detail</h1>
-{{ user_vocab.vocab__word }}
-{{ user_vocab.vocab__kana }}
+<form method="POST">
+    {% csrf_token %}
+    <div>in use : {{ in_use_form.in_use }}</div>
+    <div>weight : {{ user_vocab.weight }}</div>
+    <div>correct count : {{ user_vocab.correct_count }}</div>
+    <div>incorrect count : {{ user_vocab.incorrect_count }}</div>
+    <div>streak : {{ user_vocab.streak }}</div>
+    <div>last quit at : {{ user_vocab.last_quiz_at }}</div>
+    <div>
+        last answer : 
+        {% if user_vocab.last_answer %}
+            {% load static %}
+            <div class="compared-answer-result">
+            {% for result_image in compared_result %}
+                <img src="{% static result_image.image_path %}" style="width:20px;height:20px;object-fit:contain;">
+                {% if result_image.sub_image_path != ""%}    
+                    <img src="{% static result_image.sub_image_path %}" style="width:20px;height:20px;object-fit:contain;">
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% else %}
+            None
+        {% endif %}
+    </div>  
+    <button type="submit">Update InUse</button>
+</form>
+<hr>
+<h3>vocab section</h3>
+<div>word : {{ user_vocab.vocab.word }}</div>
+<div>meaning : {{ user_vocab.vocab.meaning }}</div>
+<div>kana : {{ user_vocab.vocab.kana }}</div>
+<div>level : {{ user_vocab.vocab.level }}</div>
+<div>type : {{ user_vocab.vocab.type }}</div>
+<div>
+    categories :
+    {% for category in user_vocab.vocab.categories.all %}
+        <div>{{ category.name }}</div>
+    {% endfor %}
+</div>
+<a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">更新</a>
+<a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">del</a>
 <a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">last page</a>
 {% endblock %}

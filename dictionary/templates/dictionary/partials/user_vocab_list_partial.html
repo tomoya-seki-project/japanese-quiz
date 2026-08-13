@@ -24,7 +24,7 @@
                         value="{{ user_vocab.id }}" 
                         {% if user_vocab.in_use %}checked{% endif %}>
                 </td>
-                <td>{{ user_vocab.vocab.word }}</td>
+                <td><a href="{% url "dictionary:user_vocab_detail" pk=user_vocab.pk %}">{{ user_vocab.vocab.word }}</a></td>
                 <td>{{ user_vocab.vocab.kana }}</td>
                 <td>{{ user_vocab.vocab.meaning }}</td>
             </tr>
