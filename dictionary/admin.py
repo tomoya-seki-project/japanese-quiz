@@ -222,61 +222,80 @@ class VocabRequestAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_approve" in request.POST:
-            try:
-                is_success = VocabRequestService.approve_vocab_request(
+            if self.has_change_permission(request=request, obj=obj):
+                try:
+                    is_success = VocabRequestService.approve_vocab_request(
+                        vocab_request=obj,
+                        reviewed_by=request.user,
+                    )
+                except ValidationError as e:
+                    self.message_user(
+                        request,
+                        "; ".join(e.messages),
+                        messages.ERROR,
+                    )
+                    return redirect(
+                        reverse(
+                            "admin:dictionary_vocabrequest_change",
+                            args=[obj.pk],
+                        )
+                    )
+                if is_success:
+                    self.message_user(
+                        request,
+                        f"Vocab request approved by {request.user}",
+                        messages.SUCCESS,
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        f"Vocab request reviewed by {request.user}",
+                        messages.WARNING,
+                    )
+                
+                return redirect(
+                    reverse(
+                        "admin:dictionary_vocabrequest_changelist"
+                    )
+                )
+            else:
+                return self.handle_no_change_permission(request=request, obj=obj)
+        if "_reject" in request.POST:
+            if self.has_change_permission(request=request, obj=obj):
+                is_success = VocabRequestService.reject_vocab_request(
                     vocab_request=obj,
                     reviewed_by=request.user,
                 )
-            except ValidationError as e:
-                self.message_user(
-                    request,
-                    "; ".join(e.messages),
-                    messages.ERROR,
-                )
+                if is_success:
+                    self.message_user(
+                        request,
+                        f"Vocab request rejected by {request.user}",
+                        messages.WARNING,
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        f"Vocab request reviewed by {request.user}",
+                        messages.WARNING,
+                    )
                 return redirect(
                     reverse(
-                        "admin:dictionary_vocabrequest_change",
-                        args=[obj.pk],
+                        "admin:dictionary_vocabrequest_changelist"
                     )
                 )
-            if is_success:
-                self.message_user(
-                    request,
-                    f"Vocab request approved by {request.user}",
-                    messages.SUCCESS,
-                )
             else:
-                self.message_user(
-                    request,
-                    f"Vocab request reviewed by {request.user}",
-                    messages.WARNING,
-                )
-            
-            return redirect(
-                reverse(
-                    "admin:dictionary_vocabrequest_changelist"
-                )
-            )
-        if "_reject" in request.POST:
-            is_success = VocabRequestService.reject_vocab_request(
-                vocab_request=obj,
-                reviewed_by=request.user,
-            )
-            if is_success:
-                self.message_user(
-                    request,
-                    f"Vocab request rejected by {request.user}",
-                    messages.WARNING,
-                )
-            else:
-                self.message_user(
-                    request,
-                    f"Vocab request reviewed by {request.user}",
-                    messages.WARNING,
-                )
-            return redirect(
-                reverse(
-                    "admin:dictionary_vocabrequest_changelist"
-                )
-            )
+                return self.handle_no_change_permission(request=request, obj=obj)
         return super().response_change(request, obj)
+
+    def handle_no_change_permission(self, *, request, obj):
+        self.message_user(
+            request,
+            "You do not have permission to review this request.",
+            messages.ERROR,
+        )
+        return redirect(
+            reverse(
+                "admin:dictionary_vocabrequest_change",
+                args=[obj.pk],
+            )
+        )

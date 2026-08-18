@@ -1,6 +1,13 @@
 {% extends "core/base.html" %}
 {% block content %}
 <h1>user event list</h1>
+<form method="GET" action="{% url "core:user_event_list" %}" id="event-filter-form">
+    <select name="status" id="event-status-filter">
+        <option value="">All</option>
+        <option value="unread">Unread</option>
+        <option value="read">read</option> 
+    </select>
+</form>
 <div id="user-event-list-container">
     {% include "core/event/partials/user_event_list_partial.html" %}
 </div>
@@ -9,6 +16,26 @@
 <script>
     document.addEventListener("DOMContentLoaded", function(){
         const userEventListContainer = document.getElementById('user-event-list-container');
+
+        const form = document.getElementById('event-filter-form');
+        const statusSelector = document.getElementById('event-status-filter');
+
+        statusSelector.addEventListener('change', function(e){
+            //form.submit();
+            const params = new URLSearchParams(new FormData(form));
+            const url = `${form.action}?${params.toString()}`;
+                fetch(url, {
+                    headers:{
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.text())
+                .then(html => {
+                    userEventListContainer.innerHTML = html;
+                    selectorReload();
+                });
+        })
+
         userEventListContainer.addEventListener('click', function(e){
             if(e.target.classList.contains('page-change')){
                 e.preventDefault();

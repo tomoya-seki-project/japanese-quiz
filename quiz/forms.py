@@ -35,7 +35,7 @@ class QuizSettingForm(forms.Form):
 class QuizForm(forms.Form):
     user_vocab_id = forms.IntegerField(widget=forms.HiddenInput)
     answer = forms.CharField(max_length=50, required=True, widget=forms.HiddenInput)
-    tips_count = forms.IntegerField(widget=forms.HiddenInput)
+    tips_count = forms.IntegerField(min_value=0, max_value=50, widget=forms.HiddenInput)
 
 class QuizNextForm(forms.Form):
     pass

@@ -2,6 +2,42 @@
 
 呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
+## 2026-08-14 - UserVocab detail and learning controls
+
+Commit: `4d14a87`
+
+Status: UserVocab now has a dedicated detail flow for reviewing vocab data and controlling per-user learning state
+
+### 主要改動
+
+- 建立 `UserVocab` detail page，令 user 可以由個人 vocab list 進入單一 vocab 嘅學習狀態頁。
+- Detail page 同時顯示 user-specific progress data 同 vocab master data，將「我對呢隻字嘅狀態」同「呢隻字本身嘅資料」分開理解。
+- 加入單一 `in_use` update flow，user 可以喺 detail page 控制個別 vocab 是否納入自己嘅 quiz / learning pool。
+- 保留 answer comparison / result image 顯示，方便 user 回看最近一次答題差異。
+- 更新 list / navigation flow，令 UserVocab detail 成為 dictionary app 內更完整嘅 user-facing vocab management surface。
+
+### Database 改動
+
+- 無 schema 變更。
+
+### 技術重點
+
+- 在 `DetailView` 入面加入小型 form 時，需要自行處理 GET initial form 同 POST bound form。
+- `get_queryset()` 可以用作 ownership guard，確保 user 只能讀寫自己嘅 `UserVocab`。
+- POST 成功後 redirect 回 detail URL，可以避免 refresh page 時重複提交 form。
+- Boolean checkbox form field 使用 `required=False`，先可以正確接收 unchecked 狀態。
+
+### 理由
+
+- `Vocab` 代表全局字庫資料，`UserVocab` 代表個別 user 對該 vocab 嘅學習狀態；兩者需要有清楚嘅 UI 邊界。
+- 單一 vocab detail page 比 list page 更適合放 update / delete request 入口、in-use 切換同最近答題回顧。
+
+### 學到咩
+
+- `FormView` 同 `DetailView` 嘅責任不同；`DetailView` 不會自動提供 form lifecycle，要自己放 form 入 context 並在 `post()` 處理。
+- 如果 POST validation 失敗，應把 bound form 放回 context，否則 user 會失去錯誤狀態同提交內容。
+- `get_context_data()` 係準備 template context 嘅集中位置，但要小心不要覆蓋 POST failure 時已經放入去嘅 bound form。
+
 ## 2026-08-13 - User feedback flow
 
 Commit: 未 commit

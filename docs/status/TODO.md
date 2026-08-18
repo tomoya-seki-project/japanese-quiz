@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（56）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（5）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（62）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -47,19 +47,20 @@ Status badge：
 - 當 request 已經唔係 `PENDING` 狀態，就唔可以再處理多次。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **第 3 點（VocabRequest / Admin Review）：確認 approve / reject permission boundary**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 3 點（VocabRequest / Admin Review）：確認 approve / reject permission boundary**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - Approve / reject 已改為喺 admin change form 入面經 `response_change()` 處理。
 - 正常入到 admin change page 已經會受 Django admin permission 控制。
+- Approve / reject branch 已額外 call `self.has_change_permission(request=request, obj=obj)` 作 defense-in-depth。
+- 無 change permission 時會經 `handle_no_change_permission()` 顯示 error message 並 redirect 回 request change page。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 再確認目前 permission boundary 是否足夠。
-- 決定 approve / reject branch 入面是否需要額外 call `has_change_permission()`。
+- 目前 approve / reject permission boundary 已確認足夠。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 4 點（VocabRequest Form）：`VocabUpdateRequestForm.vocab_type` readonly**
@@ -241,19 +242,16 @@ Status badge：
 - 舊 selection flow 暫時唔作為主要加字入口。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **改善 I（VocabRequest）：Approve UPDATE / RESTORE / DELETE 前驗證 `original_vocab`**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 25 點（VocabRequest Approval Guard）：Approve UPDATE / RESTORE / DELETE 前驗證 `original_vocab`**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - UPDATE / RESTORE / DELETE request flow 已依賴 `original_vocab` 作為目標 vocab。
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- Approve 前檢查 `original_vocab` 是否存在。
-- 檢查 `original_vocab` 狀態是否符合 request type。
-- 如果資料異常，要停止 approve 並回傳清楚 error result。
+- Approve 前已檢查 `original_vocab` 是否存在。
+- UPDATE / DELETE approve 時要求 `original_vocab.is_active=True`。
+- RESTORE approve 時要求 `original_vocab.is_active=False`。
+- 如果資料異常，service 會 raise `ValidationError`，停止 approve 並回傳清楚 error result。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 21 點（UserVocab / Quiz Pool）：避免 inactive vocab 進入 quiz 出題範圍**
@@ -285,6 +283,16 @@ Status badge：
 - `UserVocabDetailView.get_queryset()` 已限制 `user=self.request.user`。
 - `UserVocabDetailView.get_queryset()` 已加入 `vocab__is_active=True`，避免 inactive vocab detail 被普通 user 查看。
 
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 24 點（VocabRequest Delete Snapshot）：DELETE request 保存完整 proposed snapshot**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- DELETE request creation 時，同步保存當時 vocab 嘅 `proposed_vocab_type`、`proposed_meaning`、`proposed_level` 同 `proposed_categories`。
+- 如 target vocab 係 katakana，保存 `proposed_native_japanese` snapshot。
+- 避免 admin review DELETE request 時見到 default / 空 proposed data 而誤判。
+
 ## Vocab Planned Work
 
 
@@ -309,6 +317,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
+- `Category multiple selection` 目前主要由 request form 控制最多三個 categories；如果呢個係 project invariant，之後要喺 service / admin form 層面一併保護。
 - 將來如 category 數量增加，可以再改善 admin/search UI。
 
 
@@ -400,6 +409,7 @@ Status badge：
 - Login 成功後會呼叫 `UserVocabService.sync_new_vocab()`。
 - Register 成功後亦會 sync 現有 vocab。
 - `sync_new_vocab()` 已決定每次 sync 所有 user 未擁有嘅 vocab。
+- `sync_new_vocab()` 已由逐個 `get_or_create()` 改成 `bulk_create(ignore_conflicts=True)`，減少大量 vocab sync 時嘅 query / insert round trip。
 - UserVocab list 可以按 `in_use=True / False` filter。
 - UserVocab list 已加入 bulk update flow，用 `selectable_ids` / `selected_ids` 更新 `in_use`。
 - 已用 browser 測試 select all / checkbox 更新 `in_use` flow。
@@ -407,7 +417,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 如將來 vocab 數量大幅增加，可以再考慮 batch sync performance。
+- 如將來 vocab 數量大幅增加，可以再實測 `bulk_create()` 後嘅 sync performance。
 - 如將來 user 需要大量管理 `in_use`，可以再改善 filtering / bulk action UI。
 
 
@@ -495,11 +505,12 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
+- `gen_vocab_sync_event()` 目前會對每個 changed vocab 查 related approved request；當 changed vocab 數量大時會有 N+1 query 風險，之後可改成一次預取相關 request 再喺 Python group。
 - 如資料量變大，可以再優化 query 數量同 summary generation performance。
 - 如 login / profile 兩個 request 同時觸發 `gen_vocab_sync_event()`，可能讀到同一個 `last_vocab_sync_at` 並建立重複 summary event；之後可考慮 profile row lock 或 event window idempotency。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Notification read / history**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Notification read / history**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
@@ -510,11 +521,12 @@ Status badge：
 - Event list 已支援 Ajax partial pagination。
 - `UserEventDetailView` 已限制只能查看目前 user 自己嘅 event。
 - Navbar 已透過 context processor 顯示 unread event count。
+- User 已可查看全部 event，包括 unread / read history。
+- Event list 已可按 status 選擇 / filter，例如 all、unread、read。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- User 查看已讀 notification history。
 - Mark all as read。
 - Login 後首頁如需要，可以顯示更完整 notification summary。
 
@@ -607,6 +619,35 @@ Status badge：
 - 如日後需要 public contact form，再另外設計 anonymous feedback / contact email / anti-spam flow。
 - Admin 整理 vocab suggestion 後，可建立 CSV，再用 `import_vocab` 加入 database。
 - Feedback list / detail / reply UI wording 之後可再 polish。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Feedback duplicate submission handling**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 檢查 `FeedbackCreateView` 入面 `get_or_create()` lookup 同 `Feedback` unique constraint 是否一致。
+- 如果同一 user 曾提交相同 type/context 並已被 reply，再次提交時目前可能撞到 `user + type + context` unique constraint。
+- 決定移除目前永久限制 `user + type + context` 重複提交嘅 unique constraint。
+- Create flow 改成先 check 是否已有同一 user / type / context 嘅 `PENDING` feedback。
+- 如果已有 pending feedback，回到 form invalid 並顯示清楚 error。
+- 如果舊 feedback 已 `REPLIED`，允許 user 用同一 type / context 再提交新 feedback。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 之後如要防 double submit / race condition，可加入 conditional unique constraint，只限制同一 user / type / context 同時存在一筆 `PENDING` feedback。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Feedback service extraction**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已建立 `core/service/feedback.py`，將 feedback domain logic 由 view 抽出。
+- `create_feedback()` 可負責 pending duplicate check、建立 feedback、回傳 result / 拋出 validation error。
+- `reply_feedback()` 可負責更新 feedback status、寫入 `reply_by` / `reply_at`、建立 reply event。
+- View 保持負責 form handling、redirect、message / form error，service 負責 business rule。
 
 ## Quiz Question Logic
 
@@ -759,6 +800,18 @@ Status badge：
 
 - 決定 kana answer 同其他 answer checking flow 是否抽共用 helper。
 - 如之後 stats update 牽涉多個 model / history record，再考慮用 transaction 包住整個更新流程。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz tips_count server-side validation**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `tips_count` 由 hidden input submit，不能完全信任 browser 傳入嘅值。
+- 在 form / service 層加入 server-side validation 或 clamp，避免 user 改 POST data 令 weight calculation 被污染。
+- 已喺 `QuizForm` 加 `min_value=0` / `max_value=50`。
+- 已喺 `check_kana_answer()` 用 `max(0, min(tips_count, 50))` 做 service-level guard。
+- 暫時接受每題最多 50 次 tips penalty 作為 technical / gameplay cap。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz result answer difference display**

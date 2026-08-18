@@ -33,6 +33,7 @@
 - [DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE](#DJANGO-QUERYSET-VALUES-LIST-PERFORMANCE)
 - [PYTHON-JSON-CONFIG-MAP-LOOKUP](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
 - [AJAX-GET-LINK-VS-POST-FORM](#AJAX-GET-LINK-VS-POST-FORM)
+- [AJAX-EVENT-TRIGGER-FETCH](#AJAX-EVENT-TRIGGER-FETCH)
 - [DJANGO-DETAILVIEW-WITH-MINI-FORM](#DJANGO-DETAILVIEW-WITH-MINI-FORM)
 
 <a id="DJANGO-CUSTOM-USER-ADMIN"></a>
@@ -1090,6 +1091,178 @@ form.action
 - POST form Ajax：適合「提交 form data 去做 action，再局部更新畫面」。
 - Quiz answer / next 屬於 action flow，所以應該用 form submit，而唔係單純 `<a href="#">`。
 - `FormData(form)` 會將 form 入面所有有 `name` 嘅 input 一齊提交，包括 hidden input 同 CSRF token。
+
+<a id="AJAX-EVENT-TRIGGER-FETCH"></a>
+
+## [ ] `[AJAX-EVENT-TRIGGER-FETCH]` Ajax 唔一定要由 button submit 觸發
+
+### 問題背景
+
+Event list 想用 dropdown filter，例如：
+
+```text
+All / Unread / Read
+```
+
+一開始容易以為 Ajax 一定係：
+
+```text
+click button / submit form
+-> fetch
+-> replace partial
+```
+
+但其實 Ajax 只係「由 JavaScript 發 request」。觸發時機可以係好多種 event，例如：
+
+- button `click`
+- form `submit`
+- select `change`
+- text input `input`
+- checkbox `change`
+
+### 研究方向
+
+- JavaScript event listener 同 Ajax request 嘅關係。
+- 點解 dropdown change 可以直接 fetch filtered result。
+- `form.submit()` 同 `fetch()` 嘅分別。
+- 點樣由 form data 砌 GET query string。
+- `history.pushState()` 係做咩。
+- Dropdown `change` event 入面，點解唔可以用 `e.target.href`。
+
+### 概念整理與解答
+
+#### 1. Ajax 唔綁死 button / submit
+
+Ajax 本質係：
+
+```text
+某個 JS event 發生
+-> JS 決定要打邊條 URL
+-> fetch request
+-> 用 response 更新 DOM
+```
+
+所以可以係 form submit：
+
+```javascript
+form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    fetch(form.action, ...);
+});
+```
+
+亦可以係 dropdown change：
+
+```javascript
+statusSelector.addEventListener("change", function(e) {
+    fetch(url, ...);
+});
+```
+
+分別只係 user action 唔同，Ajax flow 本身一樣。
+
+#### 2. 普通 GET submit
+
+用：
+
+```javascript
+form.submit();
+```
+
+browser 會正式前往 form action 加 query string，例如：
+
+```text
+/events/?status=read
+```
+
+所以頁面會 full reload，URL 亦會自動更新。
+
+#### 3. Ajax fetch
+
+用：
+
+```javascript
+fetch("/events/?status=read")
+```
+
+意思係用 JavaScript 背景打 request，攞 response 返嚟自己處理。
+
+所以：
+
+- Browser address bar 不會自動改。
+- Page 不會 full reload。
+- 要自己將 response HTML 放入指定 container。
+
+#### 4. Dropdown change 要自己砌 URL
+
+Dropdown `change` event 入面，`e.target` 係 `<select>`。`<select>` 無 `href`，所以唔可以寫：
+
+```javascript
+const url = e.target.href;
+```
+
+正確方向係用 form data 砌 query string：
+
+```javascript
+const params = new URLSearchParams(new FormData(form));
+const url = `${form.action}?${params.toString()}`;
+```
+
+如果 user 揀咗 `read`，`params.toString()` 會變成：
+
+```text
+status=read
+```
+
+之後就可以：
+
+```javascript
+fetch(url, {
+    headers: {
+        "X-Requested-With": "XMLHttpRequest"
+    }
+})
+.then(res => res.text())
+.then(html => {
+    container.innerHTML = html;
+});
+```
+
+#### 5. 手動同步 address bar
+
+Ajax 成功更新畫面後，如果想 URL 都變，要自己加：
+
+```javascript
+history.pushState(null, "", url);
+```
+
+例如：
+
+```javascript
+.then(html => {
+    container.innerHTML = html;
+    history.pushState(null, "", url);
+});
+```
+
+#### 6. 重點
+
+```text
+Ajax 可以由 submit / click / change / input 等任何 JS event 觸發
+
+form.submit()
+= browser 正式轉頁，所以 URL 自動變
+
+fetch()
+= JavaScript 背景 request，所以 URL 不會自動變
+
+history.pushState()
+= 手動同步 address bar 狀態
+```
+
+### 理解內容
+
+-
 
 <a id="DJANGO-QUERYSET-EXCLUDE-RECENT-IDS"></a>
 

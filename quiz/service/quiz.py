@@ -98,6 +98,7 @@ class QuizService():
         if answer is None:
             return -2
         WEIGHT_CONFIG = QUIZ_CONFIG["weight"]
+        tips_count = max(0, min(tips_count, 50))
         new_weight = min(WEIGHT_CONFIG["max_tips"], tips_count * WEIGHT_CONFIG["tips"])
                 
         if question_vocab.vocab.kana == answer:

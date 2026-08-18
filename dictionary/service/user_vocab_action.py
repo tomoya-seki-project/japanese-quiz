@@ -31,8 +31,27 @@ class UserVocabService():
 
     @staticmethod
     def sync_new_vocab(*, user):
-        new_vocabs = UserVocabService.get_new_vocab(user=user)
-        UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
+        #new_vocabs = UserVocabService.get_new_vocab(user=user)
+        #UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
+        existing_vocab_ids = UserVocab.objects.filter(
+            user=user,
+        ).values_list("vocab_id", flat=True)
+
+        new_vocab_ids = Vocab.objects.filter(
+            is_active=True,
+        ).exclude(
+            id__in=existing_vocab_ids,
+        ).values_list("id", flat=True)
+
+        user_vocabs = [
+            UserVocab(user=user, vocab_id=vocab_id)
+            for vocab_id in new_vocab_ids
+        ]
+
+        UserVocab.objects.bulk_create(
+            user_vocabs,
+            ignore_conflicts=True,
+        )
     
     @staticmethod
     def dev_clear_table():

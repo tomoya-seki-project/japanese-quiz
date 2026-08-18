@@ -286,8 +286,6 @@ class VocabRequestService():
             if locked_request.status != VocabRequestStatus.PENDING:
                 return False
             
-            event_title = ""
-            
             match locked_request.request_type:
                 case VocabRequestType.CREATE:
                     VocabRequestService.validate_for_approval(locked_request)
@@ -296,28 +294,33 @@ class VocabRequestService():
                         vocab_data=vocab_data, 
                         approved_by=reviewed_by
                     )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been created by {locked_request.created_by}'s request"
                 case VocabRequestType.UPDATE:
-                    VocabRequestService.validate_for_approval(locked_request)
-                    vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
-                    VocabActionService.update_vocab(
-                        vocab_data=vocab_data, 
-                        target_vocab=locked_request.original_vocab, 
-                        approved_by=reviewed_by
-                    )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been updated by {locked_request.created_by}'s request"
+                    if locked_request.original_vocab and locked_request.original_vocab.is_active:
+                        VocabRequestService.validate_for_approval(locked_request)
+                        vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
+                        VocabActionService.update_vocab(
+                            vocab_data=vocab_data, 
+                            target_vocab=locked_request.original_vocab, 
+                            approved_by=reviewed_by
+                        )
+                    else:
+                        raise ValidationError("This request requires an active original vocab")
                 case VocabRequestType.RESTORE:
-                    VocabActionService.restore_vocab(
-                        target_vocab=locked_request.original_vocab, 
-                        approved_by=reviewed_by
-                    )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been restored by {locked_request.created_by}'s request"
+                    if locked_request.original_vocab and not locked_request.original_vocab.is_active:
+                        VocabActionService.restore_vocab(
+                            target_vocab=locked_request.original_vocab, 
+                            approved_by=reviewed_by
+                        )
+                    else:
+                        raise ValidationError("This request requires an inactive original vocab")
                 case VocabRequestType.DELETE:
-                    VocabActionService.deactivate_vocab(
-                        target_vocab=locked_request.original_vocab,
-                        approved_by=reviewed_by
-                    )
-                    event_title = f"{locked_request.proposed_word} ({locked_request.proposed_kana}) has been deleted by {locked_request.created_by}'s request"
+                    if locked_request.original_vocab and locked_request.original_vocab.is_active:
+                        VocabActionService.deactivate_vocab(
+                            target_vocab=locked_request.original_vocab,
+                            approved_by=reviewed_by
+                        )
+                    else:
+                        raise ValidationError("This request requires an active original vocab")
             locked_request.status = VocabRequestStatus.APPROVED
             locked_request.reviewed_by = reviewed_by
             locked_request.save(
@@ -330,12 +333,6 @@ class VocabRequestService():
                                             event_msg=""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
-            # new_vocab_event = EventService.create_event(
-            #                     event_type=EventType.VOCAB,
-            #                     event_title=event_title,
-            #                     event_msg=""
-            # )
-            # EventService.assign_event_to_users(event=new_vocab_event)
         return True
 
     @staticmethod

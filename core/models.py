@@ -99,9 +99,9 @@ class Feedback(TimeStampedModel):
 
     class Meta:
         db_table = 'feedback'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'type', 'context'],
-                name='Feedback_unique',
-            )
-        ]
+        # constraints = [
+        #     models.UniqueConstraint(
+        #         fields=['user', 'type', 'context'],
+        #         name='Feedback_unique',
+        #     )
+        # ]

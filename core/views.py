@@ -16,6 +16,7 @@ from .forms import UserEventIsReadedUpdateForm, FeedbackCreateForm, FeedbackRepl
 from .models import Event, EventType, UserEvent, Feedback, FeedbackType, FeedbackStatus
 
 from .service.event import EventService
+from .service.feedback import FeedbackService
 
 class UserEventListView(LoginRequiredMixin, ListView):
     model = UserEvent
@@ -23,12 +24,6 @@ class UserEventListView(LoginRequiredMixin, ListView):
     context_object_name = 'user_events'
     ordering = ['pk']
     paginate_by = 5
-
-    def get_template_names(self) -> list[str]:
-        if self.get_queryset().count() == 0:
-            return "core/event/no_unread_event.html"
-        return super().get_template_names()
-    
 
     def post(self, request, *args, **kwargs):
         user_event_queryset = self.get_queryset()
@@ -52,6 +47,13 @@ class UserEventListView(LoginRequiredMixin, ListView):
             now = timezone.now()
             get_select_qs.update(is_read=True, read_at=now)
         return redirect(request.get_full_path())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["query_string"] = query_params.urlencode()
+        return context
     
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -59,7 +61,16 @@ class UserEventListView(LoginRequiredMixin, ListView):
         return super().render_to_response(context, **response_kwargs)
     
     def get_queryset(self):
-        return EventService.get_unread_events(user=self.request.user)
+        qs = super().get_queryset().filter(user=self.request.user)
+
+        status = self.request.GET.get("status")
+
+        if status == "read":
+            qs = qs.filter(is_read=True)
+        elif status == "unread":
+            qs = qs.filter(is_read=False)
+
+        return qs
 
 class UserEventDetailView(LoginRequiredMixin, DetailView):
     model = UserEvent
@@ -85,12 +96,18 @@ class FeedbackCreateView(LoginRequiredMixin, FormView):
     def form_valid(self, form):
         feedback_type = form.cleaned_data["feedback_type"]
         context = form.cleaned_data["context"]
-        user_feedback, created = Feedback.objects.get_or_create(
+        user_feedback, is_doubled = FeedbackService.create_feedback(
             user=self.request.user,
-            type=feedback_type,
-            status=FeedbackStatus.PENDING,
-            context=context,
+            feedback_type=feedback_type,
+            context=context
         )
+        if is_doubled:
+            messages.warning(
+                self.request,
+                "There is a same feedback pending for admin checking"
+            )
+            form.add_error(None, "Same feedback")
+            return self.form_invalid(form)
         return super().form_valid(form)
 
 class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -136,24 +153,17 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def form_valid(self, form):
         context = form.cleaned_data["context"]
-        with transaction.atomic():
-            reply_event = EventService.create_event(
-                event_type=EventType.FEEDBACK_REPLY,
-                event_title="Thank you for your feedback!",
-                event_msg=context
+        reply_event = FeedbackService.reply_feedback(
+            admin_user=self.request.user,
+            target_feedback=get_object_or_404(Feedback, pk=self.kwargs["feedback_pk"]),
+            reply_context=context
+        )
+        if reply_event is not None:
+            messages.success(
+                self.request,
+                f"feedback id : {self.kwargs['feedback_pk']} has been replied"
             )
-            target_feedback = get_object_or_404(Feedback, pk=self.kwargs['feedback_pk'])
-            EventService.assign_event_to_user(
-                user=target_feedback.user,
-                event=reply_event,
-            )    
-            target_feedback.status = FeedbackStatus.REPLIED
-            target_feedback.reply_by = self.request.user
-            target_feedback.reply_at = timezone.now()
-            target_feedback.update_at = timezone.now()
-            target_feedback.save(update_fields=["status", "reply_by", "reply_at", "update_at"])
         return super().form_valid(form)
     
 
         
-
