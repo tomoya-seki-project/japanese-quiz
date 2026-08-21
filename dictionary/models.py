@@ -7,9 +7,10 @@ from core.models import TimeStampedModel
 class VocabType(models.TextChoices):
     VOCAB = "vocab", "Vocab"
     KATAKANA = "katakana", "Katakana"
-    # ADVERB = "adverb", "副詞"
-    # MIMETIC = "mimetic", "擬音・擬態語"
-    # CONJUNCTION = "conjunction", "接続詞"
+    ADVERB = "adverb", "副詞"
+    MIMETIC = "mimetic", "擬音・擬態語"
+    CONJUNCTION = "conjunction", "接続詞"
+    COLLOQUIAL = "colloquial", "口語表現"
 
 class VocabLevel(models.TextChoices):
     JLPT_N0 = "0", "未定義"

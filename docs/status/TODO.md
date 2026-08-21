@@ -7,7 +7,7 @@
 Status badge：
 
 -  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（62）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（3）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
 
 ## 目錄
@@ -294,6 +294,47 @@ Status badge：
 - 避免 admin review DELETE request 時見到 default / 空 proposed data 而誤判。
 
 ## Vocab Planned Work
+
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Additional vocab types：adverb / mimetic / conjunction / colloquial**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- `VocabType` 已加入 `adverb`、`mimetic`、`conjunction` 同 `colloquial` choices。
+- 已產生 migration，更新 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices。
+- 已決定 `adverb`、`mimetic`、`conjunction` 同 `colloquial` 使用 multiple-choice 答題，而唔使用 50 音 keyboard。
+- 新 type 係 project-specific quiz / learning 分類，唔係純語言學詞性；例如 `ズレ` 會歸入 `colloquial`，避免要求 user 用 kana keyboard 重複輸入同一寫法。
+- 已決定四種 MC type 嘅 CSV mapping：`word` 保存原字，`kana` 保存平假名讀音。
+- 已決定 monthly new-word CSV 喺 `native_japanese` 後加入 `question1`、`question2`、`mc_answer1`、`mc_answer2`、`mc_answer3`；`vocab`／`katakana` 呢五欄使用 `---`。
+- 已定義 `question1`／`question2` 內容：各自生成一條簡短自然用例，可按需要使用單句或 `Q：...\nA：...` 對答；只有對答先保存字面 `\n` 分行標記。
+- 題目以四個半形 underscore `____` 隱藏目標詞；需要活用時緊接 ASCII 括號提示，例如 `____(て)`、`____(ない)`、`____(され)`、`____(られ)`、`____(させ)`。
+- 每個 question 以 Unicode characters 獨立計長度，生成目標為最多 50 字；只有為保持自然度或消除多答案歧義先可放寬至 100 字，任何情況都唔可以超過 100 字。字面 `\n`、`____`、標點同活用提示全部計入。
+- MC 正確選項維持 `word` 保存嘅基本形；即使句子實際需要 `ググって`，選項仍使用 `ググる`，括號負責提示活用。
+- 已定義三個 distractor：`mc_answer1` 用近義／易混淆但兩題皆不適用嘅字；`mc_answer2` 用同一 project type 但兩題皆明確錯嘅字；`mc_answer3` 可來自四種 MC type 其中之一，但兩題皆明確錯。
+- `word` 同三個 distractor 全部保存基本形、互不重複；任何 distractor 如能自然完成其中一題，就要改題目或換選項，唔可以保留多個合理答案。
+- `mc_answer1`～`mc_answer3` 唔需要已存在於目前 DB／resource CSV；可以由外部日文詞彙生成，但必須係已查證嘅真實自然用語，欄位設計亦唔應強制依賴 `Vocab` ForeignKey。
+- `native_japanese` 只供 `katakana` 使用，其他 type 統一保存 `---`。
+- `type=adverb`、`mimetic`、`conjunction` 時，`category1` 必須使用同名 category；`colloquial` 暫時按內容主題選現有 category。
+- 已決定 MC type 重疊時嘅優先順序：固有擬聲／擬態先用 `mimetic`，主要連接句子用 `conjunction`，主要修飾功能用 `adverb`，其餘符合 project 口語／辨認式學習定義先用 `colloquial`；仍然不確定就進 ambiguity queue。
+- 四個 MC 選項會喺 view `get_context_data()` 階段 randomize，CSV 繼續保存正確答案同三種 distractor 嘅固定角色。
+- 多義／type 不確定嘅字會排入 ambiguity queue：先完成同批清楚嘅字，再為每個 unresolved word 顯示最多三個常見詞義、建議 type 同來源，等 user 選一個、多個或唔收錄。
+- 常見詞義選項唔需要湊足三個；只有一至兩個常見義就只顯示一至兩個，唔可以加入罕見、過時、專門或證據薄弱嘅意思湊數。
+- User 選擇多個 sense 時，每個 sense 要有獨立 meaning、type、categories、questions 同 distractors，並保存成獨立 row；每個 row 嘅 `question1`／`question2` 只可以測試該 row 嘅 meaning，唔可以混合其他 sense。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow。
+- 實作 `question1`／`question2` 嘅 blank、字面 `\n` 同活用提示 validation。
+- 實作三個 distractor 對兩條題目嘅語義、句法、活用同 type validation，以及 view `get_context_data()` 選項 randomization。
+- 更新 CSV import、model / related data structure 同測試，真正保存及使用新增五欄。
+- 更新 `(word, kana)` unique rule，令同字同讀音可以按 sense 保存多個 rows，並同步定義新 identity／duplicate validation。
+- 現有 `NewWord_YYYY_MM.csv` 只係測試品，由 user 喺正式啟用前自行刪除；skill 唔可以刪除、覆蓋或升級同名測試檔。舊 `resource/kanji*.csv` 暫時亦唔批量升級。
+- 擴充 answer result comparison；目前只為 `vocab` 同 `katakana` 產生逐字比較結果。
+- 驗證 create / update / restore / delete request、CSV import、detail view 同 admin flow 對四種新 type 嘅完整支援。
+- 決定四種新 type 是否需要 `VocabDetail` 或其他 type-specific detail model；目前 `VocabActionService` 只為 `vocab`／`katakana` 建立 detail row。
+- 加入各 type 嘅 end-to-end 測試後，先視為可正式匯入及出題。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Category multiple selection**

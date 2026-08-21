@@ -9,6 +9,7 @@
 - [Event Notification](#event-notification)
 - [User Message / Admin Inbox](#user-message--admin-inbox)
 - [Quiz](#quiz)
+- [Vocab Data Model](#vocab-data-model)
 - [CSV Import / Logging](#csv-import--logging)
 
 ## Account
@@ -39,6 +40,10 @@
 - Multiple choice panel 要產生實際選項，並接上 answer submit 同 backend checking。
 - Multiple choice answer flow 要回傳答題結果，方便 view/template 顯示答啱或答錯。
 - 如之後需要更精準嘅 recent skip，可只保存最近 10 個 vocab ids；暫時唔建立完整 question history model。
+
+## Vocab Data Model
+
+- 詳細研究一詞多義 identity 應採用 `sense_no`、`sense_key`，或兩者分工：比較穩定識別、顯示排序、重新編號、可讀性、migration 同 duplicate validation 嘅影響，再決定點樣取代目前只以 `(word, kana)` 判斷唯一嘅設計。
 
 ## CSV Import / Logging
 
