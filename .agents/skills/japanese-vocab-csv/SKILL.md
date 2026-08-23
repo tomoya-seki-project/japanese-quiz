@@ -8,6 +8,22 @@ description: Research and append new Japanese words to this repository's monthly
 Turn words supplied by the user into import-ready rows under `resource/` without
 making them request each enrichment step separately.
 
+## Repository root resolution
+
+Before reading or writing project files, resolve the active workspace's Git
+root with `git rev-parse --show-toplevel`. Treat `.agents/`, `resource/`,
+`dictionary/`, and every other repository path as relative to that root; never
+reuse an absolute path or working directory remembered from an earlier turn or
+another clone.
+
+Verify that the resolved root contains this repository's `AGENTS.md`, this
+skill, `resource/categories.csv`, and the relevant model/import files before
+writing. A skill locator may identify another installed or cloned copy but must
+not silently redirect CSV output there. If the user identifies a different
+clone or the active tool workspace and intended editor workspace disagree,
+stop all writes, report both canonical paths, and continue only after the target
+workspace has been confirmed and is writable.
+
 ## Trigger boundary
 
 Do not require a fixed command such as `有新字:`. Treat natural phrases showing

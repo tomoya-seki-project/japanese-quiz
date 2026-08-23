@@ -2,6 +2,74 @@
 
 呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
+## 2026-08-22 - New vocab types and August import dataset
+
+Commit: `5bc6f06`
+
+Status: Dictionary now supports more vocab types and has an August CSV dataset ready for import workflow testing
+
+### 主要改動
+
+- `VocabType` 加入 adverb、mimetic、conjunction 同 colloquial，令字庫可以保存更多非普通 vocab / katakana 類型。
+- 新增 migration 更新 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices。
+- 加入 `resource/NewWord_2026_08.csv`，保存 15 個 import-ready vocab entries。
+- CSV 內容包括 Japanese meaning、category、quiz questions 同 multiple-choice distractors。
+- 建立 repo-local workflow instructions，將 project status sync 同 Japanese vocab CSV 收集流程正式寫入 `.agents` / `AGENTS.md`。
+
+### Database 改動
+
+- 新增 migration `dictionary/migrations/0026_new_vocab_type.py`。
+- `Vocab.type` choices 加入 `adverb`、`mimetic`、`conjunction`、`colloquial`。
+- `VocabRequest.proposed_vocab_type` choices 同步加入新 vocab type。
+
+### 技術重點
+
+- Django `TextChoices` 改動需要 migration，否則 admin / form / request proposed fields 會同 model choices 不一致。
+- CSV import data 開始支援同一個 surface word 對應多個 meaning / question context，之後要留意 `(word, kana)` unique constraint 同「同字不同義」設計。
+- Project workflow rules 放入 repo 後，可以令之後 review、vocab 收集同 documentation sync 有固定準則。
+
+### 理由
+
+- 之後 quiz 不只會處理 kana answer，亦會處理副詞、擬音擬態語、接續詞、口語表現等 multiple-choice 類型。
+- 先建立 vocab type 同 import dataset，可以令之後 bulk import / quiz logic 有真實資料可以測。
+
+### 學到咩
+
+## 2026-08-18 - Feedback, event and vocab review hardening
+
+Commit: `c8ee779`
+
+Status: Feedback, event list and vocab request admin review flows were hardened after testing
+
+### 主要改動
+
+- Feedback creation 改由 `FeedbackService` 處理，避免同一 user 重複提交相同 pending feedback。
+- Feedback reply flow 改由 service 建立 reply event、assign user event、更新 feedback status 同 reply metadata。
+- Event list 支援 read / unread filter，並保留 pagination query string。
+- Navbar / context processor 加入 unread event count 同 pending feedback count。
+- VocabRequest admin approve / reject 加入 change permission guard，避免無權限 user 透過 custom button review request。
+- VocabRequest approve flow 加入 original vocab active / inactive 狀態 validation，避免 update / delete / restore 對錯誤狀態嘅 vocab 操作。
+- UserVocab sync 改用 bulk create + ignore conflicts，減少逐個 create 嘅重複處理風險。
+
+### Database 改動
+
+- 新增 migration `core/migrations/0007_feedback_unique_rule_change.py`。
+- 暫時移除 `Feedback` model 上原本 `Feedback_unique` database constraint，改由 service 層針對 pending feedback 做 duplicate check。
+- `settings.py` 加入額外 context processor。
+
+### 技術重點
+
+- Admin custom button 仍然要主動檢查 permission；不能只靠 change form 頁面本身。
+- Service layer 適合包住跨 model side effects，例如 feedback reply 同 event notification。
+- Event list filter 要保存 query string，pagination 先不會跳頁後失去 read / unread 狀態。
+
+### 理由
+
+- Feedback duplicate 判斷要按 pending 狀態處理；如果用 database unique constraint，已回覆 feedback 仍會阻止 user 之後再提交相同內容。
+- VocabRequest approve / reject 會改正式 vocab data，所以 admin custom action 需要更嚴格嘅 permission 同狀態 validation。
+
+### 學到咩
+
 ## 2026-08-14 - UserVocab detail and learning controls
 
 Commit: `4d14a87`
@@ -40,7 +108,7 @@ Status: UserVocab now has a dedicated detail flow for reviewing vocab data and c
 
 ## 2026-08-13 - User feedback flow
 
-Commit: 未 commit
+Commit: `ea9ab55`
 
 Status: Logged-in users can submit feedback, and superusers can review and reply through the site flow
 

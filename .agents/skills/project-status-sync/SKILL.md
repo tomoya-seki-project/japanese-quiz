@@ -9,6 +9,21 @@ Keep the project status documents accurate as part of the current task. Apply
 TODO and project history updates directly. Future ideas and learning points
 require the user's explicit approval before writing.
 
+## Repository root resolution
+
+Before reading or writing project files, resolve the active workspace's Git
+root with `git rev-parse --show-toplevel`. Treat every path in this skill as
+relative to that resolved root; never reuse an absolute path or working
+directory remembered from an earlier turn or another clone.
+
+Verify that the resolved root contains this repository's `AGENTS.md`,
+`.agents/skills/`, and the target status files before writing. A skill locator
+may show where a copy of the skill was discovered, but it is not permission to
+switch the task to that clone. If the user identifies a different clone or the
+active tool workspace and intended editor workspace disagree, stop all writes,
+report both canonical paths, and continue only after the target workspace has
+been confirmed and is writable.
+
 ## Sources of truth
 
 Before editing status documents, read
@@ -51,6 +66,22 @@ Update `TODO.md` for work inside the current project scope.
 
 - Mark an item complete only when code inspection and proportionate
   verification support that conclusion.
+- Keep detailed task and progress bullets while a subtag is `TODO` or
+  `WORKING`, because they are still needed to show what remains and what has
+  already been attempted.
+- When a subtag becomes `DONE`, compress its implementation diary into a short
+  outcome-oriented summary. Also compact an existing `DONE` subtag when a sync
+  reveals that it has accumulated excessive chronological or repetitive
+  detail.
+- A compact `DONE` summary should normally use about 3-6 bullets and preserve
+  the final user-visible behavior, important architecture decisions, security
+  or data-integrity safeguards, and meaningful verification evidence. Keep an
+  `改良` section separate when it still describes optional follow-up work.
+- Remove superseded approaches, incremental wiring steps, repeated facts, and
+  low-level form/template/field chronology from a `DONE` subtag. Do not remove
+  a current limitation merely to make the entry look complete, and do not
+  relabel a subtag `DONE` while required work remains.
+- Do not repeatedly rewrite an already concise and accurate `DONE` summary.
 - If a review fails, keep the item unfinished and add only concrete remaining
   work that belongs to the existing scope.
 - Do not turn optional suggestions into required TODOs.

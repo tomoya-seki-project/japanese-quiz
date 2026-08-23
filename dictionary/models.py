@@ -98,6 +98,33 @@ class KatakanaDetail(models.Model):
     class Meta:
         db_table = 'katakana_detail'
 
+class MCSense(models.Model):
+    vocab = models.ForeignKey(
+        Vocab,
+        on_delete=models.CASCADE,
+        related_name="mc_senses"
+    )
+    sense_no = models.PositiveSmallIntegerField()
+    sense_key = models.CharField(max_length=100, unique=True)
+    meaning = models.CharField(max_length=255)
+    question_1 = models.CharField(max_length=100)
+    question_2 = models.CharField(max_length=100)
+    mc_answer_1 = models.CharField(max_length=20)
+    mc_answer_2 = models.CharField(max_length=20)
+    mc_answer_3 = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.vocab.word}({self.sense_no})"
+
+    class Meta:
+        db_table = 'mc_sense'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['vocab', 'sense_no'],
+                name='vocab_mc_sense_unique',
+            )
+        ]
+
 class UserVocab(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 

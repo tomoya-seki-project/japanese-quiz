@@ -320,20 +320,27 @@ Status badge：
 - 四個 MC 選項會喺 view `get_context_data()` 階段 randomize，CSV 繼續保存正確答案同三種 distractor 嘅固定角色。
 - 多義／type 不確定嘅字會排入 ambiguity queue：先完成同批清楚嘅字，再為每個 unresolved word 顯示最多三個常見詞義、建議 type 同來源，等 user 選一個、多個或唔收錄。
 - 常見詞義選項唔需要湊足三個；只有一至兩個常見義就只顯示一至兩個，唔可以加入罕見、過時、專門或證據薄弱嘅意思湊數。
-- User 選擇多個 sense 時，每個 sense 要有獨立 meaning、type、categories、questions 同 distractors，並保存成獨立 row；每個 row 嘅 `question1`／`question2` 只可以測試該 row 嘅 meaning，唔可以混合其他 sense。
+- 已決定同一個 `(word, kana)` 只保存一個 `Vocab`，各個 MC 語意改用 `MCSense` one-to-many rows 保存；每個 sense 有獨立 meaning、questions 同 distractors，但共用同一個 `UserVocab` learning progress。
+- 已接受任何一個 sense 出題後，同一個 `Vocab` 其他 senses 都要等該 `UserVocab` 離開 recent-question exclusion 後先再出；`weight`、`streak`、correct / incorrect count 同 `last_quiz_at` 亦按整個 `UserVocab` 共用。
+- 保留 `VocabDetail` one-to-one relationship，繼續專門保存 `vocab` type 將來可能加入嘅額外資料；MC 題資料另外使用 `MCSense`。
+- CSV import 判斷同一個 vocab 時使用 `(word, kana)`，唔可以只比較 `word`；第一個 MC row 建立 `Vocab` 同第一個 `MCSense`，之後相同 `(word, kana)` 嘅 MC rows 只新增指向同一 `Vocab` 嘅 `MCSense`。
+- `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義，Django system check 通過，但 migration 尚未建立。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
 - 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow。
+- 確認 `sense_no` 是否由 1 開始並加入相應 minimum validation，決定 `sense_key` 生成規則後，建立及套用 migration。
 - 實作 `question1`／`question2` 嘅 blank、字面 `\n` 同活用提示 validation。
 - 實作三個 distractor 對兩條題目嘅語義、句法、活用同 type validation，以及 view `get_context_data()` 選項 randomization。
-- 更新 CSV import、model / related data structure 同測試，真正保存及使用新增五欄。
-- 更新 `(word, kana)` unique rule，令同字同讀音可以按 sense 保存多個 rows，並同步定義新 identity／duplicate validation。
+- 更新 CSV import、service、admin / request flow 同測試，真正建立及使用 `MCSense`；同一 CSV 或現有 DB 內重複 `(word, kana)` 嘅 MC rows 要指向同一個 `Vocab`，非 MC duplicate 或 MC type 衝突要 skip 並列入 conflict report，唔可以當成功或靜默略過。
+- 保留 `Vocab` 目前 `(word, kana)` unique rule；用 `MCSense.sense_key` 做 stable identity，並用 `(vocab, sense_no)` 做同一 vocab 內嘅 duplicate validation。
+- 決定 CSV 點樣提供或穩定生成 `sense_key`，令重跑同一份 CSV 時可以辨認已有 sense，唔會重複新增；現有 monthly CSV 尚未有 `sense_key` 欄。
+- 決定同一 `Vocab` 各個 senses 嘅 `type`、level 同 categories 必須一致、合併到 base `Vocab`，定係部分資料要搬入 `MCSense`；目前測試 CSV 已有同字各 sense categories 不同嘅例子。
 - 現有 `NewWord_YYYY_MM.csv` 只係測試品，由 user 喺正式啟用前自行刪除；skill 唔可以刪除、覆蓋或升級同名測試檔。舊 `resource/kanji*.csv` 暫時亦唔批量升級。
 - 擴充 answer result comparison；目前只為 `vocab` 同 `katakana` 產生逐字比較結果。
 - 驗證 create / update / restore / delete request、CSV import、detail view 同 admin flow 對四種新 type 嘅完整支援。
-- 決定四種新 type 是否需要 `VocabDetail` 或其他 type-specific detail model；目前 `VocabActionService` 只為 `vocab`／`katakana` 建立 detail row。
+- 將四種 MC type 接上 `MCSense` creation / update flow；目前 `VocabActionService` 仍只處理 `vocab`／`katakana` detail row，未保存 MC-specific data。
 - 加入各 type 嘅 end-to-end 測試後，先視為可正式匯入及出題。
 
 
@@ -343,17 +350,10 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - 已新增 `Category` model。
-- `Vocab.categories` 已改成 ManyToManyField。
-- `VocabRequest.proposed_categories` 已改成 ManyToManyField。
-- Vocab request form 已支援最多三個 categories。
-- Create / update / restore request 已保存 proposed categories snapshot。
-- Approve CREATE / UPDATE 時已同步寫入 `Vocab.categories.set(...)`。
-- CSV import 已支援 `category1`、`category2`、`category3`。
-- 已建立 `setup_categories` command 同 `resource/categories.csv`。
-- Admin review form 已可查看 / 編輯 proposed categories。
-- Vocab list / user vocab list search filter 已改用 M2M categories。
-- Legacy single category field 已移除。
-- 已手動測試 categories admin / request / import 主要 flow。
+- `Vocab` 同 `VocabRequest` 已使用 ManyToMany categories，request form、snapshot、admin review 同 approve flow 均支援最多三個 categories。
+- CSV import 已支援 `category1`～`category3`，category 基礎資料由 `resource/categories.csv` 同 `setup_categories` command 管理。
+- Vocab／UserVocab search 已配合 M2M categories，legacy single-category field 已移除。
+- Categories admin、request 同 import 主要流程已手動驗證。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -382,16 +382,10 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - CREATE / UPDATE / RESTORE / DELETE request creation flow 已完成。
-- Request creation 已使用 `transaction.atomic()`。
-- Duplicate pending request 已有 application check + database conditional unique constraints。
-- Service `IntegrityError` 已轉成 `ValidationError`，view 會回到 `form_invalid()`。
-- Admin approve / reject 已改用 POST。
-- Approve / reject 已使用 `transaction.atomic()`、`select_for_update()` 同 `PENDING` status check。
-- Reviewed request 會變成 readonly，並由 `save_model()` 擋住再次保存。
-- `VocabUpdateRequestForm.vocab_type` 已 readonly。
-- Approve 前會 validate 最終 proposed data 是否足夠。
-- Admin 會根據 service result 顯示成功 / warning feedback。
-- 已手動測試 create / restore / update / delete request，以及 approve / reject flow。
+- Request creation、approve 同 reject 均經 service transaction 處理；review action 使用 POST、row lock 同 `PENDING` guard 防止重複處理。
+- Duplicate pending request 同 concurrency 由 application validation、conditional unique constraints，以及 `IntegrityError` → `ValidationError` handling 共同保護。
+- Reviewed request 同 workflow-controlled fields 會變成 readonly；approve 前亦會驗證最終 proposed data。
+- CREATE／UPDATE／RESTORE／DELETE request 及 approve／reject 主要流程已手動驗證，admin 會按 service result 顯示 feedback。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -447,13 +441,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `UserVocab.in_use` 已改成 default `True`。
-- Login 成功後會呼叫 `UserVocabService.sync_new_vocab()`。
-- Register 成功後亦會 sync 現有 vocab。
-- `sync_new_vocab()` 已決定每次 sync 所有 user 未擁有嘅 vocab。
-- `sync_new_vocab()` 已由逐個 `get_or_create()` 改成 `bulk_create(ignore_conflicts=True)`，減少大量 vocab sync 時嘅 query / insert round trip。
-- UserVocab list 可以按 `in_use=True / False` filter。
-- UserVocab list 已加入 bulk update flow，用 `selectable_ids` / `selected_ids` 更新 `in_use`。
-- 已用 browser 測試 select all / checkbox 更新 `in_use` flow。
+- Login／register 後會由 `UserVocabService.sync_new_vocab()` 補齊 user 尚未擁有嘅 vocab，並以 `bulk_create(ignore_conflicts=True)` 減少同步成本。
+- UserVocab list 可按 `in_use` filter，亦支援以 `selectable_ids`／`selected_ids` 安全地 bulk update quiz 使用狀態。
+- Select-all、checkbox 同 `in_use` 更新流程已用 browser 驗證。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -468,16 +458,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `UserVocabDetailView` 已有 ownership guard，限制目前 user 只能查看自己嘅 active user vocab。
-- 已決定 `UserVocabDetail` 會分開顯示「My Vocab / quiz 狀態」同「Vocab master data」兩部分。
-- `UserVocabDetailView` 已正式接入 URL。
-- `UserVocabListView` item 已加入 detail link，可以由 user vocab list 進入單一 user vocab detail。
-- Detail page 已開始顯示 user-specific data，例如 weight、streak、correct / incorrect count、last quiz、last answer。
-- Detail page 已開始顯示 vocab master data，例如 word、kana、meaning、type 同 categories。
-- Detail page 已加入 request update / request delete entry，連到既有 vocab request flow。
-- Detail page 已加入單字 `in_use` update form，用嚟控制該 vocab 是否加入自己嘅 quiz pool。
-- Detail page 已顯示 `in_use` checkbox。
-- `UserVocabDetailView` 已可處理 POST，更新目前 object 嘅 `in_use` 後 redirect 返 detail page。
-- `get_context_data()` 已避免覆蓋 POST invalid 時傳入嘅 bound form。
+- Detail page 已接入 list／URL，並分開顯示 user-specific quiz 狀態同 vocab master data。
+- User 可由 detail page進入既有 update／delete request flow，亦可單獨更新該 vocab 嘅 `in_use` 狀態。
+- POST 更新後會 redirect，invalid POST 則保留 bound form，避免錯誤內容被 context 重建覆蓋。
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **UserVocab selection page scope decision**
 
@@ -533,15 +516,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `UserProfile.last_vocab_sync_at` 已作為 user vocab sync / event summary 基準時間。
-- `EventService.gen_vocab_sync_event()` 已根據 `Vocab.update_at > last_vocab_sync_at` 找出變化。
-- CREATE request 會獨立計算。
-- UPDATE / RESTORE / DELETE 會按 sync window 內最新 non-CREATE approved request 分類。
-- 無對應 approved request 但 vocab 有變化時，暫時當成 admin / import created vocab fallback。
-- `gen_vocab_sync_event()` 已接入 login flow。
-- `gen_vocab_sync_event()` 已接入 user detail / profile page。
-- 已手動測試 create / update / restore / delete / import 後 summary event 正常生成。
-- 第一次 sync 已決定只設定 `last_vocab_sync_at`，唔產生歷史 vocab summary event。
-- User 已可透過 event list / detail 查看 vocab sync summary event。
+- `EventService.gen_vocab_sync_event()` 會按 sync window 找出 vocab 變化，並根據 approved request 分辨 CREATE／UPDATE／RESTORE／DELETE；無 request 記錄嘅變化會使用 admin／import fallback。
+- Summary generation 已接入 login 同 profile refresh point；首次 sync 只建立基準時間，唔補發歷史事件。
+- User 可經 event list／detail 查看 summary；create、update、restore、delete 同 import 情況已手動驗證。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -557,13 +534,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - 已建立 unread event list view。
-- User 可以喺 unread event list tick event 並 submit mark as read。
-- Bulk mark read flow 已用 `selectable_ids` / `selected_ids` 限制提交範圍。
-- Event list 已支援 Ajax partial pagination。
-- `UserEventDetailView` 已限制只能查看目前 user 自己嘅 event。
-- Navbar 已透過 context processor 顯示 unread event count。
-- User 已可查看全部 event，包括 unread / read history。
-- Event list 已可按 status 選擇 / filter，例如 all、unread、read。
+- User 可查看 unread、read 或全部 event history，並透過安全嘅 `selectable_ids`／`selected_ids` bulk flow 標記已讀。
+- Event detail 有 ownership guard；navbar 會經 context processor 顯示 unread count。
+- Event list 已支援 status filter 同 Ajax partial pagination。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -580,15 +553,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `import_vocab` 已支援 CSV path argument。
-- 已加入 superuser authentication。
-- 已加入 header validation。
-- 已加入 row-level validation / error handling。
-- 已經經 `VocabActionService` create flow 建立 vocab。
-- Duplicate vocab 或 invalid row 會輸出錯誤並繼續下一行。
-- 每筆 vocab creation 已由 service transaction 保護。
-- 完成後會 show imported / failed rows count。
-- 已保留每個 failed row 嘅行數及錯誤原因。
-- 已支援最多三個 categories。
+- Command 只容許 superuser 執行，並驗證 CSV headers、最多三個 categories 同每行資料。
+- 每筆 vocab 會經 `VocabActionService` transaction 建立；duplicate 或 invalid row 會保留行號／原因並繼續處理下一行。
+- 完成後會輸出 imported／failed 統計及各 failed row 詳情。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -638,19 +605,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - 已將原本 FAQ 方向整理成 `Feedback` flow。
-- 已建立 `Feedback` model / type / status 基礎。
-- Feedback 暫時採用登入 user 才可提交，不開 anonymous public form。
-- 普通 user 可以由前台提交 feedback。
-- Feedback create 後會以 `PENDING` 作初始狀態。
-- Superuser 進入 feedback 入口會 redirect 到 feedback list。
-- 普通 user 進入 feedback 入口會 redirect 到 feedback create。
-- Feedback list 已有固定 ordering，避免 pagination 使用 unordered queryset。
-- Admin 可以進入 feedback list / detail 查看提交內容。
-- Feedback list 已提供 detail link。
-- Admin 可以 reply feedback。
-- Reply 後 feedback status 會更新成 `REPLIED`，並寫入 `reply_by` / `reply_at`。
-- Reply 後會建立 `FEEDBACK_REPLY` event 並 assign 俾提交 feedback 嘅 user。
-- 已手動測試普通 user create、superuser list / detail / reply、feedback status update 同 user event creation。
+- 登入 user 可提交 `PENDING` feedback；superuser 會進入有固定 ordering 嘅管理 list／detail／reply flow。
+- Admin reply 後會更新 `REPLIED` status、reviewer 同時間，並建立 `FEEDBACK_REPLY` event 通知提交者。
+- 普通 user submission、superuser review／reply、status update 同 event creation 已手動驗證。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -698,16 +655,10 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已決定建立 quiz form，俾 user 選擇今次想考嘅 vocab type、level、category。
-- `QuizSettingForm` 已建立 `vocab_type`、`level`、`categories` 三個 filter fields。
-- 三個 filter fields 已暫時使用 checkbox UI，方便 user 複選出題範圍。
-- `QuizService.create_question_pool()` 已建立初稿，會由目前 user 嘅 `UserVocab` 建立 question pool。
-- Question pool 已支援 `in_use=True`、vocab type、level、categories filter。
-- `QuizSettingView` 已將 `QuizSettingForm.cleaned_data` 保存到 session，並由 `QuizPlayView` / `QuizNextView` 傳入 `QuizService.create_question_pool()`。
-- Empty filter 選項已喺 `create_question_pool()` 用 truthy check 處理，代表「不限制該條件」。
-- `create_question_pool()` 已支援單一條件、複數條件、無條件 filter 組合。
-- Filter 後無題時已加入 fallback strategy：改用目前 user 嘅 full active vocab pool，並回傳 `fallback_used` flag。
-- `QuizSettingView` 已用 `QUIZ_MIN_IN_USE_VOCAB_COUNT` 檢查 user active vocab 數量；不足時會 redirect 去 user vocab list 並顯示 warning message。
+- `QuizSettingForm` 可用 checkbox 複選 vocab type、level 同 categories；空選項代表不限制該條件。
+- Settings 會保存到 session，並由 play／next flow 傳入 `QuizService.create_question_pool()`。
+- Question pool 只使用目前 user `in_use=True` 嘅 UserVocab，支援單一、複數或無條件 filter 組合。
+- Filter 後無題會 fallback 到 full active vocab pool，並回傳 `fallback_used`；active vocab 數量不足則 redirect 到 user vocab list 並顯示 warning。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -729,53 +680,12 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- Quiz basic flow 已有初稿：setting page -> random `UserVocab` question -> answer form -> result page。
-- `QuizSubmitAnswerView` 已用 `get_object_or_404(UserVocab, pk=..., user=request.user)` 防止 user 改 hidden id 操作其他 user 嘅 vocab。
-- 已重新釐清 Ajax partial flow：View 應按 user action 分工，partial 只代表 UI state。
-- 已決定 `quiz_result_partial.html` 不一定需要獨立 `QuizResultView`；答題 submit action 可以直接 render result partial。
-- 已決定 result partial 入面嘅 Next button 應 call next-question endpoint，再由該 endpoint render question partial。
-- Quiz flow 已開始重整成 full page shell + action endpoints：
-  - `QuizPlayView` render quiz full page shell / 第一題 question partial。
-  - `QuizSubmitAnswerView` 做 answer checking、stats update，然後 return `quiz_result_partial.html`。
-  - `QuizNextView` 負責抽下一題，然後 return `quiz_question_partial.html`。
-- 已移除獨立 `QuizResultView` 方向，改由 submit answer action 直接 render result partial。
-- 已移除 answer data 放 URL path 嘅方向，改由 POST body / form data 傳入。
-- `QuizForm` 已加入 hidden `user_vocab_id`，用嚟表示目前 answer form 對應邊個 `UserVocab`。
-- `QuizNextForm` 已建立成空 form，`QuizNextView` 已改用 next-only form，避免要求 answer fields。
-- `QuizSettingForm.quiz_num` 已改用 `TypedChoiceField(coerce=int)`，避免 quiz count 由 form / session 傳到 template 後變成 string 而影響大小比較。
-- `QuizSettingRequiredMixin` 已建立，並用 `dispatch()` 喺 `QuizPlayView` / `QuizNextView` 進入前檢查 session 入面是否有 `quiz_settings`。
-- `QuizSessionRequiredMixin` 已建立，並用喺 submit / next / skip 等需要現有 quiz session 嘅 endpoints。
-- `QuizSubmitAnswerView` 已從 session 讀取目前題目嘅 `fallback_used` flag，並傳入 result partial context。
-- `QuizSubmitAnswerView` 已檢查 POST 入嚟嘅 `user_vocab_id` 是否等於 `quiz_session["question_user_vocab_id"]`，避免 hidden id 指向非目前題目時污染 stats / weight。
-- Hidden id mismatch 時，如 session 仍有目前題目，會重新 render session 入面真正題目；如 session 已無目前題目，會回 no-question partial。
-- `QuizNextView` 已將新題目嘅 `fallback_used` flag 保存到 session，方便 submit answer 後 result partial 判斷是否顯示 Next。
-- `tips_count` 已改成 hidden field，準備由 question form 以 hidden/default value submit。
-- `UserVocab.last_answer` 已加入 model / migration / admin display，準備俾 result partial 顯示 user 最近一次答案。
-- `quiz_session` 已同 `quiz_settings` 分開，開始追蹤目前題目、fallback 狀態、答題數、正確數、錯誤數、skip 數同 tips 總數。
-- `quiz_play.html` 已建立 full page shell，並用 `quiz-area-container` 包住可被 Ajax replace 嘅 question / result partial。
-- `quiz_question_partial.html` 已建立 answer POST form，包含 hidden `user_vocab_id` 同 hidden/default `tips_count`。
-- `quiz_result_partial.html` 已建立 next POST form，會 call `QuizNextView` 再換入下一題 partial。
-- 前端 Ajax submit / replace flow 已接上 `form.action`，可根據 answer form / next form 指向對應 view。
-- Result partial 已用 `fallback_used` 控制是否顯示 Next button。
-- Result partial 已按 `total_quiz_num` / `current_quiz_num` 控制 Summary button 同 Next button 顯示。
-- Ajax quiz flow 已手動測試成功：50 音 keyboard 可將答案寫入 hidden input，submit answer 後可局部更新成 result partial，Next 可再局部更新成下一題。
-- Quiz Ajax response 已改成 JSON contract，分開回傳 `main_html` 同 `input_panel_html`，讓 main question/result area 同 input panel area 可以分開 replace。
-- `QuizNextView` 已根據下一題 `VocabType` 產生對應 input panel context，準備支援 hiragana keyboard / katakana keyboard / multiple choice panel。
-- Quiz question form 已開始提供 tips button，並準備透過 `data-correct-answer` 俾前端讀取正確答案作提示處理。
-- `quiz_result_partial.html` 已顯示基本答題結果，包括題目、正確答案、user submitted answer 同 correct / wrong 狀態。
-- `quiz_no_question_partial.html` 已加入基本訊息同 back to settings link，避免 no-question case 顯示空白。
-- Tips button 前端提示邏輯已完成初稿，會按正確答案修正 / 補完 hidden answer input，並同步更新 answer display。
-- `tips_count` 已會隨 tips click 正確遞增，並會跟 answer form 一齊提交到 backend。
-- `QuizSkipForm` / `QuizSkipView` / `quiz_skip` URL 已建立，question partial 已有獨立 skip form。
-- Skip form 已沿用 Ajax JSON contract，skip 後會局部更新下一題或 no-question partial。
-- `build_next_question_payload()` 已抽出共用 next-question payload 建立流程，供 `QuizNextView` 同 `QuizSkipView` 重用。
-- Skip 後如 user filter pool 已無可用題目，會回傳 no-question partial，引導 user 返設定 / vocab list。
-- Skip 後會先清空 `quiz_session["question_user_vocab_id"]`，再嘗試抽下一題，避免已 skip 題目被當成未完成題目。
-- Skip flow 已傳入 `is_skip=True`，令 skip 後抽出嘅下一題不會增加 `quizzed_count`，避免有限題 quiz 因大量 skip 而超出目標題數。
-- `QuizUnfinishedView` 已可按 session 入面未完成題目重新 render quiz page；如 session 無目前題目，會嘗試抽一題新題繼續。
-- `QuizUnfinishedView` 已補返 `current_quiz_num` / `total_quiz_num` context，避免由 unfinished flow 入返 quiz page 時 quiz count 顯示唔到。
-- `QuizSettingView` 已處理有限題 quiz 中途離開後返回嘅 lifecycle：未答題會 resume 同一題，result page 離開但未答晒會繼續下一題，有限題已完成則清走 `quiz_session`。
-- 暫時所有 quiz answer submit 都走 kana answer checking flow，避免 katakana 題目未正式拆 type 前被直接當 wrong。
+- Quiz 已完成 setting、隨機出題、answer submit、result、Next、Skip、resume 同 no-question 基本流程。
+- Quiz 採用 full-page shell + Ajax partial 架構；answer、next 同 skip endpoints 會透過統一 JSON contract，分別更新 main content 同對應 input panel。
+- `quiz_settings` 同 `quiz_session` 已分開管理，支援目前題目、題數、答題統計、fallback、tips、skip，以及有限題 quiz 中途離開後恢復。
+- Answer submit 已驗證 `UserVocab` ownership 同 session question identity，避免修改 hidden `user_vocab_id` 操作其他 user 或污染非目前題目嘅 stats。
+- Next、Skip、fallback、Summary button 同 quiz completion lifecycle 已處理；50 音 keyboard、answer result、partial replacement 同續題流程亦已手動驗證。
+- 目前所有 answer submit 暫時使用 kana checking flow；其他 vocab type 會喺相應 multiple-choice flow 完成後再接入。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -788,19 +698,9 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `UserVocab` 已有 `weight` field。
-- 已決定 question pool 會來自目前 user 嘅 `UserVocab`。
-- 已決定 weight 越高，被抽中機會越高。
-- 已決定唔用 `random.choices()`。
-- 已決定自行計算 total weight，再用 cumulative weight + `bisect_left` 搵中獎項目。
-- `QuizService.pick_question()` 已建立初稿，會計算 total weight、cumulative weight，並用 `bisect_left` 抽題。
-- `UserVocab.weight` 已加入 `MinValueValidator(1)`，避免正常 form / admin validation 接受 0 或負數。
-- `UserVocab.weight` validator migration `0024_weight_add_min.py` 已建立。
-- Weight adjustment 參數已抽到 `quiz/config/quiz_config.json`。
-- `check_kana_answer()` 已根據 answer result、tips count 同 streak 更新 weight。
-- `skip_question_punish()` 已根據 config 增加 skipped vocab weight。
-- Service layer 已用 `min_weight` clamp，避免 weight 跌穿最低值。
-- `streak_correct` / `streak_wrong` 已改成較清楚嘅 config key。
+- Question pool 以目前 user 嘅 `UserVocab.weight` 做 weighted random；`QuizService.pick_question()` 使用 cumulative weights + `bisect_left` 抽題。
+- `weight` 有 database-compatible `MinValueValidator(1)` 同 service-level `min_weight` clamp，避免正常輸入或運算令數值跌穿下限。
+- Correct／wrong、tips、streak 同 skip 會按 `quiz/config/quiz_config.json` 調整 weight，設定名稱已整理成清楚嘅 gameplay keys。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -827,14 +727,9 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `UserVocab` 已有 `streak`、`correct_count`、`incorrect_count`、`last_quiz_at`。
-- 已決定 streak 基本規則。
-- `check_kana_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
-- `check_mc_answer()` 已開始處理 correct / incorrect count、streak、`last_quiz_at`，並 save 回 `UserVocab`。
-- `check_kana_answer()` / `check_mc_answer()` 已保存 `last_answer`，方便 result partial 顯示 user 上一次提交嘅答案。
-- 已決定 tips button 只要被按下就應增加 `tips_count`，即使 user 原本已經輸入完整正確答案，因為「需要確認」本身代表掌握度未夠穩。
-- `skip_question_punish()` 已建立，skip 時會檢查 `UserVocab` 是否屬於目前 user，再更新 weight、streak 同 `last_quiz_at`。
-- `check_kana_answer()` 已將 submitted `tips_count` 納入 weight calculation。
+- Kana／MC answer checking 會更新 `correct_count`、`incorrect_count`、streak、`last_quiz_at` 同 `last_answer`，供出題與 result UI 使用。
+- Tips 使用量會納入 weight calculation；只要使用提示就會計數，反映 learner 需要確認答案。
+- Skip punishment 有 ownership guard，並會更新 weight、streak 同 `last_quiz_at`。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -896,17 +791,10 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `quiz_session` 已開始保存整局 quiz 嘅統計資料，包括 `aims_quiz_num`、`quizzed_count`、`correct_count`、`wrong_count`、`skipped_count`、`total_tips_count`。
-- Answer submit 後已會更新 correct / wrong count、tips total，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
-- Skip 後已會更新 skipped count，並將 nested session dict 寫返入 `request.session["quiz_session"]`。
-- Next / skip 抽到新題時已會更新 `question_user_vocab_id`、`fallback_used` 同 `quizzed_count`。
-- Skip 抽下一題時已不增加 `quizzed_count`，所以 skipped question 不計入已答題數。
-- `QuizSummaryForm` / `QuizSummaryView` / `quiz_summary_partial.html` 已有初稿。
-- Summary partial 已可顯示本局答題數、目標題數、正確數、錯誤數、skip 數同 tips 使用量。
-- Summary response render 完後已用 `session.pop("quiz_session", None)` 清走 quiz session，避免完成後再入 setting 被誤判成 unfinished quiz。
-- Quiz 已支援固定題數完結。
-- Quiz 已支援手動 finish button 完結。
-- Summary page 已加入返回 Home 嘅 link，提供明確離開路徑。
+- `quiz_session` 會保存目標／已答題數、correct／wrong、skip、tips、目前題目同 fallback 狀態，answer、next 同 skip 後均會同步更新。
+- Skipped question 唔計入 `quizzed_count`；quiz 可按固定題數或手動 Finish 完結。
+- Summary flow 會顯示本局主要統計，render 後清除 `quiz_session`，避免完成後被誤判為 unfinished quiz。
+- Summary page 已提供返回 Home 嘅明確離開路徑。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -1062,21 +950,11 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 只用喺 user 回答 quiz 嘅介面。
-- Vocab search、create request、update request 等其他 forms 繼續使用普通 keyboard。
-- 已建立平假名 / 片假名 keyboard rows constants，並由 quiz view 傳入 input panel partial。
-- 已建立 `quiz_input_panel_partial.html`，用 button rows render 假名 keyboard。
-- 已建立 `kana_input.js`，將 keyboard input 寫入 hidden answer input，並同步更新畫面顯示。
-- 按下假名後，可將文字插入 quiz answer hidden input。
-- 已初步支援 backspace、濁音、半濁音同小假名轉換。
-- 已將 kana input 字串處理 function 拆到 `static/js/quiz/kana_input.js`。
-- Input panel 已可按題目 type 使用平假名 rows 或片假名 rows。
-- Multiple choice panel 已有 `mc_rows` / `mc-key` placeholder 結構。
-- 濁音 / 半濁音 handler 已支援反向轉換，可由濁音 / 半濁音切回清音。
-- 小假名 handler 已加入促音 `っ` 處理。
-- 片假名 keyboard rows 已加入長音符號 `ー`。
-- Hide keyboard button 已可收起 input panel，外層 show keyboard button 可再次顯示 input panel。
-- Quiz Ajax submit / DOM replace / tips / keyboard toggle JS 已移到 `static/js/quiz/quiz_play.js`。
+- 50 音 keyboard 只用於 quiz answer UI；search 同 vocab request 等一般 forms 繼續使用系統 keyboard。
+- Input panel 可按題目 type render 平假名或片假名 rows，並將按鍵輸入同步寫入 hidden answer 同畫面顯示。
+- Kana controls 已支援 backspace、清音／濁音／半濁音雙向轉換、小假名／促音及片假名長音符號。
+- Keyboard 可收起及重新顯示；Ajax submit、DOM replacement、tips 同 panel toggle 邏輯已集中到 quiz JavaScript modules。
+- Multiple-choice panel 已預留 `mc_rows`／`mc-key` 結構，待相應答題 flow 接入。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -1089,13 +967,10 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已建立 `devtools/image_generator/generate_kana_bg.py`，用嚟生成 seamless kana background tiles。
-- Generator 已固定可由 project root 執行，並輸出到 `assets/export/background/kana_bg_output_blue/`。
-- 已加入 WSL 可讀嘅 Windows Japanese font path，避免 fallback 到無日文字形嘅 font 後輸出方格。
-- 已將字色、底色、字體大小、大小出現比例、字數、字距同同字重複距離抽到 `kana_bg_config.json`。
-- 已建立 `devtools/image_generator/README.md`，記錄 config 各項數值用途同 generator 執行方式。
-- 已調整 kana background 字色為灰藍色系，配合目前淺藍底色。
-- 已生成 hiragana、katakana 同 mixed 三組 tile / preview image。
+- `generate_kana_bg.py` 可由 project root 產生 seamless hiragana、katakana 同 mixed background tiles／previews 到指定 export folder。
+- Generator 可使用 WSL 可讀嘅 Windows Japanese font，避免 fallback font 缺少日文字形而輸出方格。
+- 顏色、字體大小、密度、大小比例、字距同重複距離已集中到 `kana_bg_config.json`，並有 README 說明使用方法。
+- 現有輸出採用配合 quiz 淺藍背景嘅灰藍色系。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -1110,12 +985,8 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `VocabListView` 已支援 Ajax partial pagination。
-- `UserVocabListView` 已支援 Ajax partial pagination。
-- `UserEventListView` 已支援 Ajax partial pagination。
-- Pagination link 保留普通 `<a href>`，non-JavaScript fallback 可完整 reload page。
-- Search + pagination + Ajax partial update 已手動測試。
-- UserVocab checkbox select-all flow 已手動測試。
+- Vocab、UserVocab 同 UserEvent lists 已共用 Ajax partial pagination，同時保留普通 `<a href>` 作 non-JavaScript full-page fallback。
+- Search、pagination、partial replacement 同 UserVocab select-all flow 已手動驗證。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>

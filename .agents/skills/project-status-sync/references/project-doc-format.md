@@ -128,6 +128,27 @@ WORKING = 已開始，有部分完成，但核心目標未完成
 TODO    = 未開始，或暫時只係計劃
 ```
 
+### DONE subtag 壓縮規則
+
+`TODO`／`WORKING` subtag 可以保留詳細 task、已完成部分、嘗試過嘅步驟同未完成內容，方便繼續工作。Subtag 轉成 `DONE` 時，應同步將施工流水帳整理成簡短、以結果為中心嘅 summary；如果 sync 時發現現有 `DONE` 已累積過多重複或 chronological detail，亦應順手壓縮。
+
+壓縮後通常保留約 3-6 個 bullets，優先記錄：
+
+- 最終可用嘅功能或 flow；
+- 重要架構與 responsibility boundary；
+- security、permission、validation、transaction 或 data-integrity guard；
+- 有代表性嘅自動或手動驗證結果；
+- 仍會影響理解現況嘅限制。
+
+應刪除或合併：
+
+- 已被取代或放棄嘅中間方向；
+- 逐個 field、form、template、endpoint 接線嘅施工次序；
+- 重複描述同一結果嘅 bullets；
+- 對理解目前狀態無幫助、可由 Git history 查返嘅低層細節。
+
+如果仍有 optional follow-up，保留獨立 `改良` section。唔可以為咗縮短而刪走 required unfinished work；存在必要未完成內容時，subtag 應維持 `WORKING`，唔應標成 `DONE`。已經簡短而準確嘅 `DONE` summary 唔需要反覆改寫。
+
 ## Sub Tag 內容結構
 
 每個 sub tag 可以按需要包含以下 section：
