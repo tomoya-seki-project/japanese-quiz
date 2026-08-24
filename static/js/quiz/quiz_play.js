@@ -17,12 +17,69 @@ function quizAreaHandler(){
                 'X-Requested-With': "XMLHttpRequest"
             }
         })
-        .then(res => res.json())
+        .then(async res => {
+            const contentType = res.headers.get("content-type") || "";
+
+            if(!contentType.includes("application/json")){
+                throw new Error(
+                    `Expected JSON, received ${contentType}`
+                );
+            }
+
+            return res.json();
+        })
         .then(data => {
+            const errorContainer = document.getElementById("quiz-error-message");
+
+            if(data.success === false){
+                console.log(data.errors);
+                renderFormErrorMessages(data.errors, errorContainer);
+                return;
+            }
+
+            errorContainer.replaceChildren();
+            
             quizAreaContainer.innerHTML = data.main_html;
             quizInputPanelContainer.innerHTML = data.input_panel_html;
         })
+        .catch(error => {
+            console.error(error);
+
+            const errorContainer =
+                document.getElementById("quiz-error-message");
+
+            errorContainer.textContent =
+                "系統暫時發生問題，請重新整理頁面再試。";
+        });
     })
+}
+
+function getErrorLabel(fieldName){
+    const labels = {
+        answer: "答案",
+        tips_count: "提示次數",
+        user_vocab_id: "Quiz資料",
+    };
+    return labels[fieldName] ?? fieldName;
+}
+
+function renderFormErrorMessages(errors, container){
+    container.replaceChildren();
+
+    Object.entries(errors).forEach(([fieldName, fieldErrors]) => {
+        fieldErrors.forEach(error => {
+            const errorMsg = document.createElement("p");
+
+            if (fieldName === "__all__"){
+                errorMsg.textContent = error.message;
+            } else {
+                const label = getErrorLabel(fieldName);
+                errorMsg.textContent = `${label}: ${error.message}`;
+            }
+
+            container.appendChild(errorMsg);
+        });
+    });
 }
 
 function answerAreaReactionHandler(){

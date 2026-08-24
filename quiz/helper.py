@@ -108,6 +108,7 @@ def build_next_question_payload(*, request, is_skip=False):
     )
 
     return {
+        "success": True,
         "main_html": main_html,
         "input_panel_html": input_panel_html,
     }

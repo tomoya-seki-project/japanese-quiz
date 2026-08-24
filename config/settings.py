@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'dictionary.apps.DictionaryConfig',
     'quiz.apps.QuizConfig',
     'core.apps.CoreConfig',
+    'errorHandler.apps.ErrorhandlerConfig',
 ]
 
 MIDDLEWARE = [

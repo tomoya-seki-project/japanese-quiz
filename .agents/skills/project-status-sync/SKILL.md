@@ -1,6 +1,6 @@
 ---
 name: project-status-sync
-description: Keep the Japanese Quiz repository's TODO, future ideas, learning points, and project history synchronized while reviewing or discussing project work. Use after code checks, verification, debugging, technical explanations, roadmap discussions, and when reconciling undocumented Git commits.
+description: Explicitly requested synchronization of the Japanese Quiz repository's TODO, future ideas, learning points, and project history. Use only when the user invokes $project-status-sync or directly asks to update or reconcile project status documentation; do not invoke automatically during reviews, debugging, advice, ordinary discussion, or commit inspection.
 ---
 
 # Project Status Sync
@@ -35,7 +35,7 @@ Inspect only the status documents relevant to the current evidence:
 
 - `docs/status/TODO.md`
 - `docs/status/FUTURE_IDEAS.md`
-- `docs/status/LEARNING_POINTS.md`
+- `docs/status/CODING_REFERENCE.md`
 - `docs/status/PROJECT_HISTORY.md`
 
 Use the conversation, inspected code and tests, the working-tree diff, and Git
@@ -43,20 +43,14 @@ history as evidence. Do not infer completion merely from the user's intention.
 
 ## When to run
 
-Run the classification and sync check before finishing a response when:
+Run only when the user explicitly invokes `$project-status-sync` or directly
+asks to update, synchronize, or reconcile one or more project status documents.
+Do not run merely because a review passes, debugging establishes work, a future
+idea or learning point appears, or Git contains undocumented commits.
 
-- reviewing or checking whether the user's implementation works;
-- verification changes from failing or uncertain to passing;
-- debugging or advice establishes a new required task or resolves an existing
-  one;
-- the user identifies a possible future feature or roadmap direction, in which
-  case ask whether to record it after the discussion settles;
-- a concept may be a learning point, in which case ask whether it is already
-  familiar before recording it;
-- important commits may exist after the newest commit represented in
-  `PROJECT_HISTORY.md`.
-
-Do not require the user to say "update the docs".
+When explicitly invoked, apply the classification, approval, evidence, and
+editing rules below. Otherwise do not inspect or modify the status documents
+and do not ask whether ideas or learning points should be recorded.
 
 ## Classify evidence
 
@@ -102,7 +96,7 @@ with an existing idea when appropriate. If the user does not answer the
 question, treat the candidate as not approved and do not repeatedly ask during
 the same discussion.
 
-### Learning points
+### Coding reference
 
 Treat a possible learning need or outcome as a candidate when:
 
@@ -111,16 +105,16 @@ Treat a possible learning need or outcome as a candidate when:
 - a technical explanation resolves or materially advances an existing learning
   point.
 
-Before adding or changing `LEARNING_POINTS.md`, ask whether the user wants the
+Before adding or changing `CODING_REFERENCE.md`, ask whether the user wants the
 candidate recorded. The user may already understand a technology even when it
 has not appeared in this repository. Write only after an explicit yes, and ask
 only once for the same candidate during the same discussion. No answer means no
 update unless the user returns to it later.
 
 Do not propose an entry merely because a package, API, or technique is new in
-the repository. Preserve the document's checklist semantics: record the concept
-and current understanding honestly rather than marking it learned without
-evidence.
+the repository. Preserve the document's reference semantics: record the concept
+and current understanding as reusable guidance rather than treating it as a
+learning task without evidence.
 
 ### Project history
 

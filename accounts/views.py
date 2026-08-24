@@ -34,7 +34,7 @@ class RegistUserView(CreateView):
     
     def form_valid(self, form):
         result = super().form_valid(form)
-        UserVocabService.sync_new_vocab(user=self.object)
+        UserVocabService.sync_vocab_safely(user=self.object)
         return result
 
 class UserLoginView(LoginView):
@@ -46,8 +46,7 @@ class UserLoginView(LoginView):
         result = super().form_valid(form)
         remember = form.cleaned_data['remember_me']
 
-        UserVocabService.sync_new_vocab(user=self.request.user)
-        EventService.gen_vocab_sync_event(user=self.request.user)
+        UserVocabService.sync_vocab_safely(user=self.request.user)
         if remember:
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:
@@ -62,6 +61,5 @@ class UserView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_detail.html'
 
     def get_context_data(self, **kwargs):
-        UserVocabService.sync_new_vocab(user=self.request.user)
-        EventService.gen_vocab_sync_event(user=self.request.user)
+        UserVocabService.sync_vocab_safely(user=self.request.user)
         return super().get_context_data(**kwargs)

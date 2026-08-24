@@ -2,23 +2,11 @@
 
 ## Project documentation sync
 
-When reviewing, checking, debugging, or advising on project work, use the
-`project-status-sync` skill in `.agents/skills/project-status-sync/SKILL.md`.
-
-Run its documentation sync before finishing the response when any of these
-conditions apply:
-
-- the review or verification passes;
-- the user approves recording a concrete future project idea;
-- the user approves recording or updating a learning point;
-- Git contains important commits not yet represented in project history.
-
-Update TODO and project history directly without asking for confirmation. Ask
-before adding or changing future ideas or learning points, as required by the
-skill.
-Do not mark work complete when the review still has unresolved correctness
-issues. Documentation-only edits do not by themselves justify status or history
-entries.
+Do not invoke `project-status-sync` automatically during reviews, checks,
+debugging, advice, ordinary project discussion, or commit inspection. Use the
+skill in `.agents/skills/project-status-sync/SKILL.md` only when the user
+explicitly invokes `$project-status-sync` or directly asks to update or
+reconcile project status documentation.
 
 ## New Japanese vocabulary
 

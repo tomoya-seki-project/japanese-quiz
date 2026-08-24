@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.db import transaction
 
 from ..models import (
     Event,
@@ -54,6 +55,7 @@ class EventService():
         return UserEvent.objects.filter(user=user, is_read=False).order_by("-event__create_at").select_related("event")
     
     @staticmethod
+    @transaction.atomic
     def gen_vocab_sync_event(*, user):
         last_sync = user.profile.last_vocab_sync_at
         now = timezone.now()

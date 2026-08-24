@@ -11,7 +11,7 @@ Project 可以使用以下 markdown 文件，各自負責唔同層面。
 | --- | --- | --- | --- |
 | `TODO.md` | Project status / task tracking | 目前 scope 內嘅 bug、未完成 feature、已完成 decision、改良 | 純 learning note、已更新某份 doc 呢類 meta 操作、未承諾 future idea |
 | `FUTURE_IDEAS.md` | Future idea parking lot | 將來可能做、但目前未承諾 / 未納入 scope 嘅 idea | 目前正在做或近期必須處理嘅 task |
-| `LEARNING_POINTS.md` | 個人學習 / review 筆記 | 未理解清楚嘅概念、Django/Python pattern、之後想複習嘅解釋 | Project 完成度、task status、每日進度 |
+| `CODING_REFERENCE.md` | 個人 coding reference | 遇過嘅技術問題、Django/Python pattern、之後想查閱嘅解釋 | Project 完成度、task status、每日進度 |
 | `PROJECT_HISTORY.md` | Project 里程碑 / 技術決策紀錄 | 重要功能完成、架構改動、database schema 改動、主要取捨、commit | 細碎 wording cleanup、普通 TODO update、單純 learning note 更新 |
 
 簡單分工：
@@ -19,7 +19,7 @@ Project 可以使用以下 markdown 文件，各自負責唔同層面。
 ```text
 TODO.md             = 而家仲有咩要做 / 咩已完成
 FUTURE_IDEAS.md     = 將來可能做，但未承諾
-LEARNING_POINTS.md  = 我學過咩 / 仲有咩概念想之後複習
+CODING_REFERENCE.md = 遇到類似 coding 問題時可以查返咩
 PROJECT_HISTORY.md  = project 重要階段發生過咩事
 ```
 
@@ -288,22 +288,22 @@ UI polish、wording、layout、顏色、版面整理等內容應集中放喺 `UI
 - 之後可以整理 layout、read/unread visual state、wording 同 notification summary。
 ```
 
-## Learning Notes 分工
+## Coding Reference 分工
 
-`LEARNING_POINTS.md` 只係個人學習 / review 筆記，唔係 project status tracking。
+`CODING_REFERENCE.md` 只係個人 coding reference，唔係 project status tracking。
 
 因此：
 
-- `TODO.md` 唔需要寫「已加入 LEARNING_POINTS」。
+- `TODO.md` 唔需要寫「已加入 CODING_REFERENCE」。
 - `PROJECT_HISTORY.md` 唔需要記錄普通 learning note 更新。
 - 如果某個 learning point 牽涉 project decision，TODO 只記 decision 本身，唔記「文件已更新」。
 
-## LEARNING_POINTS.md 格式
+## CODING_REFERENCE.md 格式
 
-`LEARNING_POINTS.md` 用嚟保存自己學習過程中覺得需要回頭複習嘅概念。  
-內容可以比 TODO 更解釋性，重點係之後自己睇得明，而唔係 tracking project progress。
+`CODING_REFERENCE.md` 用嚟保存開發期間遇過嘅問題、核心概念同解決方法。
+內容可以比 TODO 更解釋性，重點係之後遇到類似情況時可以快速查閱，而唔係 tracking project progress。
 
-## LEARNING_POINTS.md 目錄
+## CODING_REFERENCE.md 目錄
 
 文件頂部要有目錄，並用 markdown link 跳去每個 learning tag。
 
@@ -317,9 +317,9 @@ UI polish、wording、layout、顏色、版面整理等內容應集中放喺 `UI
 - [DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT](#DJANGO-DATETIME-LOCALTIME-ADMIN-FORMAT)
 ```
 
-## Learning Tag 命名
+## Reference Topic 命名
 
-Learning tag 使用大寫英文 + hyphen，並用 topic prefix 分類。
+Reference topic 使用大寫英文 + hyphen，並用 topic prefix 分類。
 
 例子：
 
@@ -340,16 +340,16 @@ DOMAIN-VOCAB-USERVOCAB-IN-USE
 - `DOMAIN-`
 - `SQL-`
 
-## Learning Tag 結構
+## Reference Topic 結構
 
-每個 learning tag 使用 checkbox heading，方便之後自己 mark 已理解。
+每個 reference topic 使用一般 heading；佢係查閱項目，唔係待辦事項，所以唔使用 checkbox。
 
 例子：
 
 ```md
 <a id="DJANGO-CBV-OBJECT-ID"></a>
 
-## [ ] `[DJANGO-CBV-OBJECT-ID]` Detail / Update / Delete View 點樣取得目標 Object
+## `[DJANGO-CBV-OBJECT-ID]` Detail / Update / Delete View 點樣取得目標 Object
 
 ### 問題背景
 
@@ -379,11 +379,11 @@ Section 定義：
 - `你的解答`：目前整理出嚟嘅答案。
 - `理解內容`：用自己語言濃縮重點，方便之後複習。
 
-## LEARNING_POINTS.md 使用規則
+## CODING_REFERENCE.md 使用規則
 
 - 可以寫得比 TODO 詳細，因為目標係幫自己重新理解。
 - 可以記 project 入面真實遇到嘅例子，但唔需要追蹤 task 完成度。
-- 如果一個概念未完全明，可以保留 `[ ]`；理解後再手動剔。
+- 如果一個概念未完全明，喺內容註明尚待確認嘅部分，唔用 checkbox 表示完成狀態。
 - 唔需要每次更新 learning note 都寫入 `PROJECT_HISTORY.md`。
 - 唔需要喺 `TODO.md` 寫「已加入 learning point」。
 
@@ -452,13 +452,13 @@ Status: 一句講清楚呢個階段完成咗咩，或者目前狀態係咩。
 
 唔應該記錄：
 
-- 單純更新 `TODO.md`、`LEARNING_POINTS.md`。
+- 單純更新 `TODO.md`、`CODING_REFERENCE.md`。
 - 普通 typo / grammar / wording cleanup。
 - 小型 comment cleanup。
 - 單行 import 清理。
 - 未影響 project 行為嘅 formatting。
 
-如果一件事只係「幫自己理解」，放 `LEARNING_POINTS.md`。  
+如果一件事只係「方便日後理解同查閱」，放 `CODING_REFERENCE.md`。
 如果一件事係「project 仲要做 / 已做」，放 `TODO.md`。  
 如果一件事只係「將來可能做，但目前唔承諾」，放 `FUTURE_IDEAS.md`。  
 如果一件事係「project 重要階段 / 技術決策」，放 `PROJECT_HISTORY.md`。

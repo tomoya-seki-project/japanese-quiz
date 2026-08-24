@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（62）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（63）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（3）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -20,6 +20,7 @@ Status badge：
 - [Data Import / Export / Database Migration](#data-import--export--database-migration)
 - [User Message to Admin](#user-message-to-admin)
 - [Quiz Question Logic](#quiz-question-logic)
+- [Error Handling](#error-handling)
 - [Logging / Audit Trail](#logging--audit-trail)
 - [General Improvements](#general-improvements)
 - [UI / UX](#ui--ux)
@@ -750,40 +751,21 @@ Status badge：
 - 暫時接受每題最多 50 次 tips penalty 作為 technical / gameplay cap。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Quiz result answer difference display**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz result answer difference display**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `QuizService.answer_compare()` 已建立初版，可產生 `MATCH`、`WRONG`、`MISSING`、`EXTRA` compare result。
-- Compare logic 已處理 correct answer / user answer 長度唔同嘅情況，避免其中一邊無下一隻 kana 時 index error。
-- Compare logic 已加入 `match_count` tie-break，優先保留更多對得返位置嘅 kana。
-- `compare_answer_subtype.json` 已建立，用嚟判斷 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA`。
-- `kana_graphic_map.json` 已生成初版，用嚟由 kana + compare type / subtype 查對應 image path 同 `font_width`。
-- `QuizService.gen_answer_image()` 已建立初版，將 compare result 轉成 answer graphic data。
-- `QuizSubmitAnswerView` 已開始將 `compare_result` 傳入 `quiz_result_partial.html`。
-- `QuizSubmitAnswerView` 已將 `gen_answer_image()` 產生嘅 graphic data 傳入 `quiz_result_partial.html`。
-- `quiz_result_partial.html` 已可 render answer compare 圖片，初版能顯示錯位 kana 圖。
-- Font image 已 copy 到 `static/rec/font/...`，`kana_graphic_map.json` 已改用 template static 可讀嘅 path。
-- Compare logic 已加入 `non_normal_wrong_count` tie-break；當 cost 同 `match_count` 一樣時，會優先保留能產生 `DAKUTEN` / `HANDAKUTEN` / `SMALL_KANA` subtype 嘅 route。
-- 已處理 correct `そうぞう`、answer `そそく` 呢類 case，讓結果偏向 `MISSING う`、`WRONG ぞ/そ DAKUTEN`、`WRONG う/く NORMAL`。
-- 已補齊 `ぁ`、`ぃ`、`ぅ`、`ぇ`、`ぉ`、`ゎ`、`ヴ`、`ヵ`、`ヮ` 嘅 static kana images 同 `kana_graphic_map.json` mapping。
-- `kana_graphic_map.json` 已加入 `sub_image_path`，支援主 kana 圖加共用 overlay mark 嘅設計。
-- `MISSING` / `EXTRA` mapping 已改用正常黑字 kana 圖作主圖，再用 `missing_mark_big/small` 或 `extra_mark_big/small` 作 overlay。
-- `QuizService.gen_answer_image()` 已將 `sub_image_path` 傳入 result graphic data。
-- `quiz_result_partial.html` 已初步 render `sub_image_path`，missing / extra mark 圖已可由 template 讀到。
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- `quiz_result_partial.html` 未正式將 `image_path` 同 `sub_image_path` 疊圖顯示；目前只係順序 render 兩張圖。
+- `QuizService.answer_compare()` 可產生 `MATCH`、`WRONG`、`MISSING`、`EXTRA`，並處理答案長度不同、位置對齊及 subtype tie-break。
+- `compare_answer_subtype.json` 可分辨 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA`，包括 `そうぞう`／`そそく` 等錯位情況。
+- `kana_graphic_map.json`、static kana assets 同 `QuizService.gen_answer_image()` 已可將 compare result 轉成主圖及 `sub_image_path` graphic data。
+- `QuizSubmitAnswerView` 已將 graphic data 傳入 result partial，畫面可顯示 answer difference 圖片及 missing／extra mark 資料。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - `gen_answer_image()` 之後可以加入 fallback image / fallback text，避免 mapping 漏項時 render 出 broken image path。
 - `answer_compare()` 目前用 recursive branch 搜尋；短 kana 答案可以接受，如果將來支援較長 answer，可考慮 memoization / DP。
-- 之後 UI polish 時，將 missing / extra mark 改成 CSS overlay，令 mark 圖疊喺 kana 主圖上，而唔係另佔一個位置。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz session summary tracking**
@@ -811,6 +793,35 @@ Status badge：
 - 決定各階段等待時間、每次加幾多、high value 幾多。
 - 研究 management command + cron、Celery Beat 或其他 scheduler。
 - 計算 average weight 時要以每個 user 自己嘅 `UserVocab` 為範圍。
+
+## Error Handling
+
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **HTTP error response、error page 同 exception logging**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已建立獨立 `errorHandler` app 初稿，同 `400`、`403`、`404`、`500` handler view。
+- `config/urls.py` 已開始註冊四個全域 error handlers。
+- 四個 error page已放入Django app會自動搜尋嘅 `errorHandler/templates/errorHandler/`，template loader可正常找到；`404` handler嘅臨時 `print(exception)`已移除。
+- 以 `DEBUG=False`同臨時URLConf實際觸發400／403／404／500，四個全域handlers均回傳正確HTTP status及HTML response；測試exception內容、traceback同filesystem path冇洩漏到頁面。
+- Quiz Submit／Next／Skip／Summary AJAX `FormView` 已共用 `QuizAjaxFormMixin`：invalid form會回傳包含全部 field errors嘅 `400` JSON，成功 payload統一帶 `success=True`；前端會按 `success`分流並安全顯示 errors。直接 request及 MRO驗證確認四個 views使用同一 `form_invalid()`，空答案唔再變成500。
+- Quiz AJAX `fetch()` 已在JSON parsing前檢查 response `Content-Type`；403／404／500 HTML等非JSON response、network failure同JSON parsing failure會進入 `.catch()`，向user顯示通用恢復提示，唔會當成正常partial payload插入畫面。Code-path review、Django system check同Python syntax check已通過。
+- Login、register 同 user detail 已共用 `UserVocabService.sync_vocab_safely()`：vocab sync 失敗會記錄 exception traceback 並留待下次重試；sync 成功後 event generation 失敗會保留 sync，而 event rows、user assignment 同 sync checkpoint 由 `gen_vocab_sync_event()` 自己嘅 atomic transaction 一組 rollback。Admin approve／reject 及結果 event 則維持同一 transaction、一併成功或 rollback。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- 設定 application logging：未預期 exception／500 保留 traceback；預期內 form validation、business validation 同 duplicate submission 唔當成 500。
+- 強化500 page嘅獨立render path：目前 `render(request, ...)`仍會執行全站context processors；如果原始500由database或context processor故障引起，error handler可能再次失敗。需要避免500 page依賴正常request context，並模擬context processor失敗驗證fallback仍可回應。
+- 以browser integration實測 Quiz AJAX收到403／404／500 HTML時會進入通用fallback；目前環境冇Node／JavaScript parser，未有JavaScript runtime或browser自動驗證。
+- 為四個全域handlers、Quiz invalid-form JSON contract同非JSON前端fallback補永久自動tests；目前project test discovery顯示 `0 tests`，現有證據來自system check、direct request、MRO同臨時URLConf驗證。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 日後可按需要加入 structured logging、request ID 同 error monitoring service；目前唔屬於基礎 error handling 必要範圍。
 
 ## Logging / Audit Trail
 
@@ -943,6 +954,15 @@ Status badge：
 - 如果日後 quiz pool 大到現有 Python list 計算變慢，再研究 DB-level weighted random 或更完整嘅抽題 cache strategy。
 
 ## UI / UX
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Quiz answer comparison overlay display**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- `quiz_result_partial.html` 目前只係順序 render `image_path` 同 `sub_image_path`。
+- 用 HTML / CSS 將 missing／extra mark 疊喺 kana 主圖上，避免 overlay 另佔一個位置。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **50 音假名 keyboard**

@@ -51,6 +51,17 @@ class QuizSessionRequiredMixin:
             return redirect("quiz:quiz_setting")
         return super().dispatch(request, *args, **kwargs)
 
+class QuizAjaxFormMixin:
+    def form_invalid(self, form):
+        return JsonResponse(
+            {
+                "success": False,
+                "errors": form.errors.get_json_data(),
+            },
+            status = 400,
+        )
+    
+
 class QuizHomeView(LoginRequiredMixin, TemplateView):
     template_name = "quiz/quiz_home.html"
 
@@ -143,7 +154,7 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
         context["mc_rows"] = mc_rows
         return context
 
-class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, FormView):
+class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
     form_class = QuizForm
 
     def form_valid(self, form):
@@ -157,6 +168,7 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                     request=self.request,
                 )
                 return JsonResponse({
+                    "success": True,
                     "main_html": main_html,
                     "input_panel_html": "",
                 })
@@ -173,6 +185,7 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
             )
 
             return JsonResponse({
+                "success": True,
                 "main_html": main_html,
                 "input_panel_html": input_panel_html,
             })
@@ -219,18 +232,19 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
             quiz_session["wrong_count"] += 1
         self.request.session["quiz_session"] = quiz_session
         return JsonResponse({
+                    "success": True,
                     "main_html": main_html,
                     "input_panel_html": "",
                 })
 
-class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, FormView):
+class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
     form_class = QuizNextForm
 
     def form_valid(self, form):
         payload = build_next_question_payload(request=self.request)
         return JsonResponse(payload)
 
-class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, FormView):
+class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
     form_class = QuizSkipForm
 
     def form_valid(self, form):
@@ -290,7 +304,7 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
         context["mc_rows"] = mc_rows
         return context
 
-class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, FormView):
+class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
     form_class = QuizSummaryForm
     def form_valid(self, form):
         quiz_session = self.request.session.get("quiz_session",{})
@@ -309,6 +323,7 @@ class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionR
         )
         self.request.session.pop("quiz_session", None)
         return JsonResponse({
+                    "success": True,
                     "main_html": main_html,
                     "input_panel_html": "",
                 })

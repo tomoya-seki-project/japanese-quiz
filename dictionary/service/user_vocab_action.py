@@ -2,10 +2,16 @@ from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from django.urls import path, reverse
 
+import logging
+
 from ..models import (
     Vocab,
     UserVocab,
 )
+
+from core.service.event import EventService
+
+logger = logging.getLogger(__name__)
 
 class UserVocabService():
     
@@ -56,3 +62,22 @@ class UserVocabService():
     @staticmethod
     def dev_clear_table():
         UserVocab.objects.all().delete()
+
+    @staticmethod
+    def sync_vocab_safely(*, user):
+        try:
+            UserVocabService.sync_new_vocab(user=user)
+        except Exception as e:
+            logger.exception(
+                "Vocab sync failed",
+                extra={"user_id": user.pk},
+            )
+            return
+
+        try:
+            EventService.gen_vocab_sync_event(user=user)
+        except Exception as e:
+            logger.exception(
+                "Vocab sync event generation failed",
+                extra={"user_id": user.pk},
+            )

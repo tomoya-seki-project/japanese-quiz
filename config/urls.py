@@ -19,6 +19,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic.base import TemplateView
+from errorHandler.views import error400, error403, error404, error500
+
+handler400 = error400
+handler403 = error403
+handler404 = error404
+handler500 = error500
 
 urlpatterns = [
     path('admin/', admin.site.urls),

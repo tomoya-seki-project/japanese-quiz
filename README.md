@@ -139,7 +139,7 @@ quiz/          Quiz settings、weighted random service、Ajax quiz play flow
 
 - [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)：主要開發歷史。
 - [docs/status/TODO.md](docs/status/TODO.md)：已發現問題、planned features 同 implementation notes。
-- [docs/status/LEARNING_POINTS.md](docs/status/LEARNING_POINTS.md)：開發期間整理嘅學習筆記。
+- [docs/status/CODING_REFERENCE.md](docs/status/CODING_REFERENCE.md)：開發期間整理嘅 coding reference，方便遇到類似問題時查閱。
 
 ## Local Setup
 
