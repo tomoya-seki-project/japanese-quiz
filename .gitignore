@@ -2,5 +2,4 @@ __pycache__/
 db.sqlite3
 .vscode/
 .venv/
-TODO_O.md
-PROJECT_HISTORY_TRY.md
+log/*.log

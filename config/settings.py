@@ -135,3 +135,93 @@ AUTH_USER_MODEL = 'accounts.User'
 
 
 LOGIN_URL = '/accounts/user_login/'
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters" : {
+        "default": {
+            "format" : "{asctime} [{levelname}] {name} : {message}",
+            "style" : "{",
+        }
+    },
+
+    "filters" : {
+        "debug_only": {
+            "()" : "django.utils.log.CallbackFilter",
+            "callback" : lambda record: record.levelname == "DEBUG",
+        }
+    },
+
+    "handlers": {
+        "console" : {
+            "class" : "logging.StreamHandler",
+            "level" : "INFO",
+            "formatter" : "default",
+        },
+        "debug_file": {
+            "class" : "logging.handlers.TimedRotatingFileHandler",
+            "filename" : BASE_DIR / "log/debug_log.log",
+            "level" : "DEBUG",
+            "filters" : ["debug_only"],
+            "formatter" : "default",
+            "when" : "midnight",
+            "interval" : 1,
+            "backupCount": 7,
+            "encoding" : "utf-8",
+        },
+        "full_flow_file": {
+            "class" : "logging.handlers.TimedRotatingFileHandler",
+            "filename" : BASE_DIR/ "log/log.log",
+            "level" : "INFO",
+            "formatter" : "default",
+            "when" : "midnight",
+            "interval" : 1,
+            "backupCount": 7,
+            "encoding" : "utf-8",
+        },
+        "error_file": {
+            "class" : "logging.handlers.TimedRotatingFileHandler",
+            "filename" : BASE_DIR/ "log/error.log",
+            "level" : "ERROR",
+            "formatter" : "default",
+            "when" : "midnight",
+            "interval" : 1,
+            "backupCount": 7,
+            "encoding" : "utf-8",
+        }
+    },
+    "loggers": {
+        "accounts" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+        "core" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+        "dictionary" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+        "errorHandler" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+        "quiz" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+        "django.request" : {
+            "handlers" : ["console", "debug_file", "full_flow_file", "error_file"],
+            "level" : "DEBUG",
+            "propagate" : False,
+        },
+    }
+}

@@ -115,9 +115,10 @@ TODO
 
 ### Status 判斷規則
 
-- 有 `已完成`，而且無 `未完成`，只剩 `改良`：用 `DONE`。
+- 有 `已完成`，而且無 `未完成`，只剩 `待測試` 或 `改良`：用 `DONE`。
 - 有 `已完成`，同時仲有 `未完成`：用 `WORKING`。
 - 只有 `未完成`，未有實質完成內容：用 `TODO`。
+- `待測試` 記錄功能已完成後尚未補嘅自動或 integration test，本身唔會阻止 subtag 轉為 `DONE`；如果之後測試發現實際 defect，再將 defect 放回 `未完成` 並重新評估 status。
 - 如果只係將來可能加嘅功能，放入 `FUTURE_IDEAS.md`，唔影響 `TODO.md` 狀態。
 
 例子：
@@ -165,19 +166,25 @@ TODO    = 未開始，或暫時只係計劃
 - 呢個 sub tag 要真正完成前仍然必須處理嘅事項。
 
 
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 功能已完成，但之後仍要補嘅自動或 integration test；唔影響 subtag 轉為 `DONE`。
+
+
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - 核心已完成，但之後可以寫得更好、更穩、更清楚或更好維護嘅地方。
 ```
 
 如果某個 section 無內容，可以省略。  
-例如一個完成度高嘅 sub tag 可以只有 `已完成` 同 `改良`。
+例如一個完成度高嘅 sub tag 可以只有 `已完成`、`待測試` 同 `改良`。
 
-## 未完成 vs 改良 vs Future Idea
+## 未完成 vs 待測試 vs 改良 vs Future Idea
 
-三者要分清楚：
+四者要分清楚：
 
 - `未完成`：會影響該 feature / flow 是否真正完成。
+- `待測試`：functional implementation 已完成，但仍待補自動或 integration test；唔影響 `DONE` status。
 - `改良`：已經 work，但之後可以優化。
 - `Future Idea`：唔係目前 scope，只係將來可能加；應放入 `FUTURE_IDEAS.md`。
 

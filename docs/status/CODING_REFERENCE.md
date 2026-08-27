@@ -46,6 +46,7 @@
   - [PYTHON-SET-DIFFERENCE-CSV-HEADERS — #### `[PYTHON-SET-DIFFERENCE-CSV-HEADERS]` 點樣用 set 差集檢查 CSV 缺少嘅 headers](#PYTHON-SET-DIFFERENCE-CSV-HEADERS)
   - [PYTHON-ENUMERATE-CSV-ROWS — #### `[PYTHON-ENUMERATE-CSV-ROWS]` `enumerate()` 點樣提供 CSV 行數同資料](#PYTHON-ENUMERATE-CSV-ROWS)
   - [PYTHON-JSON-CONFIG-MAP-LOOKUP — #### `[PYTHON-JSON-CONFIG-MAP-LOOKUP]` 用 JSON config map 查 subtype / 設定值](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
+  - [PYTHON-LOGGING-FILTER — #### `[PYTHON-LOGGING-FILTER]` Logging filter 除左篩選 level 仲可以做什麼](#PYTHON-LOGGING-FILTER)
 
 - [Project Architecture 與 Domain Design](#GROUP-PROJECT-ARCHITECTURE-DOMAIN)
   - [DOMAIN-VOCAB-USERVOCAB-IN-USE — #### `[DOMAIN-VOCAB-USERVOCAB-IN-USE]` `Vocab` 同 `UserVocab.in_use` 嘅設計心智模型](#DOMAIN-VOCAB-USERVOCAB-IN-USE)
@@ -5701,6 +5702,153 @@ correct=あ, user=か
 #### 理解內容
 
 -
+
+<a id="PYTHON-LOGGING-FILTER"></a>
+
+### `[PYTHON-LOGGING-FILTER]` Logging filter 除左篩選 level 仲可以做什麼
+
+#### 問題背景
+
+Logging handler 嘅 `level` 係「最低接受 level」，唔係「只接受呢個 level」。
+
+例如：
+
+```python
+"level": "DEBUG"
+```
+
+會收到 `DEBUG`、`INFO`、`WARNING`、`ERROR` 同 `CRITICAL`。如果 `debug_log.log` 只想收 `DEBUG`，就需要 filter 再做精確判斷。
+
+#### Filter 嘅核心作用
+
+Filter 會喺每條 log 交俾 handler 之前收到一個 `LogRecord`。佢可以：
+
+- return `True`：保留條 log。
+- return `False`：丟棄條 log。
+- 在 return 之前修改 `record`：為 log 加入共同資料或遮蔽資料。
+
+#### 1. 只保留某個精確 level
+
+Django 現成嘅 `CallbackFilter` 可以配合 callback：
+
+```python
+"filters": {
+    "debug_only": {
+        "()": "django.utils.log.CallbackFilter",
+        "callback": lambda record: record.levelname == "DEBUG",
+    },
+},
+```
+
+Handler 再引用佢：
+
+```python
+"debug_file": {
+    "class": "logging.handlers.TimedRotatingFileHandler",
+    "level": "DEBUG",
+    "filters": ["debug_only"],
+}
+```
+
+結果係 `debug_file` 只收 `DEBUG`，唔會再收 INFO 或 ERROR。
+
+#### 2. 排除無價值嘅高頻 log
+
+例如 health-check endpoint 每幾秒就被 request 一次，可以用 filter 排除：
+
+```python
+def skip_health_check(record):
+    return "/health/" not in record.getMessage()
+```
+
+這類 filter 適合處理大量重複、而對除錯無幫助嘅 log。唔應該用佢掩蓋真正 exception。
+
+#### 3. 根據 operation 或 flow 分流
+
+Logger 可以透過 `extra` 加入 operation：
+
+```python
+logger.info(
+    "Import completed",
+    extra={"operation": "vocab_import"},
+)
+```
+
+Filter 就可以只接受 import flow：
+
+```python
+def import_only(record):
+    return getattr(record, "operation", None) == "vocab_import"
+```
+
+呢個做法可以將 import、audit 或 security event 寫入獨立 handler。Project 小時未必需要即時分太多檔案。
+
+#### 4. 根據 HTTP status 或 record 資料篩選
+
+如果 record 有 `status_code`，可以只保留 server errors：
+
+```python
+def server_error_only(record):
+    return getattr(record, "status_code", 0) >= 500
+```
+
+不過單純 ERROR 分流通常先用 handler 嘅：
+
+```python
+"level": "ERROR"
+```
+
+只有需要更精確嘅條件時才加 filter。
+
+#### 5. 為 record 加入共同 context
+
+Custom filter 可以補充 formatter 會用嘅欄位：
+
+```python
+class ContextFilter(logging.Filter):
+    def filter(self, record):
+        record.environment = "development"
+        return True
+```
+
+Formatter 就可以使用：
+
+```python
+"{asctime} [{levelname}] [{environment}] {message}"
+```
+
+同類資料包括：
+
+- environment
+- request ID
+- user ID
+- operation name
+
+Filter 唔會自動知道當前 user 或 request ID；這些資料通常需要 middleware、context variable 或 `extra` 配合。
+
+#### 6. 遮蔽敏感資料
+
+Filter 可以修改 record，例如將某個欄位改成 `[REDACTED]`。不過呢個只係最後防線，更安全嘅做法係從源頭唔好將敏感資料傳入 logger。
+
+不應該寫入 log 嘅資料包括：
+
+- password
+- cookie 或 session key
+- CSRF token
+- access token
+- 完整 POST body
+
+#### 目前 project 嘅最小做法
+
+現階段只需要 `debug_only` filter，將 DEBUG 同其他 level 分開。其他 filter 等基礎 logging 已經運作，而且真正出現高頻噪音、operation 分流或 request context 需求時先加。
+
+簡單原則：
+
+```text
+Handler level = 先做最低 level 門檻
+Filter        = 再做精確條件／排除／補資料
+Formatter     = 決定最後輸出格式
+```
 
 <a id="GROUP-PROJECT-ARCHITECTURE-DOMAIN"></a>
 

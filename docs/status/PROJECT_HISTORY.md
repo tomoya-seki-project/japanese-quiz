@@ -2,154 +2,6 @@
 
 呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
-## 2026-08-22 - New vocab types and August import dataset
-
-Commit: `5bc6f06`
-
-Status: Dictionary now supports more vocab types and has an August CSV dataset ready for import workflow testing
-
-### 主要改動
-
-- `VocabType` 加入 adverb、mimetic、conjunction 同 colloquial，令字庫可以保存更多非普通 vocab / katakana 類型。
-- 新增 migration 更新 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices。
-- 加入 `resource/NewWord_2026_08.csv`，保存 15 個 import-ready vocab entries。
-- CSV 內容包括 Japanese meaning、category、quiz questions 同 multiple-choice distractors。
-- 建立 repo-local workflow instructions，將 project status sync 同 Japanese vocab CSV 收集流程正式寫入 `.agents` / `AGENTS.md`。
-
-### Database 改動
-
-- 新增 migration `dictionary/migrations/0026_new_vocab_type.py`。
-- `Vocab.type` choices 加入 `adverb`、`mimetic`、`conjunction`、`colloquial`。
-- `VocabRequest.proposed_vocab_type` choices 同步加入新 vocab type。
-
-### 技術重點
-
-- Django `TextChoices` 改動需要 migration，否則 admin / form / request proposed fields 會同 model choices 不一致。
-- CSV import data 開始支援同一個 surface word 對應多個 meaning / question context，之後要留意 `(word, kana)` unique constraint 同「同字不同義」設計。
-- Project workflow rules 放入 repo 後，可以令之後 review、vocab 收集同 documentation sync 有固定準則。
-
-### 理由
-
-- 之後 quiz 不只會處理 kana answer，亦會處理副詞、擬音擬態語、接續詞、口語表現等 multiple-choice 類型。
-- 先建立 vocab type 同 import dataset，可以令之後 bulk import / quiz logic 有真實資料可以測。
-
-### 學到咩
-
-## 2026-08-18 - Feedback, event and vocab review hardening
-
-Commit: `c8ee779`
-
-Status: Feedback, event list and vocab request admin review flows were hardened after testing
-
-### 主要改動
-
-- Feedback creation 改由 `FeedbackService` 處理，避免同一 user 重複提交相同 pending feedback。
-- Feedback reply flow 改由 service 建立 reply event、assign user event、更新 feedback status 同 reply metadata。
-- Event list 支援 read / unread filter，並保留 pagination query string。
-- Navbar / context processor 加入 unread event count 同 pending feedback count。
-- VocabRequest admin approve / reject 加入 change permission guard，避免無權限 user 透過 custom button review request。
-- VocabRequest approve flow 加入 original vocab active / inactive 狀態 validation，避免 update / delete / restore 對錯誤狀態嘅 vocab 操作。
-- UserVocab sync 改用 bulk create + ignore conflicts，減少逐個 create 嘅重複處理風險。
-
-### Database 改動
-
-- 新增 migration `core/migrations/0007_feedback_unique_rule_change.py`。
-- 暫時移除 `Feedback` model 上原本 `Feedback_unique` database constraint，改由 service 層針對 pending feedback 做 duplicate check。
-- `settings.py` 加入額外 context processor。
-
-### 技術重點
-
-- Admin custom button 仍然要主動檢查 permission；不能只靠 change form 頁面本身。
-- Service layer 適合包住跨 model side effects，例如 feedback reply 同 event notification。
-- Event list filter 要保存 query string，pagination 先不會跳頁後失去 read / unread 狀態。
-
-### 理由
-
-- Feedback duplicate 判斷要按 pending 狀態處理；如果用 database unique constraint，已回覆 feedback 仍會阻止 user 之後再提交相同內容。
-- VocabRequest approve / reject 會改正式 vocab data，所以 admin custom action 需要更嚴格嘅 permission 同狀態 validation。
-
-### 學到咩
-
-## 2026-08-14 - UserVocab detail and learning controls
-
-Commit: `4d14a87`
-
-Status: UserVocab now has a dedicated detail flow for reviewing vocab data and controlling per-user learning state
-
-### 主要改動
-
-- 建立 `UserVocab` detail page，令 user 可以由個人 vocab list 進入單一 vocab 嘅學習狀態頁。
-- Detail page 同時顯示 user-specific progress data 同 vocab master data，將「我對呢隻字嘅狀態」同「呢隻字本身嘅資料」分開理解。
-- 加入單一 `in_use` update flow，user 可以喺 detail page 控制個別 vocab 是否納入自己嘅 quiz / learning pool。
-- 保留 answer comparison / result image 顯示，方便 user 回看最近一次答題差異。
-- 更新 list / navigation flow，令 UserVocab detail 成為 dictionary app 內更完整嘅 user-facing vocab management surface。
-
-### Database 改動
-
-- 無 schema 變更。
-
-### 技術重點
-
-- 在 `DetailView` 入面加入小型 form 時，需要自行處理 GET initial form 同 POST bound form。
-- `get_queryset()` 可以用作 ownership guard，確保 user 只能讀寫自己嘅 `UserVocab`。
-- POST 成功後 redirect 回 detail URL，可以避免 refresh page 時重複提交 form。
-- Boolean checkbox form field 使用 `required=False`，先可以正確接收 unchecked 狀態。
-
-### 理由
-
-- `Vocab` 代表全局字庫資料，`UserVocab` 代表個別 user 對該 vocab 嘅學習狀態；兩者需要有清楚嘅 UI 邊界。
-- 單一 vocab detail page 比 list page 更適合放 update / delete request 入口、in-use 切換同最近答題回顧。
-
-### 學到咩
-
-- `FormView` 同 `DetailView` 嘅責任不同；`DetailView` 不會自動提供 form lifecycle，要自己放 form 入 context 並在 `post()` 處理。
-- 如果 POST validation 失敗，應把 bound form 放回 context，否則 user 會失去錯誤狀態同提交內容。
-- `get_context_data()` 係準備 template context 嘅集中位置，但要小心不要覆蓋 POST failure 時已經放入去嘅 bound form。
-
-## 2026-08-13 - User feedback flow
-
-Commit: `ea9ab55`
-
-Status: Logged-in users can submit feedback, and superusers can review and reply through the site flow
-
-### 主要改動
-
-- 將原本 FAQ 方向整理成 `Feedback` flow，令用途更貼近 user-to-admin message / suggestion / bug report。
-- 建立 feedback 入口 redirect：superuser 會進入 feedback list，普通登入 user 會進入 feedback create。
-- Feedback create flow 已限制為 logged-in user 使用，暫時不開 anonymous public form。
-- Feedback list 加入固定 ordering，避免 paginated queryset 順序不穩。
-- Feedback list 已提供 detail link，admin 可以由 list 進入單一 feedback detail。
-- 建立 feedback reply flow，admin reply 後會更新 feedback 狀態，並建立 event 通知提交者。
-- 已實測 user create、superuser list / detail / reply、feedback status update 同 user event creation。
-
-### Database 改動
-
-- `FAQ` model rename / transition 成 `Feedback` model。
-- Feedback 加入 `FeedbackType`，支援 vocab suggestion、bulk vocab request、bug report、feature request 同 others。
-- Feedback 加入 `FeedbackStatus`，目前使用 `PENDING` 同 `REPLIED` 兩種狀態。
-- Feedback reply metadata 使用 `reply_by` 同 `reply_at` 保存回覆者同回覆時間。
-- Event type 加入 `FEEDBACK_REPLY`，用作 feedback reply notification。
-
-### 技術重點
-
-- 用 `RedirectView.get_redirect_url()` 可以建立只負責 routing decision 嘅入口 view，令 navbar 只需要連去一個 feedback endpoint。
-- `UserPassesTestMixin.test_func()` 只負責回傳權限判斷結果；redirect 行為由 mixin 或 `handle_no_permission()` 處理。
-- `get_object_or_404()` 係 shortcut function，不是 model manager method；要由 `django.shortcuts` import 後直接呼叫。
-- `FormView.form_valid()` 最後需要 success URL；如果無 `success_url` 或 `get_success_url()`，成功 submit 後會出錯。
-- Pagination queryset 應有穩定 ordering，避免同一頁資料順序不穩。
-
-### 理由
-
-- Feedback 主要用途係登入 user 向 admin 提出 vocab suggestion、bug report 或 feature request；綁住 user 可以直接使用 event notification 回覆。
-- 暫時不支援 anonymous feedback，可避免過早處理 spam、contact email、rate limit 同 public form abuse 問題。
-- Feedback status 暫時保留 `PENDING` / `REPLIED`，因為目前 admin handling flow 未複雜到需要更多狀態。
-
-### 學到咩
-
-- 名稱應貼近實際 domain；FAQ 偏向常見問題展示，Feedback 更適合 user-to-admin submission flow。
-- Django system check 未必捉到 view method 內部嘅 runtime error，實際 request flow 測試仍然必要。
-- Migration rename 要小心；model rename 唔應該誤生成 `CreateModel` 去建立已存在嘅 table。
-
 ## 2026-05-20 - Project foundation
 
 Commit: `ad4deee`
@@ -1428,3 +1280,222 @@ Status: Dictionary / quiz boundary checks are tightened, and the kana visual ass
 - `vocab__is_active=True` 呢類 double-underscore lookup 可以跨 ForeignKey filter related model fields。
 - 由 PNG 轉 SVG 不是單純 resize，而是 vector tracing；如果 source 本身不是 vector，輸出可能比小尺寸 PNG 更複雜。
 - Pillow 適合做 bitmap resize / optimize，但不適合將 PNG 轉成真正乾淨嘅 SVG。
+## 2026-08-13 - User feedback flow
+
+Commit: `ea9ab55`
+
+Status: Logged-in users can submit feedback, and superusers can review and reply through the site flow
+
+### 主要改動
+
+- 將原本 FAQ 方向整理成 `Feedback` flow，令用途更貼近 user-to-admin message / suggestion / bug report。
+- 建立 feedback 入口 redirect：superuser 會進入 feedback list，普通登入 user 會進入 feedback create。
+- Feedback create flow 已限制為 logged-in user 使用，暫時不開 anonymous public form。
+- Feedback list 加入固定 ordering，避免 paginated queryset 順序不穩。
+- Feedback list 已提供 detail link，admin 可以由 list 進入單一 feedback detail。
+- 建立 feedback reply flow，admin reply 後會更新 feedback 狀態，並建立 event 通知提交者。
+- 已實測 user create、superuser list / detail / reply、feedback status update 同 user event creation。
+
+### Database 改動
+
+- `FAQ` model rename / transition 成 `Feedback` model。
+- Feedback 加入 `FeedbackType`，支援 vocab suggestion、bulk vocab request、bug report、feature request 同 others。
+- Feedback 加入 `FeedbackStatus`，目前使用 `PENDING` 同 `REPLIED` 兩種狀態。
+- Feedback reply metadata 使用 `reply_by` 同 `reply_at` 保存回覆者同回覆時間。
+- Event type 加入 `FEEDBACK_REPLY`，用作 feedback reply notification。
+
+### 技術重點
+
+- 用 `RedirectView.get_redirect_url()` 可以建立只負責 routing decision 嘅入口 view，令 navbar 只需要連去一個 feedback endpoint。
+- `UserPassesTestMixin.test_func()` 只負責回傳權限判斷結果；redirect 行為由 mixin 或 `handle_no_permission()` 處理。
+- `get_object_or_404()` 係 shortcut function，不是 model manager method；要由 `django.shortcuts` import 後直接呼叫。
+- `FormView.form_valid()` 最後需要 success URL；如果無 `success_url` 或 `get_success_url()`，成功 submit 後會出錯。
+- Pagination queryset 應有穩定 ordering，避免同一頁資料順序不穩。
+
+### 理由
+
+- Feedback 主要用途係登入 user 向 admin 提出 vocab suggestion、bug report 或 feature request；綁住 user 可以直接使用 event notification 回覆。
+- 暫時不支援 anonymous feedback，可避免過早處理 spam、contact email、rate limit 同 public form abuse 問題。
+- Feedback status 暫時保留 `PENDING` / `REPLIED`，因為目前 admin handling flow 未複雜到需要更多狀態。
+
+### 學到咩
+
+- 名稱應貼近實際 domain；FAQ 偏向常見問題展示，Feedback 更適合 user-to-admin submission flow。
+- Django system check 未必捉到 view method 內部嘅 runtime error，實際 request flow 測試仍然必要。
+- Migration rename 要小心；model rename 唔應該誤生成 `CreateModel` 去建立已存在嘅 table。
+
+## 2026-08-14 - UserVocab detail and learning controls
+
+Commit: `4d14a87`
+
+Status: UserVocab now has a dedicated detail flow for reviewing vocab data and controlling per-user learning state
+
+### 主要改動
+
+- 建立 `UserVocab` detail page，令 user 可以由個人 vocab list 進入單一 vocab 嘅學習狀態頁。
+- Detail page 同時顯示 user-specific progress data 同 vocab master data，將「我對呢隻字嘅狀態」同「呢隻字本身嘅資料」分開理解。
+- 加入單一 `in_use` update flow，user 可以喺 detail page 控制個別 vocab 是否納入自己嘅 quiz / learning pool。
+- 保留 answer comparison / result image 顯示，方便 user 回看最近一次答題差異。
+- 更新 list / navigation flow，令 UserVocab detail 成為 dictionary app 內更完整嘅 user-facing vocab management surface。
+
+### Database 改動
+
+- 無 schema 變更。
+
+### 技術重點
+
+- 在 `DetailView` 入面加入小型 form 時，需要自行處理 GET initial form 同 POST bound form。
+- `get_queryset()` 可以用作 ownership guard，確保 user 只能讀寫自己嘅 `UserVocab`。
+- POST 成功後 redirect 回 detail URL，可以避免 refresh page 時重複提交 form。
+- Boolean checkbox form field 使用 `required=False`，先可以正確接收 unchecked 狀態。
+
+### 理由
+
+- `Vocab` 代表全局字庫資料，`UserVocab` 代表個別 user 對該 vocab 嘅學習狀態；兩者需要有清楚嘅 UI 邊界。
+- 單一 vocab detail page 比 list page 更適合放 update / delete request 入口、in-use 切換同最近答題回顧。
+
+### 學到咩
+
+- `FormView` 同 `DetailView` 嘅責任不同；`DetailView` 不會自動提供 form lifecycle，要自己放 form 入 context 並在 `post()` 處理。
+- 如果 POST validation 失敗，應把 bound form 放回 context，否則 user 會失去錯誤狀態同提交內容。
+- `get_context_data()` 係準備 template context 嘅集中位置，但要小心不要覆蓋 POST failure 時已經放入去嘅 bound form。
+
+## 2026-08-18 - Feedback, event and vocab review hardening
+
+Commit: `c8ee779`
+
+Status: Feedback, event list and vocab request admin review flows were hardened after testing
+
+### 主要改動
+
+- Feedback creation 改由 `FeedbackService` 處理，避免同一 user 重複提交相同 pending feedback。
+- Feedback reply flow 改由 service 建立 reply event、assign user event、更新 feedback status 同 reply metadata。
+- Event list 支援 read / unread filter，並保留 pagination query string。
+- Navbar / context processor 加入 unread event count 同 pending feedback count。
+- VocabRequest admin approve / reject 加入 change permission guard，避免無權限 user 透過 custom button review request。
+- VocabRequest approve flow 加入 original vocab active / inactive 狀態 validation，避免 update / delete / restore 對錯誤狀態嘅 vocab 操作。
+- UserVocab sync 改用 bulk create + ignore conflicts，減少逐個 create 嘅重複處理風險。
+
+### Database 改動
+
+- 新增 migration `core/migrations/0007_feedback_unique_rule_change.py`。
+- 暫時移除 `Feedback` model 上原本 `Feedback_unique` database constraint，改由 service 層針對 pending feedback 做 duplicate check。
+- `settings.py` 加入額外 context processor。
+
+### 技術重點
+
+- Admin custom button 仍然要主動檢查 permission；不能只靠 change form 頁面本身。
+- Service layer 適合包住跨 model side effects，例如 feedback reply 同 event notification。
+- Event list filter 要保存 query string，pagination 先不會跳頁後失去 read / unread 狀態。
+
+### 理由
+
+- Feedback duplicate 判斷要按 pending 狀態處理；如果用 database unique constraint，已回覆 feedback 仍會阻止 user 之後再提交相同內容。
+- VocabRequest approve / reject 會改正式 vocab data，所以 admin custom action 需要更嚴格嘅 permission 同狀態 validation。
+
+### 學到咩
+
+## 2026-08-22 - New vocab types and August import dataset
+
+Commit: `5bc6f06`
+
+Status: Dictionary now supports more vocab types and has an August CSV dataset ready for import workflow testing
+
+### 主要改動
+
+- `VocabType` 加入 adverb、mimetic、conjunction 同 colloquial，令字庫可以保存更多非普通 vocab / katakana 類型。
+- 新增 migration 更新 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices。
+- 加入 `resource/NewWord_2026_08.csv`，保存 15 個 import-ready vocab entries。
+- CSV 內容包括 Japanese meaning、category、quiz questions 同 multiple-choice distractors。
+- 建立 repo-local workflow instructions，將 project status sync 同 Japanese vocab CSV 收集流程正式寫入 `.agents` / `AGENTS.md`。
+
+### Database 改動
+
+- 新增 migration `dictionary/migrations/0026_new_vocab_type.py`。
+- `Vocab.type` choices 加入 `adverb`、`mimetic`、`conjunction`、`colloquial`。
+- `VocabRequest.proposed_vocab_type` choices 同步加入新 vocab type。
+
+### 技術重點
+
+- Django `TextChoices` 改動需要 migration，否則 admin / form / request proposed fields 會同 model choices 不一致。
+- CSV import data 開始支援同一個 surface word 對應多個 meaning / question context，之後要留意 `(word, kana)` unique constraint 同「同字不同義」設計。
+- Project workflow rules 放入 repo 後，可以令之後 review、vocab 收集同 documentation sync 有固定準則。
+
+### 理由
+
+- 之後 quiz 不只會處理 kana answer，亦會處理副詞、擬音擬態語、接續詞、口語表現等 multiple-choice 類型。
+- 先建立 vocab type 同 import dataset，可以令之後 bulk import / quiz logic 有真實資料可以測。
+
+### 學到咩
+
+## 2026-08-24 - Multiple-choice sense model foundation and repository safety
+
+Commit: `8295da5`
+
+Status: Multiple-choice vocab senses now have an explicit one-to-many data model foundation, with repository workflows hardened against writing to the wrong clone
+
+### 主要改動
+
+- 新增 `MCSense` model，讓同一個 `Vocab` 可以保存多個有固定次序及 stable key 嘅 multiple-choice sense records。
+- 每個 sense 可保存 meaning、兩個 question prompts 同三個 distractor answers，為之後 MC quiz flow 準備結構化資料。
+- 加入 `(vocab, sense_no)` unique constraint，同時令 `sense_key` 全域唯一，避免同一 vocab 出現重複 sense number。
+- Project status sync 同 vocab CSV workflow 加入 Git root 驗證，避免同機多個 clone 時讀寫錯誤 workspace。
+- TODO 規則加入 DONE summary 壓縮要求，保留最終行為同重要 safeguards，減少施工流水帳。
+
+### Database 改動
+
+- `dictionary/models.py` 已加入 `MCSense` schema 定義。
+- 呢個 commit 尚未建立／提交對應 migration；database schema 仍未正式套用。
+
+### 技術重點
+
+- Multiple-choice 意義層應建模成 `Vocab` 一對多 records，而唔係持續增加固定 meaning／question columns 到 master vocab。
+- `sense_key` 提供跨 import／更新可持續識別，`sense_no` 則負責同一 vocab 內嘅顯示及排序語意。
+- 多 clone 環境唔可以只相信記憶中嘅 absolute path；所有文件 workflow 寫入前都要由目前 workspace 重新 resolve Git root。
+
+### 理由
+
+- 同一個日文字詞可能有多個意思及出題情境，需要獨立 sense records 先可以自然擴展。
+- Repository 曾同時存在不同 path／clone；加入 root validation 可以避免 code 或 status 文件寫入過期 repo。
+
+### 學到咩
+
+- Model code 改動唔等於 database schema 已完成；migration 未建立時，history 必須清楚保留呢個限制。
+- Stable identifier、顯示次序同 database uniqueness 係三種不同責任，應用不同 field／constraint 表達。
+
+## 2026-08-25 - Application error handling and resilient vocab sync
+
+Commit: `11634f6`
+
+Status: Project now has a first complete application-level error handling flow, while vocab sync failures no longer unnecessarily break account entry points
+
+### 主要改動
+
+- 新增獨立 `errorHandler` app，註冊 `400`、`403`、`404`、`500` 全域 handlers 同基礎 templates。
+- Quiz Ajax endpoints 統一成功／失敗 JSON contract；invalid form 會回傳 structured field errors，前端亦會識別非 JSON error response，避免將完整 error page 當 partial HTML 插入畫面。
+- Login、register 同 user detail 改用 `UserVocabService.sync_vocab_safely()`，分開處理 vocab sync 同 event generation failure，並保留 exception traceback 供之後 logging。
+- Vocab sync event generation 加入 atomic boundary，令 event rows、user assignment 同 sync checkpoint 可以一組成功或 rollback。
+- 補充 Ajax error handling 設計報告，並將原本 learning notes 整理成可重用嘅 `CODING_REFERENCE.md`。
+
+### Database 改動
+
+- 無新增 schema migration。
+- 今次集中於 HTTP error response、Ajax contract、sync transaction boundary 同 failure isolation。
+
+### 技術重點
+
+- 全域 error page 只負責未預期 HTTP failure；預期內 form validation 應以可讀嘅 field error response 回覆，唔應變成 500。
+- Ajax client 要先確認 response type，再解析 JSON；network、HTML error page 同 malformed JSON 都要走可恢復 fallback。
+- 附帶流程失敗是否影響主操作，要按 domain importance 決定：account login／register 應保留主流程，vocab sync 或 event generation 則記錄後留待下次重試。
+- `transaction.atomic()` 應包住必須保持一致嘅資料寫入，但唔應無條件將所有次要 side effects 同主操作綁死。
+
+### 理由
+
+- Production 開啟 `DEBUG=False` 後，需要向 user 提供不洩漏 traceback、SQL 或 filesystem path 嘅錯誤回應。
+- Quiz 採用 Ajax partial replacement；如果錯誤 response 冇明確 contract，前端可能破壞目前題目畫面，亦令 user 無法恢復。
+- Vocab sync 同 notification 屬於可重試附帶流程，唔應因一次失敗令 user 無法完成登入或註冊。
+
+### 學到咩
+
+- Error handling 要同時處理 server response、frontend parsing、transaction boundary 同 logging，唔只係建立幾張 error templates。
+- Exception isolation 需要先分清主操作同次要 side effect，先可以決定回滾範圍。

@@ -1,4 +1,6 @@
 from django.shortcuts import render
+from django.http import HttpResponse
+from django.template.loader import get_template
 
 def error400(request, exception):
     return render(request, 'errorHandler/error400.html', status=400)
@@ -7,4 +9,6 @@ def error403(request, exception):
 def error404(request, exception):
     return render(request, 'errorHandler/error404.html', status=404)
 def error500(request):
-    return render(request, 'errorHandler/error500.html', status=500)
+    template = get_template("errorHandler/error500.html")
+    html = template.render()
+    return HttpResponse(html, status=500)

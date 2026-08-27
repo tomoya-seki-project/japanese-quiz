@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 
@@ -47,6 +48,8 @@ from .service.vocab_request import VocabRequestService
 from .service.user_vocab_action import UserVocabService
 from quiz.service.quiz import QuizService
 
+logger = logging.getLogger(__name__)
+
 class VocabHomeView(TemplateView):
     template_name = "dictionary/vocab_home.html"
 
@@ -66,8 +69,24 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 )
             except ValidationError as e:
                 form.add_error(None, e)
+                logger.info(
+                    "Vocab restore request rejected by business validation: %s",
+                    e,
+                    extra={
+                        "user_id": self.request.user.pk,
+                        "vocab_id": form.deactived_vocab.pk,
+                        "operation": "vocab_request_restore",
+                    },
+                )
                 return self.form_invalid(form)
             if created:
+                logger.info(
+                    "Vocab restore request created",
+                    extra={
+                        "user_id": self.request.user.pk,
+                        "vocab_id": form.deactived_vocab.pk,
+                    },
+                )
                 messages.success(self.request, "The same word already exists on the list. A restore request has been sent to admin for review.")
             else:
                 messages.info(self.request, "The same word already exists on the list, and a review request is already waiting for admin review.")
@@ -80,8 +99,22 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 )
             except ValidationError as e:
                 form.add_error(None, e)
+                logger.info(
+                    "Vocab create request rejected by business validation: %s",
+                    e,
+                    extra={
+                        "user_id": self.request.user.pk,
+                        "operation": "vocab_request_create",
+                    },
+                )
                 return self.form_invalid(form)
             if created:
+                logger.info(
+                    "Vocab create request created",
+                    extra={
+                        "user_id": self.request.user.pk,
+                    },
+                )
                 messages.success(self.request, "A new word request has been sent to admin for confirmation.")
             else:
                 messages.info(self.request, "Another user has already requested the same word. It is waiting for admin confirmation.")

@@ -6,7 +6,7 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（63）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（64）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（3）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
 
@@ -797,24 +797,23 @@ Status badge：
 ## Error Handling
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **HTTP error response、error page 同 exception logging**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **HTTP error response、error page 同 exception logging**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已建立獨立 `errorHandler` app 初稿，同 `400`、`403`、`404`、`500` handler view。
-- `config/urls.py` 已開始註冊四個全域 error handlers。
-- 四個 error page已放入Django app會自動搜尋嘅 `errorHandler/templates/errorHandler/`，template loader可正常找到；`404` handler嘅臨時 `print(exception)`已移除。
+- 已建立獨立 `errorHandler` app，註冊 `400`、`403`、`404`、`500` 全域 handlers 及對應 templates；template loader 可正常找到錯誤頁，並已移除臨時 exception output。
 - 以 `DEBUG=False`同臨時URLConf實際觸發400／403／404／500，四個全域handlers均回傳正確HTTP status及HTML response；測試exception內容、traceback同filesystem path冇洩漏到頁面。
-- Quiz Submit／Next／Skip／Summary AJAX `FormView` 已共用 `QuizAjaxFormMixin`：invalid form會回傳包含全部 field errors嘅 `400` JSON，成功 payload統一帶 `success=True`；前端會按 `success`分流並安全顯示 errors。直接 request及 MRO驗證確認四個 views使用同一 `form_invalid()`，空答案唔再變成500。
-- Quiz AJAX `fetch()` 已在JSON parsing前檢查 response `Content-Type`；403／404／500 HTML等非JSON response、network failure同JSON parsing failure會進入 `.catch()`，向user顯示通用恢復提示，唔會當成正常partial payload插入畫面。Code-path review、Django system check同Python syntax check已通過。
+- Quiz Submit／Next／Skip／Summary AJAX 已統一 invalid-form `400` JSON contract；前端亦會在 parsing 前檢查 `Content-Type`，將非 JSON HTTP errors、network failure 同 parsing failure 導向通用 fallback。
 - Login、register 同 user detail 已共用 `UserVocabService.sync_vocab_safely()`：vocab sync 失敗會記錄 exception traceback 並留待下次重試；sync 成功後 event generation 失敗會保留 sync，而 event rows、user assignment 同 sync checkpoint 由 `gen_vocab_sync_event()` 自己嘅 atomic transaction 一組 rollback。Admin approve／reject 及結果 event 則維持同一 transaction、一併成功或 rollback。
+- `500` handler 已改用獨立 template render path，不傳入 request context，避免再次執行全站 context processors；`error500.html` 亦不依賴 `base.html` 或 database data。
+- Application logging 已設定 formatter、console 及每日 rotating file handlers、exact-DEBUG filter、app loggers 同 `django.request`；並以 `.gitkeep` 保留 log directory、`.gitignore` 排除 runtime `.log` files。已用 project `.venv` 嘅 Django 6.0.5 通過 system check，並實測 console、DEBUG、INFO+ 同 ERROR+ file routing 正確。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
 
-- 設定 application logging：未預期 exception／500 保留 traceback；預期內 form validation、business validation 同 duplicate submission 唔當成 500。
-- 強化500 page嘅獨立render path：目前 `render(request, ...)`仍會執行全站context processors；如果原始500由database或context processor故障引起，error handler可能再次失敗。需要避免500 page依賴正常request context，並模擬context processor失敗驗證fallback仍可回應。
+- 驗證每日 rotation／retention，以及未處理 500 只保留一次完整 traceback。
+- 模擬 context processor 失敗，驗證獨立 `500` fallback 仍可回應 status 500 及錯誤頁內容。
 - 以browser integration實測 Quiz AJAX收到403／404／500 HTML時會進入通用fallback；目前環境冇Node／JavaScript parser，未有JavaScript runtime或browser自動驗證。
 - 為四個全域handlers、Quiz invalid-form JSON contract同非JSON前端fallback補永久自動tests；目前project test discovery顯示 `0 tests`，現有證據來自system check、direct request、MRO同臨時URLConf驗證。
 
@@ -824,6 +823,29 @@ Status badge：
 - 日後可按需要加入 structured logging、request ID 同 error monitoring service；目前唔屬於基礎 error handling 必要範圍。
 
 ## Logging / Audit Trail
+
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Application logging coverage / placement**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已定義 formatter、console／file handlers、logger levels、每日 rotation 同 7 日 retention，並設定 `django.request` 及各 application logger。
+- 已加入 exact-DEBUG filter；實測 DEBUG 只進入 debug file、INFO+ 進入 full-flow file、ERROR+ 同時進入 full-flow 及 error file，INFO+ 亦會輸出到 console。
+- `log/.gitkeep` 會保留 runtime log directory，`.gitignore` 會排除 `log/*.log`。
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- **Vocab request flow**：create／update／restore／delete request 嘅未預期失敗；admin approve／reject 嘅未預期失敗及重要 audit result。普通 form／business `ValidationError`、已有 pending request 同 concurrent duplicate 唔記成 `ERROR`。
+- **Vocab / UserVocab flow**：vocab create／update／restore／delete action 同 user vocab sync 嘅未預期失敗；保留現有 `sync_vocab_safely()` traceback，並避免逐筆記正常 bulk sync result。
+- **Account related flow**：register、login、logout、user detail／profile action 嘅未預期失敗，以及 vocab sync／event generation failure。錯 password、invalid registration form 等預期 validation 唔記成 `ERROR`；任何 log 都唔可包 password、session key 或其他 credential。
+- **Quiz flow**：quiz start／question generation／submit／next／skip／summary 嘅未預期 exception 同無法恢復嘅 state inconsistency。Invalid form、空 answer、過期／重複 AJAX submission 要用正常 response contract，唔記成 500，亦唔需要逐題記 normal answer log。
+- **Import / management command flow**：`import_vocab` 記錄執行開始／完成、file、執行者、成功／失敗筆數同 failed-row reasons；file missing、database failure 或 command crash 保留 traceback。`setup_categories` 同日後其他會改變資料嘅 commands 記錄 summary 及未預期失敗。
+- **Event notification / user message flow**：event create／assign／mark-read 同 user feedback／admin reply 嘅未預期失敗；只記識別用 ID 同 operation，避免將 message body 或其他可能敏感內容直接寫入 log。
+- **HTTP / permission boundary**：真正 500 保留 traceback；對異常量 403／404、permission denial 或可疑操作，先決定係否需要 `WARNING` 或 security audit，唔將每個普通 404 記成 application error。
+- **記錄欄位**：統一保留 logger name、level、operation、exception traceback 及可用嘅 `user_id`／object ID；唔記 password、cookie、session、CSRF token、完整 POST body 或其他 secrets。
+- **驗證**：確認真正 exception 會出現一次完整 traceback，預期 validation／duplicate 唔會變成 500 或 `ERROR`，同一個 exception 唔會被 Django 同 application logger 重複記錄。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **CSV import log / import report**
