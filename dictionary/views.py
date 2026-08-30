@@ -70,25 +70,32 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
             except ValidationError as e:
                 form.add_error(None, e)
                 logger.info(
-                    "Vocab restore request rejected by business validation: %s",
+                    "Vocab restoration request rejected by business validation: "
+                    "operation=%s user_id=%s vocab_id=%s error=%s",
+                    "vocab_request_restore",
+                    self.request.user.pk,
+                    form.deactived_vocab.pk,
                     e,
-                    extra={
-                        "user_id": self.request.user.pk,
-                        "vocab_id": form.deactived_vocab.pk,
-                        "operation": "vocab_request_restore",
-                    },
                 )
                 return self.form_invalid(form)
             if created:
                 logger.info(
-                    "Vocab restore request created",
-                    extra={
-                        "user_id": self.request.user.pk,
-                        "vocab_id": form.deactived_vocab.pk,
-                    },
+                    "Vocab restoration request created: "
+                    "operation=%s user_id=%s vocab_id=%s",
+                    "vocab_request_restore",
+                    self.request.user.pk,
+                    form.deactived_vocab.pk,
                 )
                 messages.success(self.request, "The same word already exists on the list. A restore request has been sent to admin for review.")
             else:
+                logger.info(
+                    "Vocab restoration request skipped: "
+                    "operation=%s user_id=%s vocab_id=%s reason=%s",
+                    "vocab_request_restore",
+                    self.request.user.pk,
+                    form.deactived_vocab.pk,
+                    "pending_request_exists",
+                )
                 messages.info(self.request, "The same word already exists on the list, and a review request is already waiting for admin review.")
             return redirect(self.get_success_url())
         else:
@@ -100,23 +107,35 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
             except ValidationError as e:
                 form.add_error(None, e)
                 logger.info(
-                    "Vocab create request rejected by business validation: %s",
+                    "Vocab creation request rejected by business validation: "
+                    "operation=%s user_id=%s word=%s kana=%s error=%s",
+                    "vocab_request_create",
+                    self.request.user.pk,
+                    form.cleaned_data["word"],
+                    form.cleaned_data["kana"],
                     e,
-                    extra={
-                        "user_id": self.request.user.pk,
-                        "operation": "vocab_request_create",
-                    },
                 )
                 return self.form_invalid(form)
             if created:
                 logger.info(
-                    "Vocab create request created",
-                    extra={
-                        "user_id": self.request.user.pk,
-                    },
+                    "Vocab creation request created: "
+                    "operation=%s user_id=%s word=%s kana=%s",
+                    "vocab_request_create",
+                    self.request.user.pk,
+                    form.cleaned_data["word"],
+                    form.cleaned_data["kana"],
                 )
                 messages.success(self.request, "A new word request has been sent to admin for confirmation.")
             else:
+                logger.info(
+                    "Vocab creation request skipped: "
+                    "operation=%s user_id=%s word=%s kana=%s reason=%s",
+                    "vocab_request_create",
+                    self.request.user.pk,
+                    form.cleaned_data["word"],
+                    form.cleaned_data["kana"],
+                    "pending_request_exists",
+                )
                 messages.info(self.request, "Another user has already requested the same word. It is waiting for admin confirmation.")
             return redirect(self.get_success_url())
         
@@ -164,17 +183,44 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
                 initial_data.update({
                     "native_japanese" : vocab.katakana_detail.native_japanese
                 })
+            case VocabType.ADVERB | VocabType.MIMETIC | VocabType.CONJUNCTION | VocabType.COLLOQUIAL:
+                pass
         return initial_data
     
     def form_valid(self, form):
         try:
-            VocabRequestService.gen_update_vocab_request(
+            created = VocabRequestService.gen_update_vocab_request(
                 user=self.request.user,
                 form=form
             )
         except ValidationError as e:
             form.add_error(None, e)
+            logger.info(
+                "Vocab update request rejected by business validation: "
+                "operation=%s user_id=%s vocab_id=%s error=%s",
+                "vocab_request_update",
+                self.request.user.pk,
+                self.target_vocab.pk,
+                e,
+            )
             return self.form_invalid(form)
+        if created:
+            logger.info(
+                "Vocab update request created: "
+                "operation=%s user_id=%s vocab_id=%s",
+                "vocab_request_update",
+                self.request.user.pk,
+                self.target_vocab.pk,
+            )
+        else:
+            logger.info(
+                "Vocab update request skipped: "
+                "operation=%s user_id=%s vocab_id=%s reason=%s",
+                "vocab_request_update",
+                self.request.user.pk,
+                self.target_vocab.pk,
+                "pending_request_exists",
+            )
         return super().form_valid(form)
 
 class VocabDeleteRequestView(LoginRequiredMixin, FormView):
@@ -199,13 +245,38 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
     
     def form_valid(self, form):
         try:
-            VocabRequestService.gen_delete_vocab_request(
+            created = VocabRequestService.gen_delete_vocab_request(
                 user=self.request.user,
                 vocab=self.target_vocab
             )
         except ValidationError as e:
             form.add_error(None, e)
+            logger.info(
+                "Vocab deletion request rejected by business validation: "
+                "operation=%s user_id=%s vocab_id=%s error=%s",
+                "vocab_request_delete",
+                self.request.user.pk,
+                self.target_vocab.pk,
+                e,
+            )
             return self.form_invalid(form)
+        if created:
+            logger.info(
+                "Vocab deletion request created: "
+                "operation=%s user_id=%s vocab_id=%s",
+                "vocab_request_delete",
+                self.request.user.pk,
+                self.target_vocab.pk,
+            )
+        else:
+            logger.info(
+                "Vocab deletion request skipped: "
+                "operation=%s user_id=%s vocab_id=%s reason=%s",
+                "vocab_request_delete",
+                self.request.user.pk,
+                self.target_vocab.pk,
+                "pending_request_exists",
+            )
         return super().form_valid(form)
     
 
@@ -308,9 +379,17 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 id__in=selected_ids,
             )
             now = timezone.now()
-            get_unselect_qs.update(in_use=False, update_at=now)
-            get_select_qs.update(in_use=True, update_at=now)
-
+            deactivated_count = get_unselect_qs.update(in_use=False, update_at=now)
+            activated_count = get_select_qs.update(in_use=True, update_at=now)
+            if (activated_count + deactivated_count) > 0:
+                logger.info(
+                    "User vocab usage updated: "
+                    "operation=%s user_id=%s activated_count=%s deactivated_count=%s",
+                    "user_vocab_in_use",
+                    self.request.user.pk,
+                    activated_count,
+                    deactivated_count,
+                )
         return redirect(request.get_full_path())
 
     def render_to_response(self, context, **response_kwargs):
@@ -378,8 +457,20 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
         )
 
         if form.is_valid():
-            user_vocab.in_use = form.cleaned_data["in_use"]
-            user_vocab.save(update_fields=["in_use","update_at"])
+            new_in_use = form.cleaned_data["in_use"]
+            if user_vocab.in_use != new_in_use:
+                user_vocab.in_use = new_in_use
+                user_vocab.save(update_fields=["in_use","update_at"])
+
+                logger.info(
+                    "User vocab usage updated: "
+                    "operation=%s user_id=%s vocab_id=%s in_use=%s",
+                    "user_vocab_in_use",
+                    self.request.user.pk,
+                    user_vocab.vocab_id,
+                    user_vocab.in_use,
+                )
+
             return redirect(request.get_full_path())
         self.object = user_vocab
         context = self.get_context_data(object=user_vocab)

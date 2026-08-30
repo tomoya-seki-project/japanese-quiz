@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.template.loader import render_to_string
@@ -34,6 +35,7 @@ from .helper import (
     build_next_question_payload,
     render_quiz_question_payload_html,
 )
+logger = logging.getLogger(__name__)
 
 from core.service.core import load_json
 
@@ -76,8 +78,22 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             last_aims_quiz_num = quiz_session.get("aims_quiz_num", -1)
             last_quizzed_count = quiz_session.get("quizzed_count", 0)
             if unfinished_question_user_vocab_id:
+                logger.info(
+                    "Quiz setting redirected to an unanswered question: "
+                    "operation=%s user_id=%s reason=%s",
+                    "quiz_setting",
+                    self.request.user.pk,
+                    "unfinished_question",
+                )
                 return redirect("quiz:quiz_unfinished")
             if last_aims_quiz_num > 0 and last_aims_quiz_num > last_quizzed_count:
+                logger.info(
+                    "Quiz setting resumed an unfinished quiz session: "
+                    "operation=%s user_id=%s reason=%s",
+                    "quiz_setting",
+                    self.request.user.pk,
+                    "unfinished_quiz_session",
+                )
                 return redirect("quiz:quiz_unfinished")
             if last_aims_quiz_num > 0 and last_aims_quiz_num <= last_quizzed_count:
                 self.request.session.pop("quiz_session", None)
@@ -86,6 +102,14 @@ class QuizSettingView(LoginRequiredMixin, FormView):
 
         min_count = QUIZ_CONFIG["pool"]["min_in_use"]
         if in_use_count < min_count:
+            logger.info(
+                "Quiz start rejected due to insufficient active vocab: "
+                "operation=%s user_id=%s required_count=%s in_use_count=%s",
+                "quiz_setting",
+                self.request.user.pk,
+                min_count,
+                in_use_count,
+            )
             messages.warning(
                 request,
                 f"You need at least {min_count} active vocab items before starting a quiz. Please enable more vocab items first."
@@ -114,6 +138,16 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             "vocab_type": vocab_type,
             "categories": categories,
         }
+        logger.info(
+            "Quiz settings saved: "
+            "operation=%s user_id=%s quiz_num=%s level=%s vocab_type=%s categories=%s",
+            "quiz_setting",
+            self.request.user.pk,
+            quiz_num,
+            level,
+            vocab_type,
+            categories,
+        )
         return redirect("quiz:quiz_play")
     
 class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
@@ -123,6 +157,13 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
         question_pool_qs, fallback_used = get_question_pool(request=self.request)
         user_vocab_id = get_target_user_vocab_id(user=self.request.user, pool_queryset=question_pool_qs)
         if user_vocab_id is None:
+            logger.info(
+                "Quiz start rejected: "
+                "operation=%s user_id=%s reason=%s",
+                "quiz_play",
+                self.request.user.pk,
+                "no_matching_question",
+            )
             messages.warning(
                 request,
                 "No active vocab is available for this quiz. Please enable vocab items first."
@@ -162,6 +203,15 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
         posted_quiz_user_vocab_id = form.cleaned_data.get("user_vocab_id")
         session_question_user_vocab_id = quiz_session.get("question_user_vocab_id")
         if posted_quiz_user_vocab_id != session_question_user_vocab_id:
+            logger.info(
+                "Quiz answer ignored: "
+                "operation=%s user_id=%s posted_quiz_user_vocab_id=%s session_question_user_vocab_id=%s reason=%s",
+                "quiz_submit_answer",
+                self.request.user.pk,
+                posted_quiz_user_vocab_id,
+                session_question_user_vocab_id,
+                "stale_or_duplicate_submission",
+            )
             if session_question_user_vocab_id is None:
                 main_html = render_to_string(
                     "quiz/partials/quiz_no_question_partial.html",
@@ -203,6 +253,15 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 answer=form.cleaned_data.get("answer"),
                 tips_count=form.cleaned_data.get("tips_count"),
             )
+        logger.info(
+            "Quiz answer checked: "
+            "operation=%s user_id=%s question_user_vocab_id=%s user_answer=%s is_correct=%s",
+            "quiz_submit_answer",
+            self.request.user.pk,
+            question_vocab.pk,
+            form.cleaned_data.get("answer"),
+            is_correct,
+        )
         
         if question_vocab.vocab.type == VocabType.VOCAB or question_vocab.vocab.type == VocabType.KATAKANA:
             compared_data = QuizService.compare_kana_answer(
@@ -255,6 +314,13 @@ class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequ
             quiz_session["question_user_vocab_id"] = None
             quiz_session["skipped_count"] += 1
             self.request.session["quiz_session"] = quiz_session
+            logger.info(
+                "Quiz question skipped: "
+                "operation=%s user_id=%s skipped_user_vocab_id=%s",
+                "quiz_skip",
+                self.request.user.pk,
+                skipped_question_vocab,
+            )
         
         payload = build_next_question_payload(request=self.request, is_skip=True)
         return JsonResponse(payload)
@@ -277,6 +343,13 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
             user_vocab_id = get_target_user_vocab_id(user=self.request.user, pool_queryset=question_pool_qs)
             quiz_session["quizzed_count"] += 1
         if user_vocab_id is None:
+            logger.info(
+                "Quiz resume stopped: "
+                "operation=%s user_id=%s reason=%s",
+                "quiz_resume",
+                self.request.user.pk,
+                "no_matching_question",
+            )
             messages.warning(
                 request,
                 "No active vocab is available for this quiz. Please enable vocab items first."
@@ -320,6 +393,19 @@ class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionR
                 "total_tips_count":quiz_session["total_tips_count"],
             },
             request=self.request,
+        )
+        logger.info(
+            "Quiz completed: "
+            "operation=%s user_id=%s quiz_count=%s target_count=%s correct_count=%s wrong_count=%s skipped_count=%s total_tips_count=%s fallback_used=%s",
+            "quiz_complete",
+            self.request.user.pk,
+            quiz_session["quizzed_count"],
+            quiz_session["aims_quiz_num"],
+            quiz_session["correct_count"],
+            quiz_session["wrong_count"],
+            quiz_session["skipped_count"],
+            quiz_session["total_tips_count"],
+            fallback_used,
         )
         self.request.session.pop("quiz_session", None)
         return JsonResponse({

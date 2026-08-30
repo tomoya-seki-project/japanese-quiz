@@ -6,8 +6,8 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（64）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（3）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（65）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
 
 ## 目錄
@@ -833,34 +833,51 @@ Status badge：
 - 已定義 formatter、console／file handlers、logger levels、每日 rotation 同 7 日 retention，並設定 `django.request` 及各 application logger。
 - 已加入 exact-DEBUG filter；實測 DEBUG 只進入 debug file、INFO+ 進入 full-flow file、ERROR+ 同時進入 full-flow 及 error file，INFO+ 亦會輸出到 console。
 - `log/.gitkeep` 會保留 runtime log directory，`.gitignore` 會排除 `log/*.log`。
+- Vocab create／restore／update／delete request 已記錄 created、pending-request skipped 及 business-validation rejected outcomes；context 包括 operation、`user_id` 及可用嘅 `vocab_id`，create flow 另記 `word`／`kana`，但唔會記錄 credentials 或完整 POST body。
+- UserVocab bulk 同 single `in_use` update 已記錄實際資料變更；bulk 記 activated／deactivated count，single 記 user、vocab 及新狀態，零變更 submission 唔會寫 log。
+- Quiz flow 已記錄 setting accepted／resume redirect／insufficient pool、stale 或 duplicate answer submission、會更新 UserVocab learning state 嘅 answer result、實際 skip 及最終 summary；普通 question pick 同 next action 唔會製造低價值 log。
+- VocabRequest admin review 已記錄 approve／reject 嘅成功、已處理而 skipped、business validation rejected 及 permission denied outcomes；正常結果使用 `INFO`，權限拒絕使用 `WARNING`，並保留 `reviewer_user_id`、request ID、request type 同 review action。
+- `import_vocab` 已記錄 import started／completed、執行 user、CSV file、成功／失敗筆數同 rejected row reasons；預期輸入問題使用 `WARNING`，未預期 failure 使用 `logger.exception()` 保存 traceback，亦唔會記錄 password。
+- `setup_categories` 已記錄 setup started／completed、CSV file、成功／失敗筆數、missing file／headers 同 rejected row；預期問題使用 `WARNING`，未預期 failure 保存 traceback。
+- `dev_clear_vocab` 已記錄 destructive command started、transaction 完整成功後嘅 completed result，同未預期 failure traceback；operation 只保留執行 `user_id`，唔記錄 password。
+- 現有 application log wording 已統一句首大寫、清楚 outcome／reason、started／completed／failed unexpectedly 時態、snake_case operation 同明確 `*_id` context fields；只調整 logging 表達，冇改動業務流程。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- **Vocab request flow**：create／update／restore／delete request 嘅未預期失敗；admin approve／reject 嘅未預期失敗及重要 audit result。普通 form／business `ValidationError`、已有 pending request 同 concurrent duplicate 唔記成 `ERROR`。
-- **Vocab / UserVocab flow**：vocab create／update／restore／delete action 同 user vocab sync 嘅未預期失敗；保留現有 `sync_vocab_safely()` traceback，並避免逐筆記正常 bulk sync result。
+- **Vocab / UserVocab flow**：補齊 admin approve 實際觸發嘅 vocab create／update／restore／delete action；保留現有 `sync_vocab_safely()` failure traceback，並避免逐筆記正常 bulk sync result。
 - **Account related flow**：register、login、logout、user detail／profile action 嘅未預期失敗，以及 vocab sync／event generation failure。錯 password、invalid registration form 等預期 validation 唔記成 `ERROR`；任何 log 都唔可包 password、session key 或其他 credential。
-- **Quiz flow**：quiz start／question generation／submit／next／skip／summary 嘅未預期 exception 同無法恢復嘅 state inconsistency。Invalid form、空 answer、過期／重複 AJAX submission 要用正常 response contract，唔記成 500，亦唔需要逐題記 normal answer log。
-- **Import / management command flow**：`import_vocab` 記錄執行開始／完成、file、執行者、成功／失敗筆數同 failed-row reasons；file missing、database failure 或 command crash 保留 traceback。`setup_categories` 同日後其他會改變資料嘅 commands 記錄 summary 及未預期失敗。
 - **Event notification / user message flow**：event create／assign／mark-read 同 user feedback／admin reply 嘅未預期失敗；只記識別用 ID 同 operation，避免將 message body 或其他可能敏感內容直接寫入 log。
 - **HTTP / permission boundary**：真正 500 保留 traceback；對異常量 403／404、permission denial 或可疑操作，先決定係否需要 `WARNING` 或 security audit，唔將每個普通 404 記成 application error。
 - **記錄欄位**：統一保留 logger name、level、operation、exception traceback 及可用嘅 `user_id`／object ID；唔記 password、cookie、session、CSRF token、完整 POST body 或其他 secrets。
 - **驗證**：確認真正 exception 會出現一次完整 traceback，預期 validation／duplicate 唔會變成 500 或 `ERROR`，同一個 exception 唔會被 Django 同 application logger 重複記錄。
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **CSV import log / import report**
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 為 VocabRequest created／skipped／rejected 同 UserVocab bulk／single in-use change 補 log assertions，並確認 no-change submission 唔會產生 operation log。
+- 為 VocabRequest admin review 嘅 approved／rejected／skipped／validation rejected／permission denied 補 log assertions，並確認 permission denial 使用 `WARNING`、其餘預期結果使用 `INFO`。
+- 為 Quiz setting／rejection、answer accepted／ignored、skip 同 summary 補 log assertions，確認 message placeholders、IDs 同 count fields 嘅實際輸出正確。
+- 為 `import_vocab` started／completed、missing file／headers、row rejection 同未預期 failure 補 log assertions，確認預期問題唔會記成 `ERROR`，真正 failure 會包含 traceback。
+- 為 `setup_categories` started／completed、missing file／headers、row rejection 同未預期 failure 補 log assertions，確認 summary count、level 同 traceback 正確。
+- 為 `dev_clear_vocab` started／completed／failed unexpectedly 補 log assertions，確認 completed 只會喺 atomic transaction 全部成功後出現，失敗會 rollback 並包含 traceback。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **CSV import / category setup log and report**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `import_vocab` 已整理出 `success_count`、`failed_rows`、`row_number`、`error_message` 等 structured data。
+- `import_vocab` 保留 terminal row result 同 final summary，並以 `success_count`、`failed_rows`、`row_number` 同 `error_message` 組織執行結果。
+- Import start／finish log 會記錄 operation、執行 user、CSV file、成功筆數同失敗筆數；formatter timestamp 提供執行時間。
+- Missing file／headers、database integrity rejection 同 validation rejection 會以 `WARNING` 記錄；未預期 exception 會以 `ERROR` level 保存完整 traceback後重新拋出。
+- Log 只記識別及診斷所需資料，唔會記錄 admin password。
+- `setup_categories` 同樣保留 terminal row／summary output，並記錄 CSV file、成功／失敗筆數、invalid row、missing file／headers 及未預期 crash。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
 
-- 輸出正式 log，而唔只係 terminal message。
-- Log 記低 import file、執行 admin、執行時間、成功筆數、失敗筆數、failed row 原因。
-- 可以先做 terminal summary + log file。
+- 為兩個 CSV commands 補 log assertions，覆蓋成功、部分 row 失敗、missing file／headers 同未預期 crash，並確認 level、summary count 同 traceback 正確。
 
 ## General Improvements
 

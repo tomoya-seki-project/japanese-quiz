@@ -2,11 +2,11 @@
 
 一個用 Django 開發嘅 Japanese vocabulary learning project。
 
-Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data、event notification、user feedback flow，同初步 Ajax quiz flow。
+Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data、event notification、user feedback flow、Ajax quiz flow、application error handling 同 logging foundation。
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification foundation、user feedback flow 同 Ajax quiz play flow 已經建立，但 quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification、user feedback、Ajax quiz play、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -37,7 +37,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
 - Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
-> **未完善：** Approve UPDATE / RESTORE / DELETE request 前仍要補強 `original_vocab` validation；event notification flow 已有初稿，但仍要補 UI / wording 同更多 event type。
+> **未完善：** DELETE request 仍未保存完整 proposed snapshot；additional vocab types 同 `MCSense` 仍未接通 request、import、admin 同 quiz flow。
 
 ### Admin
 
@@ -76,11 +76,18 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Superuser 可以 reply feedback。
 - Reply 後會將 feedback status 由 `PENDING` 更新成 `REPLIED`，並建立 `FEEDBACK_REPLY` event 通知提交者。
 
+### Error Handling and Logging
+
+- 已註冊全域 `400`、`403`、`404` 同 `500` error handlers。
+- Quiz Ajax action 會將 form validation failure 回傳 structured `400` JSON，前端亦會處理非 JSON response、network failure 同 parsing failure。
+- Account entry points 使用 resilient vocab sync wrapper，sync 或 event side effect 失敗時會保留 traceback，避免無必要中斷 login、registration 或 profile flow。
+- Application logging 已有 console、DEBUG-only、INFO+ 同 ERROR+ handlers，file logs 每日 rotate 並保留七日。
+- Vocab create / restore request 已加入初步 operation logging；其他 domain flow 仍需擴展 logging coverage。
+
 ## Planned Features
 
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
-- Multiple choice quiz answer flow。
-- Katakana quiz answer checking。
+- `MCSense` migration、CSV import 同 multiple-choice quiz answer flow。
 - Whole database CSV export / restore。
 - Account email activation。
 
@@ -113,13 +120,13 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `KatakanaDetail`：katakana 專用資料，例如 native Japanese。
 - `UserVocab`：連接 user 同 vocab，保存 `in_use`、weight、answer counts、streak 同 last quiz time。
 - `VocabRequest`：保存 create、update、delete、restore request。
+- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；目前尚未建立 migration 或接通實際 flow。
 
 ### Core
 
 - `TimeStampedModel`：共用 create/update timestamps。
 - `Event`：系統事件 master record。
 - `UserEvent`：連接 user 同 event，保存 read status。
-- `AdminMessage`：初步 message model，功能仍未完善。
 - `Feedback`：保存 user feedback、suggestion、bug report、reply status 同 admin reply metadata。
 
 ## Project Structure
@@ -132,6 +139,8 @@ core/          Shared models、base templates、general pages
 devtools/      Development-only helper tools, including image generators
 dictionary/    Vocab models、forms、views、admin、request service
 docs/          Project status notes, learning notes and modification reports
+errorHandler/  Global HTTP error handlers and templates
+log/           Runtime application logs; generated .log files are ignored
 quiz/          Quiz settings、weighted random service、Ajax quiz play flow
 ```
 
@@ -262,7 +271,7 @@ word,kana,meaning,type,level,category1,category2,category3,native_japanese
 `setup_categories` 用嚟由 CSV seed category data：
 
 ```bash
-python manage.py setup_categories
+python manage.py setup_categories resource/categories.csv
 ```
 
 ### Development Clear Vocab
@@ -342,10 +351,12 @@ python manage.py test
 
 ## Current Limitations
 
-- Quiz app 已有初步 Ajax play flow，但 weight adjustment、multiple choice answer flow 同 katakana checking 仍要完善。
-- VocabRequest approve/reject 已有基本 service flow，但 `original_vocab` validation 仍要補強。
-- Event notification system 已有 foundation，但 UI / wording 同更多 event type 仍要完善。
+- Kana quiz 已有 Ajax play、weight adjustment 同 answer comparison flow，但 multiple-choice answer flow 仍未接通。
+- `MCSense` 只有 model foundation；對應 migration、validation、import、admin、request 同 quiz integration 仍未完成。
+- VocabRequest approve/reject 已有 transaction、row lock、permission 同 `original_vocab` state guard，但 DELETE request snapshot 仍未完整。
+- Event notification system 已有 request result、vocab sync summary 同 feedback reply flow，UI / wording 同更多 event type 仍可改善。
 - Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
+- Logging handlers 已建立，但各 domain flow 嘅成功、失敗及 audit coverage 仍未完整。
 - 完整 export / restore 尚未完成。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。

@@ -5,7 +5,7 @@
 
 ## Project Snapshot
 
-Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project 由單純 dictionary 起步，逐步建立 user-specific vocabulary、受審核嘅字庫修改流程、weighted quiz、Ajax 答題介面、事件通知、feedback 同 application-level error handling。
+Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project 由單純 dictionary 起步，逐步建立 user-specific vocabulary、受審核嘅字庫修改流程、weighted quiz、Ajax 答題介面、事件通知、feedback、application-level error handling 同 logging foundation。
 
 核心方向包括：
 
@@ -25,7 +25,7 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 4](#phase-4-quiz-core-and-ajax-interaction) | 2026-07-20 ～ 2026-07-30 | Weighted quiz、session lifecycle、Ajax answer/next/skip |
 | [Phase 5](#phase-5-visual-learning-feedback) | 2026-08-01 ～ 2026-08-11 | Kana assets、answer diff、custom keyboard、visual feedback |
 | [Phase 6](#phase-6-user-facing-workflows-and-domain-hardening) | 2026-08-13 ～ 2026-08-22 | Feedback、UserVocab detail、permissions、data integrity |
-| [Phase 7](#phase-7-extensibility-and-application-resilience) | 2026-08-24 ～ 2026-08-25 | MC sense foundation、error handling、resilient sync |
+| [Phase 7](#phase-7-extensibility-and-application-resilience) | 2026-08-24 ～ 2026-08-28 | MC sense foundation、error handling、resilient sync、logging foundation |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -200,11 +200,11 @@ Project 已具備較完整嘅 user-facing support flow，同時將多個原本�
 
 ## Phase 7: Extensibility and Application Resilience
 
-**時間：2026-08-24 ～ 2026-08-25**
+**時間：2026-08-24 ～ 2026-08-28**
 
 ### 目標
 
-為 multiple-choice content 建立可擴展 schema，並處理 production-style failure response、Ajax recovery 同非核心 side-effect isolation。
+為 multiple-choice content 建立可擴展 schema，並處理 production-style failure response、Ajax recovery、非核心 side-effect isolation 同可追蹤嘅 runtime logging。
 
 ### 主要成果
 
@@ -214,6 +214,9 @@ Project 已具備較完整嘅 user-facing support flow，同時將多個原本�
 - Quiz Ajax endpoints 統一 success／invalid-form JSON contract；前端會先檢查 response type，再處理 JSON 或通用 error fallback。
 - Login、registration 同 profile 使用 resilient vocab sync wrapper；sync／event failure 會記錄 traceback，而唔會無必要中斷 account flow。
 - Vocab sync event generation 使用 atomic transaction，確保 event rows、assignment 同 checkpoint 一致。
+- 建立統一 logging formatter、console output、DEBUG-only file、INFO+ full-flow file 同 ERROR+ file，每日 rotate 並保留七日。
+- 為五個 application apps 同 `django.request` 設定 logger routing，並為 vocab create / restore request 加入初步 operation logging。
+- Custom `500` handler 使用獨立 template render path，避免錯誤頁再次執行可能失敗嘅 request context processors。
 - Repository workflows 加入 Git root validation，避免同機多 clone 時寫入錯誤 workspace。
 
 ### 工程決策
@@ -221,11 +224,13 @@ Project 已具備較完整嘅 user-facing support flow，同時將多個原本�
 - 預期內 validation error、HTTP error page 同真正 server exception 要有不同 response contract。
 - Ajax client 必須處理 network failure、HTML error page、invalid JSON 同 structured form errors，唔可以假設所有 response 都係成功 JSON。
 - 主操作同附帶 side effect 要按重要性分開 transaction boundary；可重試 sync／notification failure 唔應阻止 login 或 registration。
+- Logging 要區分 normal operation、business rejection、warning 同 unexpected exception；handler level、filter 同 propagation 要一起設計，而且不可記錄 credentials 或完整 request payload。
+- 500 fallback 要盡量減少 dependencies，不使用 database-backed navigation 或全站 context，避免 error handler 自己再失敗。
 - Model definition 未等於 database rollout；`MCSense` migration 尚待建立，文件必須保留呢個限制。
 
 ### 階段結果
 
-Project 由「主要正常流程可用」進入開始處理 failure modes、recovery、schema extensibility 同 repository safety 嘅階段。
+Project 由「主要正常流程可用」進入處理 failure modes、recovery、schema extensibility、repository safety 同 observability foundation 嘅階段；各 domain workflow 嘅 logging coverage 仍要逐步補齊。
 
 ## Current Architecture
 
@@ -263,6 +268,7 @@ Vocab services  Quiz service   Core services
 - Server-rendered Ajax partial architecture，同 structured frontend error recovery。
 - Domain-specific answer diff、JSON-driven mappings 同 visual asset tooling。
 - Permission、ownership、active-state boundary 同 soft-delete workflow。
+- Severity-based application logging、daily rotation、retention 同 sensitive-data boundary。
 
 ## Current State and Remaining Work
 
@@ -270,7 +276,7 @@ Vocab services  Quiz service   Core services
 
 - Automated test suite 尚未建立，目前主要依賴 Django system check、targeted inspection 同 manual browser testing。
 - Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
-- Application logging 仍要完成正式 handler／formatter／retention 設定。
+- Application logging handler、formatter、routing、daily rotation 同 retention foundation 已建立；account、quiz、admin review、management commands、event 同 feedback 等 domain coverage 仍未完整。
 - `MCSense` migration 同正式 multiple-choice quiz flow 尚未完成。
 - Whole-database export／restore 尚未建立。
 - Japanese UI wording、layout 同 answer overlay 仍需 polish。

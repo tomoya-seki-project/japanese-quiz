@@ -1,3 +1,4 @@
+import logging
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
@@ -32,6 +33,8 @@ from .models import (
     VocabRequest,
     Category,
 )
+
+logger = logging.getLogger(__name__)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -220,6 +223,19 @@ class VocabRequestAdmin(admin.ModelAdmin):
                 form.base_fields["proposed_categories"].disabled = True
         return form
 
+    def log_review_result(self, *, request, review_action, vocab_request, result, level=logging.INFO):
+        logger.log(
+            level,
+            "Vocab request review result: "
+            "operation=%s reviewer_user_id=%s review_action=%s vocab_request_id=%s request_type=%s result=%s",
+            "vocab_request_review",
+            request.user.pk,
+            review_action,
+            vocab_request.pk,
+            vocab_request.request_type,
+            result,
+        )
+
     def response_change(self, request, obj):
         if "_approve" in request.POST:
             if self.has_change_permission(request=request, obj=obj):
@@ -234,6 +250,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
                         "; ".join(e.messages),
                         messages.ERROR,
                     )
+                    self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="validation_rejected")
                     return redirect(
                         reverse(
                             "admin:dictionary_vocabrequest_change",
@@ -241,24 +258,26 @@ class VocabRequestAdmin(admin.ModelAdmin):
                         )
                     )
                 if is_success:
+                    self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="approved")
                     self.message_user(
                         request,
                         f"Vocab request approved by {request.user}",
                         messages.SUCCESS,
                     )
                 else:
+                    self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="skipped")
                     self.message_user(
                         request,
                         f"Vocab request reviewed by {request.user}",
                         messages.WARNING,
                     )
-                
                 return redirect(
                     reverse(
                         "admin:dictionary_vocabrequest_changelist"
                     )
                 )
             else:
+                self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="permission_denied", level=logging.WARNING)
                 return self.handle_no_change_permission(request=request, obj=obj)
         if "_reject" in request.POST:
             if self.has_change_permission(request=request, obj=obj):
@@ -267,12 +286,14 @@ class VocabRequestAdmin(admin.ModelAdmin):
                     reviewed_by=request.user,
                 )
                 if is_success:
+                    self.log_review_result(request=request, review_action="reject", vocab_request=obj, result="rejected")
                     self.message_user(
                         request,
                         f"Vocab request rejected by {request.user}",
                         messages.WARNING,
                     )
                 else:
+                    self.log_review_result(request=request, review_action="reject", vocab_request=obj, result="skipped")
                     self.message_user(
                         request,
                         f"Vocab request reviewed by {request.user}",
@@ -284,6 +305,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
                     )
                 )
             else:
+                self.log_review_result(request=request, review_action="reject", vocab_request=obj, result="permission_denied", level=logging.WARNING)
                 return self.handle_no_change_permission(request=request, obj=obj)
         return super().response_change(request, obj)
 

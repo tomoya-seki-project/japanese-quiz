@@ -69,8 +69,10 @@ class UserVocabService():
             UserVocabService.sync_new_vocab(user=user)
         except Exception as e:
             logger.exception(
-                "Vocab sync failed",
-                extra={"user_id": user.pk},
+                "User vocab sync failed: "
+                "operation=%s user_id=%s",
+                "user_vocab_sync",
+                user.pk,
             )
             return
 
@@ -78,6 +80,8 @@ class UserVocabService():
             EventService.gen_vocab_sync_event(user=user)
         except Exception as e:
             logger.exception(
-                "Vocab sync event generation failed",
-                extra={"user_id": user.pk},
+                "User vocab sync event generation failed: "
+                "operation=%s user_id=%s",
+                "user_vocab_sync_event_generation",
+                user.pk,
             )

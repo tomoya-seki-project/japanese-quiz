@@ -47,6 +47,7 @@
   - [PYTHON-ENUMERATE-CSV-ROWS — #### `[PYTHON-ENUMERATE-CSV-ROWS]` `enumerate()` 點樣提供 CSV 行數同資料](#PYTHON-ENUMERATE-CSV-ROWS)
   - [PYTHON-JSON-CONFIG-MAP-LOOKUP — #### `[PYTHON-JSON-CONFIG-MAP-LOOKUP]` 用 JSON config map 查 subtype / 設定值](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
   - [PYTHON-LOGGING-FILTER — #### `[PYTHON-LOGGING-FILTER]` Logging filter 除左篩選 level 仲可以做什麼](#PYTHON-LOGGING-FILTER)
+  - [PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION — #### `[PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION]` Exception、`raise`、`from e` 同 `logger.exception()`](#PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION)
 
 - [Project Architecture 與 Domain Design](#GROUP-PROJECT-ARCHITECTURE-DOMAIN)
   - [DOMAIN-VOCAB-USERVOCAB-IN-USE — #### `[DOMAIN-VOCAB-USERVOCAB-IN-USE]` `Vocab` 同 `UserVocab.in_use` 嘅設計心智模型](#DOMAIN-VOCAB-USERVOCAB-IN-USE)
@@ -5849,6 +5850,95 @@ Handler level = 先做最低 level 門檻
 Filter        = 再做精確條件／排除／補資料
 Formatter     = 決定最後輸出格式
 ```
+
+<a id="PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION"></a>
+
+### `[PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION]` Exception、`raise`、`from e` 同 `logger.exception()`
+
+#### 問題背景
+
+喺 `import_vocab` management command 加 logging 時，需要分辨預期輸入問題、未預期 exception、重新拋出原本錯誤，以及將底層錯誤轉成 `CommandError`。目前對 Python exception flow 尚未完全理解，呢項先保存基本概念同之後研究方向。
+
+#### 研究方向
+
+- Exception object 係咩，以及程式點樣由 `try` 跳去對應嘅 `except`。
+- `except SomeError as e` 入面嘅 `e` 保存咗咩資料。
+- 捕捉 exception、處理 exception、吞掉 exception同重新拋出 exception 嘅分別。
+- 單獨 `raise` 同 `raise NewError(...) from e` 嘅分別。
+- Traceback 點樣顯示錯誤發生位置同 function call path。
+- `logger.error()`、`logger.exception()` 同 `exc_info=True` 嘅關係。
+
+#### 目前概念整理
+
+Exception 係 Python 表示「程式執行期間發生問題，原本流程無法繼續」嘅機制。`try` 包住可能出錯嘅程式；出現匹配嘅 exception 時，Python 會停止執行 `try` 剩低部分，跳入對應嘅 `except`。
+
+```python
+try:
+    open("missing.csv")
+except FileNotFoundError as e:
+    print(e)
+```
+
+`e` 只係保存今次 `FileNotFoundError` object 嘅變數名，可以用嚟讀取原始錯誤資料。
+
+單獨使用：
+
+```python
+except Exception:
+    raise
+```
+
+代表將目前捕捉緊嘅同一個 exception 原封不動重新拋出。常見用途係先記錄問題，再讓外層知道操作失敗，避免 exception 被靜默吞掉。
+
+使用：
+
+```python
+except FileNotFoundError as e:
+    raise CommandError("CSV file not found") from e
+```
+
+代表拋出新嘅 `CommandError`，同時用 `from e` 保存「新錯誤由原本 `FileNotFoundError` 引起」嘅因果關係。
+
+#### `logger.exception()` 並唔係 logging level
+
+標準 logging levels 仍然係：
+
+```text
+DEBUG -> INFO -> WARNING -> ERROR -> CRITICAL
+```
+
+`logger.exception()` 係方便寫法，會使用 `ERROR` level，並自動加入目前 exception 嘅 traceback：
+
+```python
+try:
+    run_import()
+except Exception:
+    logger.exception("Unexpected import failure")
+    raise
+```
+
+概念上接近：
+
+```python
+logger.error("Unexpected import failure", exc_info=True)
+```
+
+因此 `logger.exception()` 一般只應放喺 `except` 裏面。預期嘅 invalid row、missing header 或 missing file 通常用清楚嘅 `WARNING` message；真正未預期、需要 traceback 追查嘅程式或系統故障先使用 `logger.exception()`。
+
+#### 暫時記法
+
+```text
+except SpecificError  = 已知道可能發生咩問題，作對應處理
+except Exception      = 捕捉其他未預期問題
+raise                 = 將目前同一個錯誤繼續拋出
+raise NewError from e = 轉成新錯誤並保留原始原因
+logger.exception()    = ERROR level + 目前 exception traceback
+```
+
+#### 理解內容
+
+- 目前已確認 `logger.exception()` 唔係獨立 logging level。
+- Exception flow、重新拋出與 exception chaining 仍待之後進一步理解。
 
 <a id="GROUP-PROJECT-ARCHITECTURE-DOMAIN"></a>
 

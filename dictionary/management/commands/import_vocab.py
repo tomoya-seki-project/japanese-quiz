@@ -1,3 +1,4 @@
+import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ValidationError
 
@@ -20,6 +21,8 @@ from ...models import (
     KatakanaDetail,
     Category,
 )
+
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Import vocab from a CSV file. Admin only."
@@ -63,10 +66,22 @@ class Command(BaseCommand):
                 missing_headers = required_headers - set(reader.fieldnames or [])
 
                 if missing_headers:
+                    logger.warning(
+                        "Vocab import rejected because CSV headers are missing: "
+                        "operation=%s missing_headers=%s",
+                        "vocab_import",
+                        missing_headers,
+                    )
                     raise CommandError(
                         f"Missing CSV headers: {', '.join(sorted(missing_headers))}"
                     )
-
+                logger.info(
+                    "Vocab import started: "
+                    "operation=%s user_id=%s csv_file=%s",
+                    "vocab_import",
+                    user.pk,
+                    csv_file,
+                )
                 for row_number, data in enumerate(reader, start=2):
                     try:
                         category_names = [
@@ -117,6 +132,12 @@ class Command(BaseCommand):
                         failed_rows.append(
                             (row_number, "Database integrity error.")
                         )
+                        logger.warning(
+                            "Vocab import row rejected due to a database integrity error: "
+                            "operation=%s row_number=%s",
+                            "vocab_import",
+                            row_number,
+                        )
                         self.stderr.write(
                             self.style.ERROR(
                                 f"Row {row_number}: Database integrity error."
@@ -128,6 +149,13 @@ class Command(BaseCommand):
                         failed_rows.append(
                             (row_number, error_message)
                         )
+                        logger.warning(
+                            "Vocab import row rejected: "
+                            "operation=%s row_number=%s error=%s",
+                            "vocab_import",
+                            row_number,
+                            error_message,
+                        )
                         self.stderr.write(
                             self.style.ERROR(
                                 f"Row {row_number}: {error_message}"
@@ -138,6 +166,13 @@ class Command(BaseCommand):
                 self.stdout.write("")
                 self.stdout.write(self.style.SUCCESS(f"Imported rows: {success_count}"))
                 self.stdout.write(self.style.WARNING(f"Failed rows: {len(failed_rows)}"))
+                logger.info(
+                    "Vocab import completed: "
+                    "operation=%s success_count=%s failed_rows_count=%s",
+                    "vocab_import",
+                    success_count,
+                    len(failed_rows),
+                )
                 for row_number, error_message in failed_rows:
                     self.stderr.write(
                         self.style.ERROR(
@@ -145,4 +180,22 @@ class Command(BaseCommand):
                         )
                     )
         except FileNotFoundError as e:
-            raise CommandError(f"CSV file not found: {csv_file}")
+            logger.warning(
+                "Vocab import failed because the CSV file was not found: "
+                "operation=%s user_id=%s csv_file_path=%s",
+                "vocab_import",
+                user.pk,
+                csv_file,
+            )
+            raise CommandError(f"CSV file not found: {csv_file}") from e
+        except CommandError:
+            raise
+        except Exception:
+            logger.exception(
+                "Vocab import failed unexpectedly: "
+                "operation=%s user_id=%s csv_file=%s",
+                "vocab_import",
+                user.pk,
+                csv_file,
+            )
+            raise

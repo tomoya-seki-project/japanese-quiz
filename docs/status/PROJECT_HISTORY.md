@@ -1499,3 +1499,42 @@ Status: Project now has a first complete application-level error handling flow, 
 
 - Error handling 要同時處理 server response、frontend parsing、transaction boundary 同 logging，唔只係建立幾張 error templates。
 - Exception isolation 需要先分清主操作同次要 side effect，先可以決定回滾範圍。
+
+## 2026-08-28 - Application logging foundation and safer 500 fallback
+
+Commit: `300ab7c`
+
+Status: Application logging now has a working routing and retention foundation, while the custom 500 response no longer depends on request context processors
+
+### 主要改動
+
+- 於 Django settings 建立統一 log formatter、console handler、DEBUG-only file、INFO+ full-flow file 同 ERROR+ file。
+- File handlers 使用 `TimedRotatingFileHandler`，每日 rotate 並保留七日；`log/.gitkeep` 保留 directory，runtime `.log` files 由 `.gitignore` 排除。
+- 為 accounts、core、dictionary、errorHandler、quiz 同 `django.request` 設定明確 logger routing，避免依賴未定義嘅 root logger 行為。
+- Vocab create 同 restore request 開始記錄成功 operation 及 business validation rejection，context 保留 user / vocab ID 而不記錄 credentials 或完整 form payload。
+- Custom `500` handler 改用 `get_template()` 及 `HttpResponse`獨立 render，避免 error response 再次執行全站 context processors。
+- 更新 logging 學習筆記、TODO coverage plan、README feature summary 同 portfolio development phases。
+
+### Database 改動
+
+- 無 schema migration。
+- 今次改動集中於 runtime logging、log retention 同 HTTP 500 fallback rendering。
+
+### 技術重點
+
+- Handler level 同 logger level 會一起決定 record 能否到達某個 destination；DEBUG-only file 需要額外 filter，否則設定 `DEBUG` level 會同時收到更高 levels。
+- Full-flow 同 error handlers 可以有意重疊，令 ERROR record 同時出現於一般 operation history 同專用 error file。
+- 500 fallback 不應依賴 database-backed context processor、navigation 或其他可能就係原始失敗點嘅 request context。
+- Business validation rejection 係預期內 flow，可以按 audit 需要記錄 `INFO`，但唔應當作未預期 `ERROR`。
+
+### 理由
+
+- Error page 只向 user 提供安全回應，開發者仍需要有可追蹤嘅 runtime records 去定位 failure。
+- 將 log 按 severity 同用途分流，可以在保留完整 operation context 嘅同時，快速找到真正 errors。
+- Runtime logs 不應進入 Git，但 application 啟動前必須有可寫 directory，所以使用 `.gitkeep` 同 ignore rule 分開處理。
+
+### 學到咩
+
+- Logging configuration 唔只係「寫去 file」，還要清楚定義 severity routing、duplication policy、rotation、retention 同 sensitive-data boundary。
+- Error handling 同 observability 係兩個相連但不同嘅責任：前者保護 user response，後者保留開發者調查證據。
+- Logging foundation 完成不代表 domain coverage 完成；後續仍要逐個 workflow 決定咩係 normal event、business rejection、warning 或 unexpected exception。
