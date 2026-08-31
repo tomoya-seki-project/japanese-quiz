@@ -26,6 +26,7 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 5](#phase-5-visual-learning-feedback) | 2026-08-01 ～ 2026-08-11 | Kana assets、answer diff、custom keyboard、visual feedback |
 | [Phase 6](#phase-6-user-facing-workflows-and-domain-hardening) | 2026-08-13 ～ 2026-08-22 | Feedback、UserVocab detail、permissions、data integrity |
 | [Phase 7](#phase-7-extensibility-and-application-resilience) | 2026-08-24 ～ 2026-08-28 | MC sense foundation、error handling、resilient sync、logging foundation |
+| [Phase 8](#phase-8-workflow-observability-and-project-review) | 2026-08-31 | Domain logging coverage、MCSense migration、全 project review |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -226,11 +227,37 @@ Project 已具備較完整嘅 user-facing support flow，同時將多個原本�
 - 主操作同附帶 side effect 要按重要性分開 transaction boundary；可重試 sync／notification failure 唔應阻止 login 或 registration。
 - Logging 要區分 normal operation、business rejection、warning 同 unexpected exception；handler level、filter 同 propagation 要一起設計，而且不可記錄 credentials 或完整 request payload。
 - 500 fallback 要盡量減少 dependencies，不使用 database-backed navigation 或全站 context，避免 error handler 自己再失敗。
-- Model definition 未等於 database rollout；`MCSense` migration 尚待建立，文件必須保留呢個限制。
+- Model definition 未等於 database rollout；呢個 phase 完結時 `MCSense` migration 尚未建立，並於之後嘅 Phase 8 工作目錄補上。
 
 ### 階段結果
 
-Project 由「主要正常流程可用」進入處理 failure modes、recovery、schema extensibility、repository safety 同 observability foundation 嘅階段；各 domain workflow 嘅 logging coverage 仍要逐步補齊。
+Project 由「主要正常流程可用」進入處理 failure modes、recovery、schema extensibility、repository safety 同 observability foundation 嘅階段；domain workflow logging coverage 於 Phase 8 再擴展。
+
+## Phase 8: Workflow Observability and Project Review
+
+**時間：2026-08-31**
+
+### 目標
+
+將 logging foundation 擴展到主要 domain workflow，補上 `MCSense` database migration，並以全 project review 分清真正 defect、未完成 feature 同 deployment-stage work。
+
+### 主要成果
+
+- Vocab request／admin review、UserVocab sync／in-use、quiz、accounts、events、feedback 同 management commands 已加入 outcome-oriented logging。
+- Logging fields 統一使用 operation、IDs、counts 同 result；避免 credentials、feedback body、session 或完整 POST payload。
+- `MCSense` migration `0027_add_mc_sense.py` 已建立並在目前 local database 套用；migration graph 同 model state 一致，但檔案仍未 commit。
+- 全 project review 由日語學習者、內容設計、software/data integrity 同 product/UX 四個角度完成，確認 quiz answer comparison、filter fallback 同未完成 MC 路徑係最優先處理範圍。
+- Django system check 同 migration dry-run 通過；test discovery 仍然係 0 tests，production deploy check 有 7 個 warnings。
+
+### 工程決策
+
+- 未完成 feature 本身唔等於 defect；只有當 unsupported path 已公開畀 user 選擇或破壞現有 flow，先列入必要修正。
+- Logging 應記錄有 audit 價值嘅 state change、business rejection 同 unexpected exception，避免每個 read/query 都產生噪音。
+- 未 commit migration 只代表目前 working tree 狀態，唔可以當成其他 clone 已具備嘅 database rollout。
+
+### 階段結果
+
+Project 嘅主要 workflow 已有較完整 observability，同時將下一輪工作收斂到三個 quiz／state correctness 問題、最小 regression suite，以及尚未接通嘅 multiple-choice vertical flow。
 
 ## Current Architecture
 
@@ -276,8 +303,9 @@ Vocab services  Quiz service   Core services
 
 - Automated test suite 尚未建立，目前主要依賴 Django system check、targeted inspection 同 manual browser testing。
 - Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
-- Application logging handler、formatter、routing、daily rotation 同 retention foundation 已建立；account、quiz、admin review、management commands、event 同 feedback 等 domain coverage 仍未完整。
-- `MCSense` migration 同正式 multiple-choice quiz flow 尚未完成。
+- Application logging handler、formatter、routing、daily rotation、retention 同主要 domain coverage 已建立；log assertions、rotation／retention 同 concurrent sync 尚待自動驗證。
+- `MCSense` migration 已建立並在目前 local database 套用，但尚未 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成。
+- Quiz answer comparison 最壞情況有嚴重效能問題；filter fallback 亦會在第一題後錯誤停止。
 - Whole-database export／restore 尚未建立。
 - Japanese UI wording、layout 同 answer overlay 仍需 polish。
 

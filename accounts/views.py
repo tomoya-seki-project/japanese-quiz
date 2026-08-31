@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.conf import settings
@@ -24,6 +26,9 @@ from .forms import (
 from dictionary.service.user_vocab_action import UserVocabService
 from core.service.event import EventService
 
+logger = logging.getLogger(__name__)
+
+
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_home.html'
 
@@ -34,6 +39,12 @@ class RegistUserView(CreateView):
     
     def form_valid(self, form):
         result = super().form_valid(form)
+        logger.info(
+            "User registration completed: "
+            "operation=%s user_id=%s",
+            "user_registration",
+            self.object.pk,
+        )
         UserVocabService.sync_vocab_safely(user=self.object)
         return result
 
@@ -51,6 +62,14 @@ class UserLoginView(LoginView):
             self.request.session.set_expiry(60 * 60 * 24 * 30)
         else:
             self.request.session.set_expiry(60 * 60)
+
+        logger.info(
+            "User login completed: "
+            "operation=%s user_id=%s remember_me=%s",
+            "user_login",
+            self.request.user.pk,
+            remember,
+        )
         return result
 
 class UserLogoutView(LoginRequiredMixin, LogoutView):

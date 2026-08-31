@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（65）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（67）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（1）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（12）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -285,14 +285,44 @@ Status badge：
 - `UserVocabDetailView.get_queryset()` 已加入 `vocab__is_active=True`，避免 inactive vocab detail 被普通 user 查看。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 24 點（VocabRequest Delete Snapshot）：DELETE request 保存完整 proposed snapshot**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 24 點（VocabRequest Delete Snapshot）：DELETE request 保存完整 proposed snapshot**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- DELETE request 建立時會保存 word、kana、type、meaning、level 同 categories，令 admin review 見到提交當時嘅完整 vocab snapshot。
+- Katakana vocab 會額外保存 `proposed_native_japanese`。
+- Scalar fields、Many-to-Many categories 同 type-specific data 都在同一 transaction 內建立；Django system check 已通過。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 26 點（Quiz Answer Comparison）：限制 recursive comparison 嘅最壞執行時間**
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- DELETE request creation 時，同步保存當時 vocab 嘅 `proposed_vocab_type`、`proposed_meaning`、`proposed_level` 同 `proposed_categories`。
-- 如 target vocab 係 katakana，保存 `proposed_native_japanese` snapshot。
-- 避免 admin review DELETE request 時見到 default / 空 proposed data 而誤判。
+- `QuizService.answer_compare()` 遇到大量 mismatch 時會同時展開 wrong、missing、extra branches，而且未有 memoization；targeted benchmark 中 11 字元 mismatch 已超過 5 秒 timeout。
+- 改用 memoization / dynamic programming，保留現有 minimum cost、match count 同教學 subtype tie-break 行為。
+- 對 normalized answer 設合理長度 boundary，並加入 worst-case performance regression tests。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 27 點（Quiz Filter Fallback）：Next / Skip 要繼續使用 full active pool**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- Initial play 可以由 fallback full pool 正常抽出第一題，但 `build_next_question_payload()` 見到 `fallback_used=True` 就會在抽題前回傳 no-question partial。
+- 保留「正使用 full active pool」warning，但 Next / Skip 必須繼續從 fallback queryset 抽題。
+- 為 initial play、Next 同 Skip 三條 fallback path 補 integration tests。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 28 點（Feedback Reply）：防止重複 reply event**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- `FeedbackService.reply_feedback()` 目前未鎖定 feedback row，亦未要求 target status 仍然係 `PENDING`；重覆 POST 或 concurrent admin reply 可以建立多個 reply events。
+- 在同一 transaction 內用 `select_for_update()` 重新取得 feedback，並以 `PENDING -> REPLIED` status transition 作 idempotency guard。
+- 為已回覆重試同 concurrent reply 補 service / integration tests。
 
 ## Vocab Planned Work
 
@@ -325,13 +355,14 @@ Status badge：
 - 已接受任何一個 sense 出題後，同一個 `Vocab` 其他 senses 都要等該 `UserVocab` 離開 recent-question exclusion 後先再出；`weight`、`streak`、correct / incorrect count 同 `last_quiz_at` 亦按整個 `UserVocab` 共用。
 - 保留 `VocabDetail` one-to-one relationship，繼續專門保存 `vocab` type 將來可能加入嘅額外資料；MC 題資料另外使用 `MCSense`。
 - CSV import 判斷同一個 vocab 時使用 `(word, kana)`，唔可以只比較 `word`；第一個 MC row 建立 `Vocab` 同第一個 `MCSense`，之後相同 `(word, kana)` 嘅 MC rows 只新增指向同一 `Vocab` 嘅 `MCSense`。
-- `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義，Django system check 通過，但 migration 尚未建立。
+- `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義。
+- 已建立及在目前 local database 套用 `dictionary/migrations/0027_add_mc_sense.py`；`manage.py check`、migration graph 同 `makemigrations --check --dry-run` 均通過。Migration 目前仍未 commit，其他 clone 尚未能重建呢個 schema。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow。
-- 確認 `sense_no` 是否由 1 開始並加入相應 minimum validation，決定 `sense_key` 生成規則後，建立及套用 migration。
+- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow；完成前要從 quiz setting / question pool 隱藏 unsupported types，避免 user 進入無法作答嘅 A–E panel。
+- 確認 `sense_no` 是否由 1 開始並加入相應 minimum validation，並決定 `sense_key` 生成規則。
 - 實作 `question1`／`question2` 嘅 blank、字面 `\n` 同活用提示 validation。
 - 實作三個 distractor 對兩條題目嘅語義、句法、活用同 type validation，以及 view `get_context_data()` 選項 randomization。
 - 更新 CSV import、service、admin / request flow 同測試，真正建立及使用 `MCSense`；同一 CSV 或現有 DB 內重複 `(word, kana)` 嘅 MC rows 要指向同一個 `Vocab`，非 MC duplicate 或 MC type 衝突要 skip 並列入 conflict report，唔可以當成功或靜默略過。
@@ -825,42 +856,30 @@ Status badge：
 ## Logging / Audit Trail
 
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Application logging coverage / placement**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Application logging coverage / placement**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已定義 formatter、console／file handlers、logger levels、每日 rotation 同 7 日 retention，並設定 `django.request` 及各 application logger。
-- 已加入 exact-DEBUG filter；實測 DEBUG 只進入 debug file、INFO+ 進入 full-flow file、ERROR+ 同時進入 full-flow 及 error file，INFO+ 亦會輸出到 console。
-- `log/.gitkeep` 會保留 runtime log directory，`.gitignore` 會排除 `log/*.log`。
-- Vocab create／restore／update／delete request 已記錄 created、pending-request skipped 及 business-validation rejected outcomes；context 包括 operation、`user_id` 及可用嘅 `vocab_id`，create flow 另記 `word`／`kana`，但唔會記錄 credentials 或完整 POST body。
-- UserVocab bulk 同 single `in_use` update 已記錄實際資料變更；bulk 記 activated／deactivated count，single 記 user、vocab 及新狀態，零變更 submission 唔會寫 log。
-- Quiz flow 已記錄 setting accepted／resume redirect／insufficient pool、stale 或 duplicate answer submission、會更新 UserVocab learning state 嘅 answer result、實際 skip 及最終 summary；普通 question pick 同 next action 唔會製造低價值 log。
-- VocabRequest admin review 已記錄 approve／reject 嘅成功、已處理而 skipped、business validation rejected 及 permission denied outcomes；正常結果使用 `INFO`，權限拒絕使用 `WARNING`，並保留 `reviewer_user_id`、request ID、request type 同 review action。
-- `import_vocab` 已記錄 import started／completed、執行 user、CSV file、成功／失敗筆數同 rejected row reasons；預期輸入問題使用 `WARNING`，未預期 failure 使用 `logger.exception()` 保存 traceback，亦唔會記錄 password。
-- `setup_categories` 已記錄 setup started／completed、CSV file、成功／失敗筆數、missing file／headers 同 rejected row；預期問題使用 `WARNING`，未預期 failure 保存 traceback。
-- `dev_clear_vocab` 已記錄 destructive command started、transaction 完整成功後嘅 completed result，同未預期 failure traceback；operation 只保留執行 `user_id`，唔記錄 password。
-- 現有 application log wording 已統一句首大寫、清楚 outcome／reason、started／completed／failed unexpectedly 時態、snake_case operation 同明確 `*_id` context fields；只調整 logging 表達，冇改動業務流程。
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- **Vocab / UserVocab flow**：補齊 admin approve 實際觸發嘅 vocab create／update／restore／delete action；保留現有 `sync_vocab_safely()` failure traceback，並避免逐筆記正常 bulk sync result。
-- **Account related flow**：register、login、logout、user detail／profile action 嘅未預期失敗，以及 vocab sync／event generation failure。錯 password、invalid registration form 等預期 validation 唔記成 `ERROR`；任何 log 都唔可包 password、session key 或其他 credential。
-- **Event notification / user message flow**：event create／assign／mark-read 同 user feedback／admin reply 嘅未預期失敗；只記識別用 ID 同 operation，避免將 message body 或其他可能敏感內容直接寫入 log。
-- **HTTP / permission boundary**：真正 500 保留 traceback；對異常量 403／404、permission denial 或可疑操作，先決定係否需要 `WARNING` 或 security audit，唔將每個普通 404 記成 application error。
-- **記錄欄位**：統一保留 logger name、level、operation、exception traceback 及可用嘅 `user_id`／object ID；唔記 password、cookie、session、CSRF token、完整 POST body 或其他 secrets。
-- **驗證**：確認真正 exception 會出現一次完整 traceback，預期 validation／duplicate 唔會變成 500 或 `ERROR`，同一個 exception 唔會被 Django 同 application logger 重複記錄。
+- 已設定 formatter、console／daily rotating file handlers、7 日 retention、exact-DEBUG filter、`django.request` 同各 app loggers；實測 DEBUG／INFO+／ERROR+ routing 正確，runtime log files亦已排除於 Git。
+- Vocab request／admin review、UserVocab `in_use` 變更同 sync 已覆蓋重要 outcomes；sync 會以 per-user row lock 串行化，只有 database 實際新增 rows 先記 `created_count` success，零新增保持安靜，sync／event failure各自保留 traceback。
+- Quiz 已記錄 setting／resume／pool rejection、stale或 duplicate answer、會改 learning state嘅 answer／skip 同 summary；普通 question pick同 next唔記低價值 log。
+- Account registration／login、event bulk mark-read、feedback create／duplicate／reply同 admin permission denial已記錄必要 audit context；零變更mark-read保持安靜，亦唔記 credentials、session、feedback body或完整POST data。
+- `import_vocab`、`setup_categories`同`dev_clear_vocab`已記錄 started／completed、summary、預期 rejection同未預期 traceback；destructive command只有完整 transaction成功後先記 completed。
+- Log wording、snake_case operation同`*_id` fields已統一；底層Vocab／Event helpers、logout、普通read views同未處理500唔重複記錄，避免噪音、敏感資料同雙重traceback。Python compile、Django system check同diff check已通過；project目前仍未有自動tests。
 
 
 <p style="margin-left:1.5em;"><strong>待測試</strong></p>
 
-- 為 VocabRequest created／skipped／rejected 同 UserVocab bulk／single in-use change 補 log assertions，並確認 no-change submission 唔會產生 operation log。
-- 為 VocabRequest admin review 嘅 approved／rejected／skipped／validation rejected／permission denied 補 log assertions，並確認 permission denial 使用 `WARNING`、其餘預期結果使用 `INFO`。
-- 為 Quiz setting／rejection、answer accepted／ignored、skip 同 summary 補 log assertions，確認 message placeholders、IDs 同 count fields 嘅實際輸出正確。
-- 為 `import_vocab` started／completed、missing file／headers、row rejection 同未預期 failure 補 log assertions，確認預期問題唔會記成 `ERROR`，真正 failure 會包含 traceback。
-- 為 `setup_categories` started／completed、missing file／headers、row rejection 同未預期 failure 補 log assertions，確認 summary count、level 同 traceback 正確。
-- 為 `dev_clear_vocab` started／completed／failed unexpectedly 補 log assertions，確認 completed 只會喺 atomic transaction 全部成功後出現，失敗會 rollback 並包含 traceback。
+- 為 Vocab request／admin review、UserVocab `in_use`／sync、Quiz同 Account／Event／Feedback flows補 log assertions，確認 level、IDs、counts、zero-change silence同敏感資料邊界。
+- 為三個 management commands補成功、預期 rejection同未預期 failure assertions，確認summary、transaction完成點同traceback正確。
+- 模擬同一 user concurrent sync，驗證只有實際新增 rows嘅執行記success count，零新增執行保持安靜。
+- 確認真正 exception只出現一次完整 traceback，預期 validation／duplicate唔會變成500或`ERROR`，亦唔會被 Django同application logger重複記錄。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 如日後需要 security monitoring，再按實際異常量決定 403／404、permission denial 或可疑操作嘅額外策略；普通 404 唔當成 application error，亦唔阻止目前 logging coverage 完成。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **CSV import / category setup log and report**
@@ -916,6 +935,8 @@ Status badge：
 - Create / update / delete request flow tests。
 - Approve / reject flow tests。
 - Admin concurrency / reviewed request readonly tests。
+- Quiz answer comparison correctness／performance tests，以及 initial／Next／Skip fallback integration tests。
+- Feedback repeated／concurrent reply idempotency tests。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 E：Project dependencies file**

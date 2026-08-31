@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -17,6 +19,9 @@ from .models import Event, EventType, UserEvent, Feedback, FeedbackType, Feedbac
 
 from .service.event import EventService
 from .service.feedback import FeedbackService
+
+logger = logging.getLogger(__name__)
+
 
 class UserEventListView(LoginRequiredMixin, ListView):
     model = UserEvent
@@ -45,7 +50,15 @@ class UserEventListView(LoginRequiredMixin, ListView):
                 id__in=selected_ids,
             )
             now = timezone.now()
-            get_select_qs.update(is_read=True, read_at=now)
+            updated_count = get_select_qs.update(is_read=True, read_at=now)
+            if updated_count > 0:
+                logger.info(
+                    "User events marked as read: "
+                    "operation=%s user_id=%s updated_count=%s",
+                    "user_event_mark_read",
+                    request.user.pk,
+                    updated_count,
+                )
         return redirect(request.get_full_path())
 
     def get_context_data(self, **kwargs):
@@ -102,12 +115,28 @@ class FeedbackCreateView(LoginRequiredMixin, FormView):
             context=context
         )
         if is_doubled:
+            logger.info(
+                "Feedback submission skipped: "
+                "operation=%s user_id=%s feedback_type=%s reason=%s",
+                "feedback_create",
+                self.request.user.pk,
+                feedback_type,
+                "duplicate_pending_feedback",
+            )
             messages.warning(
                 self.request,
                 "There is a same feedback pending for admin checking"
             )
             form.add_error(None, "Same feedback")
             return self.form_invalid(form)
+        logger.info(
+            "Feedback created: "
+            "operation=%s user_id=%s feedback_id=%s feedback_type=%s",
+            "feedback_create",
+            self.request.user.pk,
+            user_feedback.pk,
+            feedback_type,
+        )
         return super().form_valid(form)
 
 class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -121,6 +150,13 @@ class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return self.request.user.is_superuser
 
     def handle_no_permission(self):
+        logger.warning(
+            "Feedback admin access denied: "
+            "operation=%s user_id=%s view=%s",
+            "feedback_admin_access",
+            self.request.user.pk,
+            self.__class__.__name__,
+        )
         return redirect("HomePage")
 
     def render_to_response(self, context, **response_kwargs):
@@ -138,6 +174,13 @@ class FeedbackDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         return self.request.user.is_superuser
 
     def handle_no_permission(self):
+        logger.warning(
+            "Feedback admin access denied: "
+            "operation=%s user_id=%s view=%s",
+            "feedback_admin_access",
+            self.request.user.pk,
+            self.__class__.__name__,
+        )
         return redirect("HomePage")
 
 class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
@@ -149,6 +192,13 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return self.request.user.is_superuser
 
     def handle_no_permission(self):
+        logger.warning(
+            "Feedback admin access denied: "
+            "operation=%s user_id=%s view=%s",
+            "feedback_admin_access",
+            self.request.user.pk,
+            self.__class__.__name__,
+        )
         return redirect("HomePage")
 
     def form_valid(self, form):
@@ -159,6 +209,14 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             reply_context=context
         )
         if reply_event is not None:
+            logger.info(
+                "Feedback reply completed: "
+                "operation=%s admin_user_id=%s feedback_id=%s event_id=%s",
+                "feedback_reply",
+                self.request.user.pk,
+                self.kwargs["feedback_pk"],
+                reply_event.pk,
+            )
             messages.success(
                 self.request,
                 f"feedback id : {self.kwargs['feedback_pk']} has been replied"

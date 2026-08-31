@@ -64,7 +64,7 @@ class VocabRequestService():
             "native_japanese": vocab_request.proposed_native_japanese,
             "created_by": vocab_request.created_by,
         }
-    
+
     @staticmethod
     def has_pending_request(*, target_vocab=None, word=None, kana=None):
         qs = VocabRequest.objects.filter(status = VocabRequestStatus.PENDING)
@@ -77,7 +77,7 @@ class VocabRequestService():
                 proposed_kana = kana,
             )
         return qs.exists()
-    
+
     @staticmethod
     def create_event_for_admin(*, word, kana, request_type, request_by):
         event = EventService.create_event(
@@ -117,7 +117,7 @@ class VocabRequestService():
                             create_request.proposed_native_japanese = form.cleaned_data["native_japanese"]
                     create_request.save()
                     is_created = True
-                    
+
                     event_word = create_request.proposed_word
                     event_kana = create_request.proposed_kana
 
@@ -132,7 +132,7 @@ class VocabRequestService():
             except IntegrityError:
                 raise ValidationError("This word already has another request waiting for review.")
         return is_created
-    
+
     @staticmethod
     def gen_update_vocab_request(user, form):
         is_created = False
@@ -155,7 +155,7 @@ class VocabRequestService():
                         #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     update_request.proposed_categories.set(form.cleaned_data["categories"])
-                    
+
                     update_request.original_data = {
                         "word" : form.target_vocab.word,
                         "meaning" : form.target_vocab.meaning,
@@ -167,7 +167,7 @@ class VocabRequestService():
                         ),
                         #"similar_word": form.target_vocab.similar_word,
                     }
-                    
+
                     match form.cleaned_data["vocab_type"]:
                         case VocabType.VOCAB:
                             pass
@@ -177,7 +177,7 @@ class VocabRequestService():
 
                     update_request.save()
                     is_created = True
-                    
+
                     event_word = update_request.proposed_word
                     event_kana = update_request.proposed_kana
 
@@ -224,7 +224,7 @@ class VocabRequestService():
                                 restore_request.proposed_native_japanese = vocab.katakana_detail.native_japanese
                     restore_request.save()
                     is_created = True
-                    
+
                     event_word = restore_request.proposed_word
                     event_kana = restore_request.proposed_kana
 
@@ -256,9 +256,18 @@ class VocabRequestService():
                         original_vocab = vocab,
                         proposed_word = vocab.word,
                         proposed_kana = vocab.kana,
+                        proposed_vocab_type = vocab.type,
+                        proposed_meaning = vocab.meaning,
+                        proposed_level = vocab.level,
                     )
+                    delete_request.proposed_categories.set(
+                        vocab.categories.all()
+                    )
+                    if vocab.type == VocabType.KATAKANA:
+                        delete_request.proposed_native_japanese = vocab.katakana_detail.native_japanese
+                        delete_request.save(update_fields=["proposed_native_japanese"])
                     is_created = True
-                    
+
                     event_word = delete_request.proposed_word
                     event_kana = delete_request.proposed_kana
 
@@ -285,13 +294,13 @@ class VocabRequestService():
             )
             if locked_request.status != VocabRequestStatus.PENDING:
                 return False
-            
+
             match locked_request.request_type:
                 case VocabRequestType.CREATE:
                     VocabRequestService.validate_for_approval(locked_request)
                     vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
                     VocabActionService.create_vocab(
-                        vocab_data=vocab_data, 
+                        vocab_data=vocab_data,
                         approved_by=reviewed_by
                     )
                 case VocabRequestType.UPDATE:
@@ -299,8 +308,8 @@ class VocabRequestService():
                         VocabRequestService.validate_for_approval(locked_request)
                         vocab_data = VocabRequestService.build_vocab_data(vocab_request=locked_request)
                         VocabActionService.update_vocab(
-                            vocab_data=vocab_data, 
-                            target_vocab=locked_request.original_vocab, 
+                            vocab_data=vocab_data,
+                            target_vocab=locked_request.original_vocab,
                             approved_by=reviewed_by
                         )
                     else:
@@ -308,7 +317,7 @@ class VocabRequestService():
                 case VocabRequestType.RESTORE:
                     if locked_request.original_vocab and not locked_request.original_vocab.is_active:
                         VocabActionService.restore_vocab(
-                            target_vocab=locked_request.original_vocab, 
+                            target_vocab=locked_request.original_vocab,
                             approved_by=reviewed_by
                         )
                     else:
@@ -358,7 +367,7 @@ class VocabRequestService():
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
         return True
-    
+
     @staticmethod
     def dev_clear_table():
         VocabRequest.objects.all().delete()

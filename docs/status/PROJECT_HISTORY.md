@@ -1538,3 +1538,37 @@ Status: Application logging now has a working routing and retention foundation, 
 - Logging configuration 唔只係「寫去 file」，還要清楚定義 severity routing、duplication policy、rotation、retention 同 sensitive-data boundary。
 - Error handling 同 observability 係兩個相連但不同嘅責任：前者保護 user response，後者保留開發者調查證據。
 - Logging foundation 完成不代表 domain coverage 完成；後續仍要逐個 workflow 決定咩係 normal event、business rejection、warning 或 unexpected exception。
+
+## 2026-08-31 - Domain workflow logging coverage
+
+Commit: `f47ece0`
+
+Status: Major vocabulary, quiz and data-management workflows now emit consistent outcome-oriented logs
+
+### 主要改動
+
+- Vocab create／update／delete／restore request、admin approve／reject、UserVocab in-use update 同 sync 加入 operation result logging。
+- Quiz settings、resume、pool rejection、answer、skip 同 summary 加入必要 audit context，避免記錄低價值 question-pick／next noise。
+- Account registration／login、event mark-read、feedback create／duplicate／reply同 admin permission denial加入 outcome logging。
+- `import_vocab`、`setup_categories` 同 `dev_clear_vocab` management commands 加入 start、completion、summary、expected rejection 同 unexpected traceback logging。
+- Logging wording、snake_case operation names 同 `*_id` fields 統一，並保留 credentials、feedback body、session 同完整 payload 嘅敏感資料邊界。
+
+### Database 改動
+
+- 無新增 schema migration。
+- UserVocab sync 加入 per-user row lock，同時只在 database 實際新增 rows 時記錄 success count。
+
+### 技術重點
+
+- Audit log 應放喺知道 domain outcome 嘅 orchestration boundary，而唔係每個底層 helper 重複記錄。
+- Expected validation／duplicate／permission rejection 同 unexpected exception 需要使用不同 level 與訊息，避免將正常 business flow 誤報成 server failure。
+- Destructive command 只可以喺完整 transaction 成功後記錄 completed；失敗時保留 traceback而唔產生假 success history。
+
+### 理由
+
+- Logging foundation 已有 routing 同 retention，但未覆蓋實際 workflow 就不足以重建重要操作結果。
+- 統一結構化 context 同 sensitive-data boundary，可以提升除錯價值而唔將 log 變成第二份 user payload database。
+
+### 學到咩
+
+- 有用嘅 application log 需要同 domain state transition 對齊；記得太多同記得太少都會降低調查效率。

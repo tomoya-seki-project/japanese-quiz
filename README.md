@@ -37,7 +37,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
 - Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
-> **未完善：** DELETE request 仍未保存完整 proposed snapshot；additional vocab types 同 `MCSense` 仍未接通 request、import、admin 同 quiz flow。
+> **未完善：** DELETE request 已保存完整 proposed snapshot；additional vocab types 同 `MCSense` schema foundation 已建立，但 request、import、admin 同 quiz runtime flow 仍未接通。
 
 ### Admin
 
@@ -53,7 +53,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Quiz question pool 來自目前 user 嘅 `UserVocab(in_use=True)`。
 - 支援 weighted random selection，weight 越高越容易被抽中。
 - 會避開最近 quiz 過嘅 10 個 vocab，減少短時間重複出題。
-- Filter 無題時會 fallback 到 user full active vocab pool，並保留 `fallback_used` state。
+- Filter 無題時 initial play 會 fallback 到 user full active vocab pool並保留 `fallback_used` state；Next／Skip fallback continuation 目前有已知 bug，已列入 TODO。
 - Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
 - Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
 - Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。
@@ -82,12 +82,12 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Quiz Ajax action 會將 form validation failure 回傳 structured `400` JSON，前端亦會處理非 JSON response、network failure 同 parsing failure。
 - Account entry points 使用 resilient vocab sync wrapper，sync 或 event side effect 失敗時會保留 traceback，避免無必要中斷 login、registration 或 profile flow。
 - Application logging 已有 console、DEBUG-only、INFO+ 同 ERROR+ handlers，file logs 每日 rotate 並保留七日。
-- Vocab create / restore request 已加入初步 operation logging；其他 domain flow 仍需擴展 logging coverage。
+- Vocab request／admin review、UserVocab sync／in-use、quiz、accounts、events、feedback 同 vocab management commands 已加入 outcome-oriented logging，並避免記錄 credentials、feedback body或完整 POST payload。
 
 ## Planned Features
 
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
-- `MCSense` migration、CSV import 同 multiple-choice quiz answer flow。
+- `MCSense` CSV import、admin/request integration 同 multiple-choice quiz answer flow。
 - Whole database CSV export / restore。
 - Account email activation。
 
@@ -120,7 +120,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `KatakanaDetail`：katakana 專用資料，例如 native Japanese。
 - `UserVocab`：連接 user 同 vocab，保存 `in_use`、weight、answer counts、streak 同 last quiz time。
 - `VocabRequest`：保存 create、update、delete、restore request。
-- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；目前尚未建立 migration 或接通實際 flow。
+- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；migration 已建立並在目前 local database 套用，但尚未 commit，實際 import/admin/request/quiz flow仍未接通。
 
 ### Core
 
@@ -352,11 +352,12 @@ python manage.py test
 ## Current Limitations
 
 - Kana quiz 已有 Ajax play、weight adjustment 同 answer comparison flow，但 multiple-choice answer flow 仍未接通。
-- `MCSense` 只有 model foundation；對應 migration、validation、import、admin、request 同 quiz integration 仍未完成。
-- VocabRequest approve/reject 已有 transaction、row lock、permission 同 `original_vocab` state guard，但 DELETE request snapshot 仍未完整。
+- Kana answer comparison 對較長 mismatch input 有嚴重效能問題；filter fallback 亦會在第一題後錯誤停止，兩項已列入 TODO。
+- `MCSense` model 同 migration foundation 已建立；validation、import、admin、request 同 quiz integration 仍未完成，而 migration 目前尚未 commit。
+- VocabRequest approve/reject 已有 transaction、row lock、permission、`original_vocab` state guard 同完整 DELETE proposed snapshot。
 - Event notification system 已有 request result、vocab sync summary 同 feedback reply flow，UI / wording 同更多 event type 仍可改善。
 - Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
-- Logging handlers 已建立，但各 domain flow 嘅成功、失敗及 audit coverage 仍未完整。
+- Logging handlers 同主要 domain flow coverage 已建立；log assertions、concurrent sync 同 rotation／retention 仍待自動驗證。
 - 完整 export / restore 尚未完成。
 - Automated tests 未建立。
 - UI 仍然係 development / temporary version。
