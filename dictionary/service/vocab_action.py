@@ -20,6 +20,8 @@ class VocabActionService():
 
     @staticmethod
     def create_vocab(vocab_data, approved_by):
+        if vocab_data["type"] != VocabType.VOCAB and vocab_data["type"] != VocabType.KATAKANA:
+            return None
         with transaction.atomic():
             vocab = Vocab(
                 word=vocab_data["word"],
@@ -48,6 +50,8 @@ class VocabActionService():
 
     @staticmethod
     def update_vocab(vocab_data, target_vocab, approved_by):
+        if vocab_data["type"] != VocabType.VOCAB and vocab_data["type"] != VocabType.KATAKANA:
+            return None
         update_success = False
         with transaction.atomic():
             target_vocab.word=vocab_data["word"]
@@ -70,14 +74,14 @@ class VocabActionService():
             update_success = True
 
         return target_vocab if update_success else None
-        
+
 
     @staticmethod
     def deactivate_vocab(target_vocab, approved_by):
         target_vocab.is_active = False
         target_vocab.approved_by = approved_by
         target_vocab.save(update_fields=['is_active', 'approved_by', 'update_at'])
-    
+
     @staticmethod
     def restore_vocab(target_vocab, approved_by):
         target_vocab.is_active = True

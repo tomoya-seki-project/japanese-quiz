@@ -36,18 +36,18 @@ class Vocab(TimeStampedModel):
     kana = models.CharField(verbose_name="Kana", max_length=255)
     is_active = models.BooleanField(default=False)
     type = models.CharField(
-        verbose_name="Type", 
+        verbose_name="Type",
         max_length=20, choices=VocabType.choices
     )
     level = models.CharField(
-        verbose_name="Level", 
+        verbose_name="Level",
         max_length=10, choices=VocabLevel.choices
     )
     categories = models.ManyToManyField(
         Category,
         related_name='vocabs',
     )
-    
+
     #similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
 
     users = models.ManyToManyField(
@@ -55,15 +55,15 @@ class Vocab(TimeStampedModel):
         through='UserVocab',
         related_name='vocabs'
     )
-    
+
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        null=True, blank=True, 
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='created_vocab'
     )
     approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
+        settings.AUTH_USER_MODEL,
         null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='approved_vocab'
@@ -127,7 +127,7 @@ class MCSense(models.Model):
 
 class UserVocab(TimeStampedModel):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='user_vocabs'
     )
@@ -175,14 +175,14 @@ class VocabRequest(TimeStampedModel):
         on_delete=models.SET_NULL,
         null=True,
         related_name = "applied_vocab_submissions",
-        verbose_name="Created By", 
+        verbose_name="Created By",
     )
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name = "approved_vocab_submission",
-        verbose_name="Reviewed By", 
+        verbose_name="Reviewed By",
     )
 
     original_vocab = models.ForeignKey(
@@ -202,16 +202,23 @@ class VocabRequest(TimeStampedModel):
     )
 
     #proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
-    
+
     #vocab type
     # No special fields right now.
 
     #katakana type
     proposed_native_japanese = models.CharField(verbose_name="Native Japanese", max_length=255, blank=True, null=True)
 
+    # proposed_sense_meaning = models.CharField(max_length=255, blank=True, null=True)
+    # proposed_question_1 = models.CharField(max_length=100)
+    # proposed_question_2 = models.CharField(max_length=100)
+    # proposed_mc_answer_1 = models.CharField(max_length=20)
+    # proposed_mc_answer_2 = models.CharField(max_length=20)
+    # proposed_mc_answer_3 = models.CharField(max_length=20)
+
     #for update type request only
     original_data = models.JSONField(verbose_name="Last Record", blank=True, null=True)
-    
+
     def __str__(self):
         return f"{self.proposed_word}:{self.request_type}:{self.status}"
 

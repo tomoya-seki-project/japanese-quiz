@@ -138,17 +138,17 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 )
                 messages.info(self.request, "Another user has already requested the same word. It is waiting for admin confirmation.")
             return redirect(self.get_success_url())
-        
+
     def get_success_url(self):
         if getattr(self, "has_restore_vocab", False):
             return reverse_lazy("dictionary:vocab_home")
         return super().get_success_url()
-    
+
 class VocabUpdateRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/vocab_update.html"
     form_class = VocabUpdateRequestForm
     success_url = reverse_lazy("dictionary:vocab_home")
-    
+
     @property
     def target_vocab(self):
         if not hasattr(self, "_target_vocab"):
@@ -163,7 +163,7 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs["target_vocab"] = self.target_vocab
         return kwargs
-    
+
     def get_initial(self):
         initial_data = super().get_initial()
         vocab = self.target_vocab
@@ -183,10 +183,10 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
                 initial_data.update({
                     "native_japanese" : vocab.katakana_detail.native_japanese
                 })
-            case VocabType.ADVERB | VocabType.MIMETIC | VocabType.CONJUNCTION | VocabType.COLLOQUIAL:
-                pass
+            # case VocabType.ADVERB | VocabType.MIMETIC | VocabType.CONJUNCTION | VocabType.COLLOQUIAL:
+            #     pass
         return initial_data
-    
+
     def form_valid(self, form):
         try:
             created = VocabRequestService.gen_update_vocab_request(
@@ -242,7 +242,7 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["vocab"] = self.target_vocab
         return context
-    
+
     def form_valid(self, form):
         try:
             created = VocabRequestService.gen_delete_vocab_request(
@@ -278,7 +278,7 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
                 "pending_request_exists",
             )
         return super().form_valid(form)
-    
+
 
 class VocabDetailView(DetailView):
     model = Vocab
@@ -295,7 +295,7 @@ class VocabDetailView(DetailView):
     #         pk = self.kwargs["vocab_id"]
     #     )
     #     return context
-    
+
 
 class VocabListView(ListView):
     model = Vocab
@@ -339,12 +339,12 @@ class VocabListView(ListView):
                 qs = qs.filter(categories=category)
 
         return qs
-    
+
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == "XMLHttpRequest":
             return render(self.request, 'dictionary/partials/vocab_list_partial.html', context)
         return super().render_to_response(context, **response_kwargs)
-    
+
 class UserVocabListView(LoginRequiredMixin, ListView):
     model = UserVocab
     template_name = 'dictionary/user_vocab_list.html'
@@ -409,7 +409,7 @@ class UserVocabListView(LoginRequiredMixin, ListView):
         context['query_string'] = query_params.urlencode()
 
         return context
-    
+
     def get_queryset(self):
         qs = super().get_queryset()
 
@@ -418,7 +418,7 @@ class UserVocabListView(LoginRequiredMixin, ListView):
         form = UserVocabSearchForm(self.request.GET)
 
         if form.is_valid():
-            
+
             is_use = form.cleaned_data.get("in_use")
             if is_use == UserVocabInUse.YES:
                 qs = qs.filter(in_use=True)
@@ -443,7 +443,7 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(vocab__categories=category)
 
         return qs
-    
+
 class UserVocabDetailView(LoginRequiredMixin, DetailView):
     model = UserVocab
     template_name = "dictionary/user_vocab_detail.html"
@@ -484,7 +484,7 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
         if target_user_vocab.last_answer is not None:
             if target_user_vocab.vocab.type == VocabType.VOCAB or target_user_vocab.vocab.type == VocabType.KATAKANA:
                 compared_data = QuizService.compare_kana_answer(
-                                    correct_answer=target_user_vocab.vocab.kana, 
+                                    correct_answer=target_user_vocab.vocab.kana,
                                     user_answer=target_user_vocab.last_answer
                                 )
                 compared_result = QuizService.gen_answer_image(compared_result=compared_data)
@@ -509,16 +509,16 @@ class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
 
     def get_new_vocab(self):
         return UserVocabService.get_new_vocab(user=self.request.user,limit=50)
-    
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["vocab_queryset"] = self.get_new_vocab()
         return kwargs
-    
+
     def form_valid(self, form):
         UserVocabService.create_user_vocabs(
             user=self.request.user,
             vocabs=form.cleaned_data["vocabs"],
         )
         return super().form_valid(form)
-    
+

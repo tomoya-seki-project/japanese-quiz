@@ -34,9 +34,17 @@ class BaseVocabRequestForm(forms.Form):
 
     # Kanji detail fields
     # No special fields right now.
-    
+
     # Katakana detail fields
     native_japanese = forms.CharField(max_length=255, required=False)
+
+    def clean_vocab_type(self):
+        vocab_type = self.cleaned_data.get("vocab_type")
+        if vocab_type != VocabType.VOCAB and vocab_type != VocabType.KATAKANA:
+            raise forms.ValidationError(
+                "vocab type unsupported"
+            )
+        return vocab_type
 
     def clean_categories(self):
         categories = self.cleaned_data["categories"]
@@ -51,7 +59,7 @@ class VocabCreateRequestForm(BaseVocabRequestForm):
         super().__init__(*args, **kwargs)
         self.fields["meaning"].required = False
         self.fields["level"].required = False
-    
+
     def clean(self):
         cleaned_data = super().clean()
         word = cleaned_data.get('word')
@@ -66,7 +74,7 @@ class VocabCreateRequestForm(BaseVocabRequestForm):
                 self.deactived_vocab = existing_vocab
 
         return cleaned_data
-    
+
 class VocabUpdateRequestForm(BaseVocabRequestForm):
     def __init__(self, *args, target_vocab=None, **kwargs):
         super().__init__(*args, **kwargs)

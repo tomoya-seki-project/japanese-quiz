@@ -75,7 +75,7 @@ class VocabAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
-    
+
     def has_delete_permission(self, request, obj = ...):
         return False
 
@@ -95,7 +95,7 @@ class VocabAdmin(admin.ModelAdmin):
         if db_field.name == "categories":
             kwargs["widget"] = forms.CheckboxSelectMultiple
         return super().formfield_for_manytomany(db_field, request, **kwargs)
-    
+
 
 @admin.register(UserVocab)
 class UserVocabAdmin(admin.ModelAdmin):
@@ -192,20 +192,20 @@ class VocabRequestAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
 
         if (request.method == "POST"
-            and ("_approve" in request.POST 
+            and ("_approve" in request.POST
                 or "_reject" in request.POST
                 )
         ):
             qs = qs.select_for_update()
         return qs
-    
+
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj))
 
         if obj is not None and obj.status != VocabRequestStatus.PENDING:
             return [field.name for field in self.model._meta.fields]
         return readonly_fields
-    
+
     def save_model(self, request, obj, form, change):
         if change and obj.status != VocabRequestStatus.PENDING:
             self.message_user(
@@ -238,6 +238,13 @@ class VocabRequestAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_approve" in request.POST:
+            if obj.proposed_vocab_type != VocabType.VOCAB and obj.proposed_vocab_type != VocabType.KATAKANA:
+                self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="vocab type unsupported", level=logging.WARNING)
+                return redirect(
+                    reverse(
+                        "admin:dictionary_vocabrequest_changelist"
+                    )
+                )
             if self.has_change_permission(request=request, obj=obj):
                 try:
                     is_success = VocabRequestService.approve_vocab_request(

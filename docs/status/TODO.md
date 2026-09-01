@@ -357,6 +357,9 @@ Status badge：
 - CSV import 判斷同一個 vocab 時使用 `(word, kana)`，唔可以只比較 `word`；第一個 MC row 建立 `Vocab` 同第一個 `MCSense`，之後相同 `(word, kana)` 嘅 MC rows 只新增指向同一 `Vocab` 嘅 `MCSense`。
 - `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義。
 - 已建立及在目前 local database 套用 `dictionary/migrations/0027_add_mc_sense.py`；`manage.py check`、migration graph 同 `makemigrations --check --dry-run` 均通過。Migration 目前仍未 commit，其他 clone 尚未能重建呢個 schema。
+- 已決定暫時隔離 MC 功能，先完成 UI 同正式第一版；四種 MC `VocabType` choices 同 `MCSense` schema foundation 保留，避免產生暫時性 migration，正式第一版後先恢復 MC vertical flow 開發。
+- 目前 local database 已確認冇四種 MC type 嘅 `Vocab` 或 `VocabRequest`。新 request 會由 form validation 阻止，admin approve 會拒絕 unsupported type，CSV import 會將 MC row 計入失敗並顯示原因，`VocabActionService` create / update 亦唔會寫入 MC vocab。
+- 暫時隔離完成後，`manage.py check` 同 `makemigrations --check --dry-run` 均通過，冇新增 schema change。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>

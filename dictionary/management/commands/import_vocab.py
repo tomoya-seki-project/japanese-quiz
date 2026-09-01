@@ -29,7 +29,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("csv_file",type=str)
-    
+
     def handle(self, *args, **options):
         username = input("Admin email: ")
         password = getpass("Admin password: ")
@@ -38,7 +38,7 @@ class Command(BaseCommand):
 
         if user is None:
             raise CommandError("Login failed")
-        
+
         if not user.is_superuser:
             raise CommandError("Admin account is required for this command")
 
@@ -83,6 +83,24 @@ class Command(BaseCommand):
                     csv_file,
                 )
                 for row_number, data in enumerate(reader, start=2):
+                    if data["type"] != VocabType.VOCAB and data["type"] != VocabType.KATAKANA:
+                        logger.warning(
+                            "Vocab import row rejected: "
+                            "operation=%s row_number=%s reason=%s",
+                            "vocab_import",
+                            row_number,
+                            "vocab type unsupported",
+                        )
+
+                        failed_rows.append(
+                            (row_number, "vocab type unsupported")
+                        )
+                        self.stderr.write(
+                            self.style.ERROR(
+                                f"Row {row_number}: vocab type unsupported."
+                            )
+                        )
+                        continue
                     try:
                         category_names = [
                             data["category1"],
