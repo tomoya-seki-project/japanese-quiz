@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（67）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（68）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（1）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（12）：未開始或暫時只係計劃
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（11）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -295,14 +295,14 @@ Status badge：
 - Scalar fields、Many-to-Many categories 同 type-specific data 都在同一 transaction 內建立；Django system check 已通過。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 26 點（Quiz Answer Comparison）：限制 recursive comparison 嘅最壞執行時間**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 26 點（Quiz Answer Comparison）：限制 answer comparison 嘅最壞執行時間**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `QuizService.answer_compare()` 遇到大量 mismatch 時會同時展開 wrong、missing、extra branches，而且未有 memoization；targeted benchmark 中 11 字元 mismatch 已超過 5 秒 timeout。
-- 改用 memoization / dynamic programming，保留現有 minimum cost、match count 同教學 subtype tie-break 行為。
-- 對 normalized answer 設合理長度 boundary，並加入 worst-case performance regression tests。
+- 新增 bottom-up `answer_compare_dp()`，以 `(m + 1) × (n + 1)` table 計算最佳路線，並由 `dp[0][0]` reconstruction 成原有 result format；`compare_kana_answer()` 已切換至新實作。
+- 保留 minimum cost、最多 match、最多 non-normal wrong 同最終 `WRONG`／`MISSING`／`EXTRA` 次序；以舊 recursive implementation 作 oracle，比較 24,336 組 0 至 3 字元輸入，完整輸出無 mismatch。
+- 25 對 25 全 mismatch targeted benchmark 約 0.0018 秒；Django system check 通過。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 27 點（Quiz Filter Fallback）：Next / Skip 要繼續使用 full active pool**
@@ -332,8 +332,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `VocabType` 已加入 `adverb`、`mimetic`、`conjunction` 同 `colloquial` choices。
-- 已產生 migration，更新 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices。
+- `adverb`、`mimetic`、`conjunction` 同 `colloquial` choice definitions 已保留喺 `VocabType` 內，但暫時 comment out，等 MC flow 完成後恢復。
 - 已決定 `adverb`、`mimetic`、`conjunction` 同 `colloquial` 使用 multiple-choice 答題，而唔使用 50 音 keyboard。
 - 新 type 係 project-specific quiz / learning 分類，唔係純語言學詞性；例如 `ズレ` 會歸入 `colloquial`，避免要求 user 用 kana keyboard 重複輸入同一寫法。
 - 已決定四種 MC type 嘅 CSV mapping：`word` 保存原字，`kana` 保存平假名讀音。
@@ -357,14 +356,15 @@ Status badge：
 - CSV import 判斷同一個 vocab 時使用 `(word, kana)`，唔可以只比較 `word`；第一個 MC row 建立 `Vocab` 同第一個 `MCSense`，之後相同 `(word, kana)` 嘅 MC rows 只新增指向同一 `Vocab` 嘅 `MCSense`。
 - `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義。
 - 已建立及在目前 local database 套用 `dictionary/migrations/0027_add_mc_sense.py`；`manage.py check`、migration graph 同 `makemigrations --check --dry-run` 均通過。Migration 目前仍未 commit，其他 clone 尚未能重建呢個 schema。
-- 已決定暫時隔離 MC 功能，先完成 UI 同正式第一版；四種 MC `VocabType` choices 同 `MCSense` schema foundation 保留，避免產生暫時性 migration，正式第一版後先恢復 MC vertical flow 開發。
+- 已決定暫時隔離 MC 功能，先完成 UI 同正式第一版；`MCSense` schema foundation 繼續保留，四種 MC choices 待正式恢復 vertical flow 時重新啟用。
 - 目前 local database 已確認冇四種 MC type 嘅 `Vocab` 或 `VocabRequest`。新 request 會由 form validation 阻止，admin approve 會拒絕 unsupported type，CSV import 會將 MC row 計入失敗並顯示原因，`VocabActionService` create / update 亦唔會寫入 MC vocab。
-- 暫時隔離完成後，`manage.py check` 同 `makemigrations --check --dry-run` 均通過，冇新增 schema change。
+- 已建立及套用 `dictionary/migrations/0028_vocabtype_cut_out_mc.py`，將 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices 限制為 `vocab`／`katakana`；quiz setting form 會沿用同一 choices，因此未完成 MC 類型唔再向 user 開放。
+- 暫時隔離完成後，`manage.py check` 同 `makemigrations --check --dry-run` 均通過。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
 
-- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow；完成前要從 quiz setting / question pool 隱藏 unsupported types，避免 user 進入無法作答嘅 A–E panel。
+- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow，之後先恢復相應 `VocabType` choices，重新向 user 開放 A–E panel。
 - 確認 `sense_no` 是否由 1 開始並加入相應 minimum validation，並決定 `sense_key` 生成規則。
 - 實作 `question1`／`question2` 嘅 blank、字面 `\n` 同活用提示 validation。
 - 實作三個 distractor 對兩條題目嘅語義、句法、活用同 type validation，以及 view `get_context_data()` 選項 randomization。
@@ -790,7 +790,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `QuizService.answer_compare()` 可產生 `MATCH`、`WRONG`、`MISSING`、`EXTRA`，並處理答案長度不同、位置對齊及 subtype tie-break。
+- `QuizService.answer_compare_dp()` 以 bottom-up DP 產生 `MATCH`、`WRONG`、`MISSING`、`EXTRA`，並處理答案長度不同、位置對齊及 subtype tie-break。
 - `compare_answer_subtype.json` 可分辨 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA`，包括 `そうぞう`／`そそく` 等錯位情況。
 - `kana_graphic_map.json`、static kana assets 同 `QuizService.gen_answer_image()` 已可將 compare result 轉成主圖及 `sub_image_path` graphic data。
 - `QuizSubmitAnswerView` 已將 graphic data 傳入 result partial，畫面可顯示 answer difference 圖片及 missing／extra mark 資料。
@@ -799,7 +799,6 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
 - `gen_answer_image()` 之後可以加入 fallback image / fallback text，避免 mapping 漏項時 render 出 broken image path。
-- `answer_compare()` 目前用 recursive branch 搜尋；短 kana 答案可以接受，如果將來支援較長 answer，可考慮 memoization / DP。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz session summary tracking**

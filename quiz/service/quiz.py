@@ -2,6 +2,9 @@ import random
 from bisect import bisect_left
 from django.utils import timezone
 
+from dataclasses import dataclass
+from typing import Optional
+
 from dictionary.models import (
     Vocab,
     UserVocab,
@@ -13,6 +16,18 @@ from core.service.core import load_json
 QUIZ_CONFIG = load_json(path="quiz/config/quiz_config.json")
 COMPARE_SUBTYPE = load_json(path="quiz/config/compare_answer_subtype.json")
 KANA_GRAPHIC_MAP = load_json(path="quiz/config/kana_graphic_map.json")
+
+@dataclass
+class Score:
+    cost: int
+    match_count: int
+    non_normal_wrong_count: int
+
+@dataclass
+class DPCell:
+    score: Score
+    operation: Optional[str]
+    sub_operation: str | None = None
 
 class QuizService():
     @staticmethod
@@ -44,7 +59,7 @@ class QuizService():
             output_qs = filtered_qs
 
         return output_qs, fallback_used
-    
+
     @staticmethod
     def pick_random_vocab(*, user, queryset=None):
         if queryset is None:
@@ -65,7 +80,7 @@ class QuizService():
         # Normally every vocab should have at least 1 weight, so total_weight should not be 0.
         if total_weight <= 0:
             return None
-        
+
         random_number = random.randint(1, total_weight)
 
         index = bisect_left(
@@ -88,19 +103,19 @@ class QuizService():
             skipped_user_vocab.save(
                 update_fields=["weight","streak","last_quiz_at"]
             )
-    
+
     @staticmethod
     def check_kana_answer(*, question_vocab=None, answer=None, tips_count=0):
         is_correct = False
         if question_vocab is None:
             return -1
-        
+
         if answer is None:
             return -2
         WEIGHT_CONFIG = QUIZ_CONFIG["weight"]
         tips_count = max(0, min(tips_count, 50))
         new_weight = min(WEIGHT_CONFIG["max_tips"], tips_count * WEIGHT_CONFIG["tips"])
-                
+
         if question_vocab.vocab.kana == answer:
             is_correct = True
             question_vocab.correct_count += 1
@@ -131,10 +146,10 @@ class QuizService():
     def check_mc_answer(*, question_vocab=None, answer=None):
         if question_vocab is None:
             return -1
-        
+
         if answer is None:
             return -2
-        
+
         if question_vocab.vocab.kana == answer:
             question_vocab.correct_count += 1
             if question_vocab.streak < 0:
@@ -155,7 +170,7 @@ class QuizService():
             update_fields=["streak", "correct_count", "incorrect_count", "weight", "last_quiz_at", "last_answer"]
         )
 
-    
+
 
     @staticmethod
     def gen_answer_image(*, compared_result):
@@ -209,11 +224,9 @@ class QuizService():
 
     @staticmethod
     def compare_kana_answer(*, correct_answer, user_answer):
-        return QuizService.answer_compare(
+        return QuizService.answer_compare_dp(
             correct_answer=correct_answer or "",
-            user_answer=user_answer or "",
-            pos_of_correct=0,
-            pos_of_user=0,
+            user_answer=user_answer or ""
         )
 
     @staticmethod
@@ -222,135 +235,150 @@ class QuizService():
         return subtype if subtype is not None else "NORMAL"
 
     @staticmethod
-    def answer_compare(*, correct_answer, user_answer, pos_of_correct, pos_of_user):
-        if pos_of_correct >= len(correct_answer) and pos_of_user >= len(user_answer):
-            return {
-                "cost": 0,
-                "match_count": 0,
-                "non_normal_wrong_count": 0,
-                "result": [],
-            }
-        if pos_of_correct >= len(correct_answer):
-            return {
-                "cost": len(user_answer) - pos_of_user,
-                "match_count": 0,
-                "non_normal_wrong_count": 0,
-                "result": [
-                    {
+    def answer_compare_dp(*, correct_answer, user_answer):
+        m = len(correct_answer)
+        n = len(user_answer)
+        dp_table : list[list[Optional[DPCell]]] = [
+            [None for _ in range(n + 1)]
+            for _ in range(m + 1)
+        ]
+
+        for i in range(m, -1, -1):
+            for j in range(n, -1, -1):
+                if i == m and j == n:
+                    dp_table[i][j] = DPCell(
+                        score=Score(
+                            cost=0,
+                            match_count=0,
+                            non_normal_wrong_count=0,
+                        ),
+                        operation="END"
+                    )
+                elif i == m:
+                    next_cell = dp_table[i][j+1]
+                    dp_table[i][j] = DPCell(
+                        score=Score(
+                            cost=next_cell.score.cost + 1,
+                            match_count=next_cell.score.match_count,
+                            non_normal_wrong_count=next_cell.score.non_normal_wrong_count,
+                        ),
+                        operation="EXTRA"
+                    )
+                elif j == n:
+                    next_cell = dp_table[i+1][j]
+                    dp_table[i][j] = DPCell(
+                        score=Score(
+                            cost=next_cell.score.cost + 1,
+                            match_count=next_cell.score.match_count,
+                            non_normal_wrong_count=next_cell.score.non_normal_wrong_count,
+                        ),
+                        operation="MISSING"
+                    )
+                else:
+                    # match section
+                    if correct_answer[i] == user_answer[j]:
+                        next_cell = dp_table[i+1][j+1]
+                        dp_table[i][j] = DPCell(
+                            score=Score(
+                                cost=next_cell.score.cost,
+                                match_count=next_cell.score.match_count + 1,
+                                non_normal_wrong_count=next_cell.score.non_normal_wrong_count,
+                            ),
+                            operation="MATCH"
+                        )
+                    else:
+                        # wrong section
+                        next_wrong_cell = dp_table[i+1][j+1]
+                        sub_operation = QuizService.define_wrong_sub_type(
+                            correct_letter=correct_answer[i],
+                            user_letter=user_answer[j]
+                        )
+                        wrong_result = DPCell(
+                            score=Score(
+                                cost=next_wrong_cell.score.cost + 1,
+                                match_count=next_wrong_cell.score.match_count,
+                                non_normal_wrong_count=
+                                        next_wrong_cell.score.non_normal_wrong_count
+                                        + (1 if sub_operation != "NORMAL" else 0)
+                            ),
+                            operation="WRONG",
+                            sub_operation=sub_operation
+                        )
+                        # missing section
+                        next_missing_cell = dp_table[i+1][j]
+                        missing_result = DPCell(
+                            score=Score(
+                                cost=next_missing_cell.score.cost + 1,
+                                match_count=next_missing_cell.score.match_count,
+                                non_normal_wrong_count=next_missing_cell.score.non_normal_wrong_count,
+                            ),
+                            operation="MISSING"
+                        )
+                        # extra section
+                        next_extra_cell = dp_table[i][j+1]
+                        extra_result = DPCell(
+                            score=Score(
+                                cost=next_extra_cell.score.cost + 1,
+                                match_count=next_extra_cell.score.match_count,
+                                non_normal_wrong_count=next_extra_cell.score.non_normal_wrong_count,
+                            ),
+                            operation="EXTRA"
+                        )
+                        dp_table[i][j] = min(
+                            wrong_result,
+                            missing_result,
+                            extra_result,
+                            key=lambda result: (
+                                result.score.cost,
+                                -result.score.match_count,
+                                -result.score.non_normal_wrong_count,
+                            )
+                        )
+        result = []
+        result_i = 0
+        result_j = 0
+        while dp_table[result_i][result_j].operation != "END":
+            cell = dp_table[result_i][result_j]
+            match cell.operation:
+                case "MATCH":
+                    result.append({
+                        "type": "MATCH",
+                        "sub_type": None,
+                        "correct": correct_answer[result_i],
+                        "answer": user_answer[result_j],
+                    })
+                    result_i += 1
+                    result_j += 1
+                case "WRONG":
+                    result.append({
+                        "type": "WRONG",
+                        "sub_type": cell.sub_operation,
+                        "correct": correct_answer[result_i],
+                        "answer": user_answer[result_j],
+                    })
+                    result_i += 1
+                    result_j += 1
+                case "MISSING":
+                    result.append({
+                        "type": "MISSING",
+                        "sub_type": None,
+                        "correct": correct_answer[result_i],
+                        "answer": None,
+                    })
+                    result_i += 1
+                case "EXTRA":
+                    result.append({
                         "type": "EXTRA",
                         "sub_type": None,
                         "correct": None,
-                        "answer": char,
-                    }
-                    for char in user_answer[pos_of_user:]
-                ]
-            }
-        if pos_of_user >= len(user_answer):
-            return {
-                "cost": len(correct_answer) - pos_of_correct,
-                "match_count": 0,
-                "non_normal_wrong_count": 0,
-                "result": [
-                    {
-                        "type": "MISSING",
-                        "sub_type": None,
-                        "correct": char,
-                        "answer": None,
-                    }
-                    for char in correct_answer[pos_of_correct:]
-                ]
-            }
-        if correct_answer[pos_of_correct] == user_answer[pos_of_user]:
-            next_compare_result = QuizService.answer_compare(
-                correct_answer=correct_answer,
-                user_answer=user_answer,
-                pos_of_correct=pos_of_correct+1,
-                pos_of_user=pos_of_user+1,
-            )
-            return {
-                "cost": next_compare_result["cost"],
-                "match_count": 1 + next_compare_result["match_count"],
-                "non_normal_wrong_count": next_compare_result["non_normal_wrong_count"],
-                "result": [
-                    {
-                        "type": "MATCH",
-                        "sub_type": None,
-                        "correct": correct_answer[pos_of_correct],
-                        "answer": user_answer[pos_of_user],
-                    },
-                ] + next_compare_result["result"],
-            }
-        wrong_next = QuizService.answer_compare(
-            correct_answer=correct_answer,
-            user_answer=user_answer,
-            pos_of_correct=pos_of_correct+1,
-            pos_of_user=pos_of_user+1,
-        )
-        sub_type = QuizService.define_wrong_sub_type(
-                        correct_letter=correct_answer[pos_of_correct],
-                        user_letter=user_answer[pos_of_user]
-                    )
-        wrong = {
-            "cost": 1 + wrong_next["cost"],
-            "match_count": wrong_next["match_count"],
-            "non_normal_wrong_count": wrong_next["non_normal_wrong_count"] + (1 if sub_type != "NORMAL" else 0),
-            "result": [
-                {
-                    "type": "WRONG",
-                    "sub_type": sub_type,
-                    "correct": correct_answer[pos_of_correct],
-                    "answer": user_answer[pos_of_user],
-                },
-            ] + wrong_next["result"],
+                        "answer": user_answer[result_j],
+                    })
+                    result_j += 1
+                case _:
+                    raise ValueError(f"Unknown operation: {cell.operation}")
+        return {
+            "cost": dp_table[0][0].score.cost,
+            "match_count": dp_table[0][0].score.match_count,
+            "non_normal_wrong_count": dp_table[0][0].score.non_normal_wrong_count,
+            "result": result,
         }
-
-        missing_next = QuizService.answer_compare(
-            correct_answer=correct_answer,
-            user_answer=user_answer,
-            pos_of_correct=pos_of_correct+1,
-            pos_of_user=pos_of_user,
-        )
-        missing = {
-            "cost": 1 + missing_next["cost"],
-            "match_count": missing_next["match_count"],
-            "non_normal_wrong_count": missing_next["non_normal_wrong_count"],
-            "result": [
-                {
-                    "type": "MISSING",
-                    "sub_type": None,
-                    "correct": correct_answer[pos_of_correct],
-                    "answer": None,
-                },
-            ] + missing_next["result"],
-        }
-
-        extra_next = QuizService.answer_compare(
-            correct_answer=correct_answer,
-            user_answer=user_answer,
-            pos_of_correct=pos_of_correct,
-            pos_of_user=pos_of_user+1,
-        )
-        extra = {
-            "cost": 1 + extra_next["cost"],
-            "match_count": extra_next["match_count"],
-            "non_normal_wrong_count": extra_next["non_normal_wrong_count"],
-            "result": [
-                {
-                    "type": "EXTRA",
-                    "sub_type": None,
-                    "correct": None,
-                    "answer": user_answer[pos_of_user],
-                },
-            ] + extra_next["result"],
-        }
-
-        return min(
-                wrong, 
-                missing, 
-                extra, 
-                key=lambda result: (
-                    result["cost"], 
-                    -result["match_count"],
-                    -result["non_normal_wrong_count"],
-                )
-            )

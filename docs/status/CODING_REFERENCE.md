@@ -48,6 +48,7 @@
   - [PYTHON-JSON-CONFIG-MAP-LOOKUP — #### `[PYTHON-JSON-CONFIG-MAP-LOOKUP]` 用 JSON config map 查 subtype / 設定值](#PYTHON-JSON-CONFIG-MAP-LOOKUP)
   - [PYTHON-LOGGING-FILTER — #### `[PYTHON-LOGGING-FILTER]` Logging filter 除左篩選 level 仲可以做什麼](#PYTHON-LOGGING-FILTER)
   - [PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION — #### `[PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION]` Exception、`raise`、`from e` 同 `logger.exception()`](#PYTHON-EXCEPTION-RAISE-AND-LOGGER-EXCEPTION)
+  - [PYTHON-DATACLASS-2D-LIST-DP-STATE — #### `[PYTHON-DATACLASS-2D-LIST-DP-STATE]` 用 `dataclass` 同 2D list 保存 DP state](#PYTHON-DATACLASS-2D-LIST-DP-STATE)
 
 - [Project Architecture 與 Domain Design](#GROUP-PROJECT-ARCHITECTURE-DOMAIN)
   - [DOMAIN-VOCAB-USERVOCAB-IN-USE — #### `[DOMAIN-VOCAB-USERVOCAB-IN-USE]` `Vocab` 同 `UserVocab.in_use` 嘅設計心智模型](#DOMAIN-VOCAB-USERVOCAB-IN-USE)
@@ -5939,6 +5940,223 @@ logger.exception()    = ERROR level + 目前 exception traceback
 
 - 目前已確認 `logger.exception()` 唔係獨立 logging level。
 - Exception flow、重新拋出與 exception chaining 仍待之後進一步理解。
+
+<a id="PYTHON-DATACLASS-2D-LIST-DP-STATE"></a>
+
+### `[PYTHON-DATACLASS-2D-LIST-DP-STATE]` 用 `dataclass` 同 2D list 保存 DP state
+
+#### 問題背景
+
+將 `QuizService.answer_compare()` 由 recursive search 改寫成 bottom-up dynamic programming 時，每個 `dp[i][j]` 唔只要保存一個分數，仲要保存多項互相關聯嘅資料，例如：
+
+- `cost`
+- `match_count`
+- `non_normal_wrong_count`
+- 呢格揀中嘅 `operation`
+
+C++ 可以用 `struct` 封裝一格嘅資料，再建立 2D array；Python 對應做法係使用 `@dataclass` 配合 nested list。
+
+#### 研究方向
+
+- Python `@dataclass` 同 C++ `struct` 喺資料建模上嘅對應關係。
+- `list[list[...]]` 點樣表示 2D table。
+- `Optional[T]`／`T | None` 表示咩，以及佢同「參數可以省略」嘅分別。
+- Python nested list 點解唔應該用 `[[value] * width] * height` 建立。
+- 邊啲 state 必須保存，邊啲資料可以由其他欄位推算，避免 duplicate state。
+
+#### 你的解答
+
+##### 1. 用 `dataclass` 表示一個 DP cell
+
+Python `@dataclass` 可以將一組相關資料包成一個有名稱、有 type hint 嘅 object，角色接近 C++ `struct`：
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass
+class DPCell:
+    cost: int
+    match_count: int
+    non_normal_wrong_count: int
+    operation: str | None
+```
+
+之後可以清楚噉讀取每項資料：
+
+```python
+cell.cost
+cell.match_count
+cell.non_normal_wrong_count
+cell.operation
+```
+
+如果欄位固定，`dataclass` 通常比 dictionary 更適合，因為 dictionary 嘅 key 係任意 string，拼錯亦未必即時發現；`dataclass` 就可以清楚定義 object 應有嘅欄位。
+
+##### 2. 建立 2D list
+
+答案長度分別係 `m` 同 `n` 時，DP table 通常需要 `(m + 1) × (n + 1)`，額外一行同一列代表其中一邊已經去到字串結尾：
+
+```python
+dp: list[list[DPCell | None]] = [
+    [None for _ in range(n + 1)]
+    for _ in range(m + 1)
+]
+```
+
+未計算嘅格係 `None`；計算完成後，就可以放入一個 `DPCell`：
+
+```python
+dp[i][j] = DPCell(
+    cost=1,
+    match_count=2,
+    non_normal_wrong_count=0,
+    operation="MISSING",
+)
+```
+
+終點 `dp[m][n]` 已經無下一個 operation，所以 `operation=None`：
+
+```python
+dp[m][n] = DPCell(
+    cost=0,
+    match_count=0,
+    non_normal_wrong_count=0,
+    operation=None,
+)
+```
+
+##### 3. 普通 nested `for` 同 list comprehension 對比
+
+以下係較完整、容易逐步理解嘅普通寫法：
+
+```python
+dp_table = []
+
+for row_index in range(len(correct_answer) + 1):
+    row = []
+
+    for column_index in range(len(user_answer) + 1):
+        row.append(None)
+
+    dp_table.append(row)
+```
+
+執行流程係：
+
+1. 外層 `for` 決定建立幾多行，行數係 `len(correct_answer) + 1`。
+2. 每次進入外層 loop，都會建立一個全新嘅 `row`。
+3. 內層 `for` 向呢行加入 `len(user_answer) + 1` 個 `None`。
+4. 一行完成後，將 `row` 加入 `dp_table`。
+
+同一段邏輯可以縮寫成 list comprehension：
+
+```python
+dp_table: list[list[DPCell | None]] = [
+    [None for _ in range(len(user_answer) + 1)]
+    for _ in range(len(correct_answer) + 1)
+]
+```
+
+內層：
+
+```python
+[None for _ in range(len(user_answer) + 1)]
+```
+
+負責建立一行。外層：
+
+```python
+for _ in range(len(correct_answer) + 1)
+```
+
+負責重複建立新行，最後組成整張 2D table。
+
+`_` 只係一個普通變數名。慣例上，loop counter 無需使用時會命名為 `_`，表示「只需要重複指定次數，唔需要使用今次係第幾次」。如果填表時需要座標，就應該改用 `i`、`j`：
+
+```python
+for i in range(len(correct_answer) + 1):
+    for j in range(len(user_answer) + 1):
+        dp_table[i][j] = ...
+```
+
+例如 `correct_answer="がっこう"`、`user_answer="かこう"`：
+
+```text
+len(correct_answer) + 1 = 5 行
+len(user_answer) + 1    = 4 列
+結果                      = 5 × 4 = 20 格
+```
+
+括號位置要留意。正確係先計字串長度，再加一：
+
+```python
+len(user_answer) + 1
+```
+
+以下寫法會先嘗試執行 `user_answer + 1`，即係將 string 同 integer 相加，因而產生 `TypeError`：
+
+```python
+len(user_answer + 1)  # 錯誤
+```
+
+##### 4. `Optional`／`| None` 嘅意思
+
+以下兩種 type hint 意思相同：
+
+```python
+from typing import Optional
+
+operation: Optional[str]
+operation: str | None
+```
+
+兩者都表示值可以係 `str`，亦可以係 `None`。佢唔代表 constructor parameter 可以省略；如果想省略，必須另外提供 default value：
+
+```python
+operation: str | None = None
+```
+
+##### 5. 唔需要保存可以推算嘅 next position
+
+原本可以喺每格同時保存 `next_i` 同 `next_j`，但目前四種 operation 已經唯一決定下一格：
+
+```text
+MATCH / WRONG -> dp[i + 1][j + 1]
+MISSING       -> dp[i + 1][j]
+EXTRA         -> dp[i][j + 1]
+```
+
+因此只保存 `operation` 已經足夠。重建路線時再由 operation 推算下一格，可以避免 `operation` 與 next position 互相矛盾嘅 duplicate state。
+
+##### 6. Nested list 嘅 shared-row 陷阱
+
+唔應該噉建立 2D list：
+
+```python
+dp = [[None] * (n + 1)] * (m + 1)
+```
+
+外層重複嘅係同一個 inner list reference；修改其中一行嘅元素時，其他行相同位置亦會一齊改變。
+
+應該逐行建立獨立 list：
+
+```python
+dp = [
+    [None for _ in range(n + 1)]
+    for _ in range(m + 1)
+]
+```
+
+#### 理解內容
+
+- C++ `struct + 2D array/vector` 同 Python `dataclass + nested list` 係相同資料建模思路，主要分別係語法同 container。
+- 每個 `dp[i][j]` 應該保存該 state 嘅最佳 score 同所選 operation。
+- Nested list comprehension 係普通 nested `for` 嘅縮寫：內層建立一行，外層重複建立多行；`_` 表示 loop counter 無需使用。
+- `(len(answer) + 1)` 代表字串長度加一；唔可以寫成 `len(answer + 1)`。
+- `str | None` 表示值可以係 string 或 `None`；唔等於 parameter 自動變成 optional。
+- 只保存必要 state；由 operation 已經可以推算下一格，就唔需要重複保存座標。
+- 建立 mutable 2D list 時要逐行建立，避免多行共用同一個 inner list。
 
 <a id="GROUP-PROJECT-ARCHITECTURE-DOMAIN"></a>
 
