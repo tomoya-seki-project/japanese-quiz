@@ -40,7 +40,7 @@ class FeedbackService():
         with transaction.atomic():
             reply_event = EventService.create_event(
                 event_type=EventType.FEEDBACK_REPLY,
-                event_title="Thank you for your feedback!",
+                event_title="フィードバックをお寄せいただき、ありがとうございます。",
                 event_msg=reply_context
             )
             EventService.assign_event_to_user(

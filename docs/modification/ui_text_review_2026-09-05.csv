@@ -14,7 +14,7 @@ UI-012,一般使用者,日文化,Password,パスワード,accounts/forms.py:Regi
 UI-013,一般使用者,清晰度建議,Password and Password(confirm) have to be the same,パスワードが一致しません。,accounts/forms.py:RegistForm:clean:42,簡潔說明驗證失敗原因。,"self.add_error('password2', 'Password and Password(confirm) have to be the same')"
 UI-014,一般使用者,標點錯誤,Email : ,メールアドレス,accounts/forms.py:UserLoginForm:60,Django 自動附加 label suffix，手動冒號及空格會重複。,username = forms.EmailField(label='Email : ')
 UI-015,一般使用者,日文化,Password,パスワード,accounts/forms.py:UserLoginForm:61,原英文未必有錯；為達全日文 UI 而翻譯。,"password = forms.CharField(label='Password', widget=forms.PasswordInput())"
-UI-016,一般使用者,一致性建議,Remember Me,ログイン状態を保持する,accounts/forms.py:UserLoginForm:62,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"remember_me = forms.BooleanField(label='Remember Me', required=False)"
+UI-016,一般使用者,文案縮短（已套用）,Remember Me,ログイン状態を保持,accounts/forms.py:UserLoginForm:62,2026-09-06 使用者確認：將現有「ログイン状態を保持する」縮短為「ログイン状態を保持」。已套用。,"remember_me = forms.BooleanField(label='Remember Me', required=False)"
 UI-017,管理員,英文修訂,password,Password,accounts/forms.py:UserChangeAdminForm:65,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,password = ReadOnlyPasswordHashField(label='password')
 UI-018,管理員,英文保留,Password,Password,accounts/forms.py:UserCreationAdminForm:75,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"password1 = forms.CharField(label=""Password"", widget=forms.PasswordInput())"
 UI-019,管理員,英文修訂,Password(Confirm),Confirm password,accounts/forms.py:UserCreationAdminForm:76,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,"password2 = forms.CharField(label=""Password(Confirm)"", widget=forms.PasswordInput())"
@@ -29,20 +29,20 @@ UI-027,一般使用者,清晰度建議,user login,ログイン,accounts/template
 UI-028,一般使用者,詞性／用字建議,Login,ログイン,accounts/templates/accounts/user_login.html:8,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<button type=""submit"">Login</button>"
 UI-029,登出模板；目前設定會重新導向,清晰度建議,user logout,ログアウトしました。,accounts/templates/accounts/user_logout.html:3,如顯示登出完成頁，說明結果。,<h1>user logout</h1>
 UI-030,一般使用者,拼字錯誤,user regist,新規登録,accounts/templates/accounts/user_regist.html:3,regist 不是此處正確英文。,<h1>user regist</h1>
-UI-031,一般使用者,拼字錯誤,Regist,登録する,accounts/templates/accounts/user_regist.html:8,使用正式註冊動詞。,"<button type=""submit"">Regist</button>"
+UI-031,一般使用者,文案縮短（已套用）,Regist,登録,accounts/templates/accounts/user_regist.html:8,2026-09-06 記錄，現已套用。現有 UI：「登録する」；建議：「登録」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：accounts/templates/accounts/user_regist.html:8。,"<button type=""submit"">Regist</button>"
 UI-032,全站,語系分流依賴,en-us,en-us,config/settings.py:113,保留英文預設；一般使用者介面另以 request／view 層啟用 ja，管理員專用畫面及後台使用 en-us。不是按 is_staff 一刀切：管理員進入一般使用者頁面時仍沿用該頁日文。自訂文字仍須分開處理。,LANGUAGE_CODE = 'en-us'
 UI-033,一般使用者,自動標籤日文化,Feedback type,種類,core/forms.py:FeedbackCreateForm:23,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,feedback_type = forms.ChoiceField(choices=FeedbackType.choices)
 UI-034,一般使用者,自動標籤／清晰度,Context,内容,core/forms.py:FeedbackCreateForm:24,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,"context = forms.CharField(max_length=255, widget=forms.Textarea)"
 UI-035,管理員,英文修訂,Context,Message,core/forms.py:FeedbackReplyForm:27,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,"context = forms.CharField(max_length=255, widget=forms.Textarea)"
 UI-036,一般使用者,一致性建議,Vocab Request Result,単語申請の審査結果,core/models.py:EventType:6,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"VOCAB_REQUEST_RESULT = ""vocab_request_result"", ""Vocab Request Result"""
 UI-037,管理員,英文修訂,New Vocab Request Result,New vocabulary request,core/models.py:EventType:7,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,"NEW_VOCAB_REQUEST = ""new_vocab_request"", ""New Vocab Request Result"""
-UI-038,一般使用者／共用來源,日文化,Vocab,単語,core/models.py:EventType:8,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"VOCAB = ""vocab"", ""Vocab"""
+UI-038,一般使用者／共用來源,日文化,Vocab,単語,core/models.py:EventType:8,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"VOCAB = ""vocab"", ""Vocab"""
 UI-039,一般使用者,清晰度建議,Weight Update by System,出題優先度の自動更新,core/models.py:EventType:9,明確指選題權重；目前未找到產生此通知的流程。,"WEIGHT_UPDATE_BY_SYSTEM = ""weight_update_by_system"", ""Weight Update by System"""
-UI-040,一般使用者／共用來源,日文化,Feedback Reply,フィードバックへの返信,core/models.py:EventType:10,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"FEEDBACK_REPLY = ""feedback_reply"", ""Feedback Reply"""
+UI-040,一般使用者／共用來源,日文化,Feedback Reply,フィードバックへの返信,core/models.py:EventType:10,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"FEEDBACK_REPLY = ""feedback_reply"", ""Feedback Reply"""
 UI-041,一般使用者,一致性建議,Vocab Suggestion,単語に関する提案,core/models.py:FeedbackType:13,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"VOCAB_SUGGESTION = ""vocab_suggestion"", ""Vocab Suggestion"""
 UI-042,一般使用者,一致性建議,Bulk Vocab Request,単語の一括追加申請,core/models.py:FeedbackType:14,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"BULK_VOCAB_REQUEST = ""bulk_vocab_request"", ""Bulk Vocab Request"""
-UI-043,一般使用者／共用來源,日文化,Bug Report,不具合の報告,core/models.py:FeedbackType:15,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"BUG_REPORT = ""bug_report"", ""Bug Report"""
-UI-044,一般使用者／共用來源,日文化,Feature Request,機能の追加・改善要望,core/models.py:FeedbackType:16,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"FEATURE_REQUEST = ""feature_request"", ""Feature Request"""
+UI-043,一般使用者／共用來源,日文化,Bug Report,不具合の報告,core/models.py:FeedbackType:15,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"BUG_REPORT = ""bug_report"", ""Bug Report"""
+UI-044,一般使用者／共用來源,日文化,Feature Request,機能の追加・改善要望,core/models.py:FeedbackType:16,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"FEATURE_REQUEST = ""feature_request"", ""Feature Request"""
 UI-045,一般使用者,用字建議,Others,その他,core/models.py:FeedbackType:17,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"OTHERS = ""others"", ""Others"""
 UI-046,管理員,英文保留,Pending,Pending,core/models.py:FeedbackStatus:20,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"PENDING = ""pending"", ""Pending"""
 UI-047,管理員,英文保留,Replied,Replied,core/models.py:FeedbackStatus:21,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"REPLIED = ""replied"", ""Replied"""
@@ -64,7 +64,7 @@ UI-062,一般使用者,清晰度建議,Event{% if unread_event_count %}({{ unrea
 UI-063,一般使用者,一致性建議,vocab,単語帳,core/templates/core/base.html:14,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""dictionary:user_vocab_list"" %}"">vocab</a>"
 UI-064,一般使用者,詞性／用字建議,logout,ログアウト,core/templates/core/base.html:15,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""#"" id=""logout-link"">logout</a>"
 UI-065,一般使用者,一致性建議,vocab,単語帳,core/templates/core/base.html:17,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""dictionary:vocab_list"" %}"">vocab</a>"
-UI-066,一般使用者,語意錯誤,sign in,登録する,core/templates/core/base.html:18,連結前往註冊頁；sign in 代表登入。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_regist"" %}"">sign in</a>"
+UI-066,一般使用者,文案縮短（已套用）,sign in,登録,core/templates/core/base.html:18,2026-09-06 記錄，現已套用。現有 UI：「登録する」；建議：「登録」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：core/templates/core/base.html:18。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_regist"" %}"">sign in</a>"
 UI-067,一般使用者,詞性／用字建議,login,ログイン,core/templates/core/base.html:19,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_login"" %}"">login</a>"
 UI-068,管理員,英文修訂,feedback({{ unreply_feedback_count }}),Feedback ({{ unreply_feedback_count }}),core/templates/core/base.html:24,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,feedback({{ unreply_feedback_count }})
 UI-069,一般使用者,一致性建議,feedback,フィードバック,core/templates/core/base.html:26,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,feedback
@@ -73,7 +73,7 @@ UI-071,模板存在；未找到目前路由／引用,一致性建議,home,ホー
 UI-072,模板存在；未找到目前路由／引用,一致性建議,profile,プロフィール,core/templates/core/base_clear.html:12,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_detail"" %}"">profile</a>"
 UI-073,模板存在；未找到目前路由／引用,清晰度建議,Event{% if unread_event_count %}({{ unread_event_count }}){% endif %},お知らせ{% if unread_event_count %}（{{ unread_event_count }}）{% endif %},core/templates/core/base_clear.html:13,列表包含多種通知；保留未讀數量及條件。,"<a class=""navbar-brand"" href=""{% url ""core:user_event_list"" %}"">Event{% if unread_event_count %}({{ unread_event_count }}){% endif %}</a>"
 UI-074,模板存在；未找到目前路由／引用,詞性／用字建議,logout,ログアウト,core/templates/core/base_clear.html:14,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""#"" id=""logout-link"">logout</a>"
-UI-075,模板存在；未找到目前路由／引用,語意錯誤,sign in,登録する,core/templates/core/base_clear.html:16,連結前往註冊頁；sign in 代表登入。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_regist"" %}"">sign in</a>"
+UI-075,模板存在；未找到目前路由／引用,文案縮短（已套用）,sign in,登録,core/templates/core/base_clear.html:16,2026-09-06 記錄，現已套用。現有 UI：「登録する」；建議：「登録」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：core/templates/core/base_clear.html:16。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_regist"" %}"">sign in</a>"
 UI-076,模板存在；未找到目前路由／引用,詞性／用字建議,login,ログイン,core/templates/core/base_clear.html:17,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""accounts:user_login"" %}"">login</a>"
 UI-077,模板存在；未找到目前路由／引用,一致性建議,vocab,単語帳,core/templates/core/base_clear.html:19,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a class=""navbar-brand"" href=""{% url ""dictionary:vocab_home"" %}"">vocab</a>"
 UI-078,模板存在；未找到目前路由／引用,文法／清晰度,no unread event,未読のお知らせはありません。,core/templates/core/event/no_unread_event.html:3,否定數量使用複數，並統一通知用語。,<h1>no unread event</h1>
@@ -92,10 +92,10 @@ UI-090,一般使用者,清晰度建議,user event list,お知らせ,core/templat
 UI-091,一般使用者,日文化,All,すべて,core/templates/core/event/user_event_list.html:6,原英文未必有錯；為達全日文 UI 而翻譯。,"<option value="""">All</option>"
 UI-092,一般使用者,日文化,Unread,未読,core/templates/core/event/user_event_list.html:7,原英文未必有錯；為達全日文 UI 而翻譯。,"<option value=""unread"">Unread</option>"
 UI-093,一般使用者,一致性建議,read,既読,core/templates/core/event/user_event_list.html:8,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<option value=""read"">read</option>"
-UI-094,一般使用者,清晰度建議,feedback Create,フィードバックを送信する,core/templates/core/feedback/feedback_create.html:3,自然語序；回覆頁另外使用 Reply to feedback。,<h1>feedback Create</h1>
-UI-095,一般使用者,清晰度建議,Create,フィードバックを送信する,core/templates/core/feedback/feedback_create.html:7,明確指出送出回饋。,"<button type=""submit"">Create</button>"
+UI-094,一般使用者,文案縮短（已套用）,feedback Create,フィードバック,core/templates/core/feedback/feedback_create.html:3,2026-09-06 記錄，現已套用。現有 UI：「フィードバックを送信する」；建議：「フィードバック」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：core/templates/core/feedback/feedback_create.html:3。,<h1>feedback Create</h1>
+UI-095,一般使用者,文案縮短（已套用）,Create,送信,core/templates/core/feedback/feedback_create.html:7,2026-09-06 記錄，現已套用。現有 UI：「フィードバックを送信する」；建議：「送信」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：core/templates/core/feedback/feedback_create.html:7。,"<button type=""submit"">Create</button>"
 UI-096,管理員,英文修訂,vocab detail,Feedback details,core/templates/core/feedback/feedback_detail.html:3,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,<h1>vocab detail</h1>
-UI-097,管理員,內部代碼外露,{{ feedback.type }},{{ feedback.get_type_display }},core/templates/core/feedback/feedback_detail.html:5,管理員專用畫面：顯示可讀的英文類別標籤，保留內部代碼；共用 choices 的日文呈現須按介面分開。 顯示值須配合頁面語系；管理員專用的新申請通知可保留英文。,{{ feedback.type }}
+UI-097,管理員,內部代碼外露,{{ feedback.type }},{{ feedback.get_type_display }},core/templates/core/feedback/feedback_detail.html:5,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,{{ feedback.type }}
 UI-098,管理員,英文保留,Reply,Reply,core/templates/core/feedback/feedback_detail.html:7,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"<a href=""{% url ""core:feedback_reply"" feedback_pk=feedback.pk%}"" class=""btn btn-primary"">Reply</a>"
 UI-099,管理員,英文修訂,feedback list,Feedback,core/templates/core/feedback/feedback_list.html:3,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,<h1>feedback list</h1>
 UI-100,管理員,英文修訂,feedback Create,Reply to feedback,core/templates/core/feedback/feedback_reply.html:3,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,<h1>feedback Create</h1>
@@ -104,7 +104,7 @@ UI-102,管理員,英文修訂,user,User,core/templates/core/feedback/partials/fe
 UI-103,管理員,英文保留,Type,Type,core/templates/core/feedback/partials/feedback_list_partial.html:5,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,<th>Type</th>
 UI-104,管理員,英文修訂,context,Message,core/templates/core/feedback/partials/feedback_list_partial.html:6,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,<th>context</th>
 UI-105,管理員,英文修訂,check it,Details,core/templates/core/feedback/partials/feedback_list_partial.html:7,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,<th>check it</th>
-UI-106,管理員,內部代碼外露,{{ feedback.type }},{{ feedback.get_type_display }},core/templates/core/feedback/partials/feedback_list_partial.html:14,管理員專用畫面：顯示可讀的英文類別標籤，保留內部代碼；共用 choices 的日文呈現須按介面分開。 顯示值須配合頁面語系；管理員專用的新申請通知可保留英文。,<td>{{ feedback.type }}</td>
+UI-106,管理員,內部代碼外露,{{ feedback.type }},{{ feedback.get_type_display }},core/templates/core/feedback/partials/feedback_list_partial.html:14,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,<td>{{ feedback.type }}</td>
 UI-107,管理員,英文修訂,Detail,View details,core/templates/core/feedback/partials/feedback_list_partial.html:18,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,Detail
 UI-108,管理員,英文修訂,Prev,Previous,core/templates/core/feedback/partials/feedback_list_partial.html:28,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,"<a href=""?page={{ page_obj.previous_page_number }}"" class=""page-change"">Prev</a>"
 UI-109,管理員,英文修訂,Prev,Previous,core/templates/core/feedback/partials/feedback_list_partial.html:30,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,Prev
@@ -137,32 +137,32 @@ UI-135,一般使用者,精確性建議,The same word already exists on the activ
 UI-136,一般使用者,清晰度建議,Target vocab is missing,更新対象の単語が見つかりません。,dictionary/forms.py:VocabUpdateRequestForm:clean:88,避免內部用詞 target vocab。,"raise ValidationError(""Target vocab is missing"")"
 UI-137,一般使用者,精確性建議,The same word already exists on the active list.,同じ単語と読み方の有効な項目がすでに登録されています。,dictionary/forms.py:VocabUpdateRequestForm:clean:97,實際查重同時比較 word 和 kana。,"self.add_error('word', 'The same word already exists on the active list.')"
 UI-138,一般使用者,精確性建議,"The same word already exists on the list, but it has been deactivated.",同じ単語と読み方の無効な項目がすでに登録されています。,dictionary/forms.py:VocabUpdateRequestForm:clean:99,實際查重同時比較 word 和 kana。,"self.add_error('word', 'The same word already exists on the list, but it has been deactivated.')"
-UI-139,一般使用者,自動標籤／清晰度,Confirm,この単語の削除を申請することを確認しました,dictionary/forms.py:VocabDeleteRequestForm:104,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,confirm = forms.BooleanField(required=False)
+UI-139,一般使用者,文案縮短（已套用）,Confirm,削除申請を確認しました,dictionary/forms.py:VocabDeleteRequestForm:104,2026-09-06 記錄，現已套用。現有 UI：「この単語の削除を申請することを確認しました」；建議：「削除申請を確認しました」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/forms.py:104。,confirm = forms.BooleanField(required=False)
 UI-140,一般使用者,清晰度建議,Please confirm the action,この単語の削除を申請する場合は、確認欄にチェックを入れてください。,dictionary/forms.py:VocabDeleteRequestForm:clean_confirm:109,明確說明確認的是刪除申請。,"raise ValidationError(""Please confirm the action"")"
 UI-141,一般使用者,自動標籤日文化,Word,単語,dictionary/forms.py:VocabSearchForm:113,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,"word = forms.CharField(max_length=50, required=False)"
 UI-142,一般使用者,自動標籤日文化,Kana,読み方（かな）,dictionary/forms.py:VocabSearchForm:114,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,"kana = forms.CharField(max_length=255, required=False)"
-UI-143,一般使用者,清晰度建議,-----,すべての種類,dictionary/forms.py:VocabSearchForm:116,空選項實際代表不限制篩選；破折號未交代意思。,"choices=[("""",""-----"")] + list(VocabType.choices),"
+UI-143,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:VocabSearchForm:116,2026-09-06 使用者確認：篩選欄旁已有「種類」標籤，空選項縮短為「すべて」。已套用。,"choices=[("""",""-----"")] + list(VocabType.choices),"
 UI-144,一般使用者,日文化,Type,種類,dictionary/forms.py:VocabSearchForm:118,原英文未必有錯；為達全日文 UI 而翻譯。,"label=""Type"","
 UI-145,一般使用者,自動標籤日文化,Level,JLPTレベル,dictionary/forms.py:VocabSearchForm:120,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,level = forms.ChoiceField(
-UI-146,一般使用者,清晰度建議,-----,すべてのレベル,dictionary/forms.py:VocabSearchForm:121,空選項實際代表不限制篩選；破折號未交代意思。,"choices=[("""",""-----"")] + list(VocabLevel.choices),"
+UI-146,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:VocabSearchForm:121,2026-09-06 使用者確認：篩選欄旁已有「JLPTレベル」標籤，空選項縮短為「すべて」。已套用。,"choices=[("""",""-----"")] + list(VocabLevel.choices),"
 UI-147,一般使用者,自動標籤日文化,Category,カテゴリー,dictionary/forms.py:VocabSearchForm:124,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,category = forms.ModelChoiceField(
-UI-148,一般使用者,清晰度建議,-----,すべてのカテゴリー,dictionary/forms.py:VocabSearchForm:127,空選項實際代表不限制篩選；破折號未交代意思。,"empty_label=""-----"""
+UI-148,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:VocabSearchForm:127,2026-09-06 使用者確認：篩選欄旁已有「カテゴリー」標籤，空選項縮短為「すべて」。已套用。,"empty_label=""-----"""
 UI-149,一般使用者,用字錯誤,No Matter,すべて,dictionary/forms.py:UserVocabInUse:134,篩選不限狀態應使用 All；No Matter 不是自然選項。,"(NO_MATTER, ""No Matter""),"
 UI-150,一般使用者,日文化,Yes,はい,dictionary/forms.py:UserVocabInUse:135,原英文未必有錯；為達全日文 UI 而翻譯。,"(YES, ""Yes""),"
 UI-151,一般使用者,日文化,No,いいえ,dictionary/forms.py:UserVocabInUse:136,原英文未必有錯；為達全日文 UI 而翻譯。,"(NO, ""No""),"
 UI-152,一般使用者,自動標籤／清晰度,In use,出題対象,dictionary/forms.py:UserVocabSearchForm:140,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,in_use = forms.ChoiceField(
 UI-153,一般使用者,自動標籤日文化,Word,単語,dictionary/forms.py:UserVocabSearchForm:144,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,"word = forms.CharField(max_length=50, required=False)"
 UI-154,一般使用者,自動標籤日文化,Kana,読み方（かな）,dictionary/forms.py:UserVocabSearchForm:145,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,"kana = forms.CharField(max_length=255, required=False)"
-UI-155,一般使用者,清晰度建議,-----,すべての種類,dictionary/forms.py:UserVocabSearchForm:147,空選項實際代表不限制篩選；破折號未交代意思。,"choices=[("""",""-----"")] + list(VocabType.choices),"
+UI-155,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:UserVocabSearchForm:147,2026-09-06 使用者確認：篩選欄旁已有「種類」標籤，空選項縮短為「すべて」。已套用。,"choices=[("""",""-----"")] + list(VocabType.choices),"
 UI-156,一般使用者,日文化,Type,種類,dictionary/forms.py:UserVocabSearchForm:149,原英文未必有錯；為達全日文 UI 而翻譯。,"label=""Type"","
 UI-157,一般使用者,自動標籤日文化,Level,JLPTレベル,dictionary/forms.py:UserVocabSearchForm:151,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,level = forms.ChoiceField(
-UI-158,一般使用者,清晰度建議,-----,すべてのレベル,dictionary/forms.py:UserVocabSearchForm:152,空選項實際代表不限制篩選；破折號未交代意思。,"choices=[("""",""-----"")] + list(VocabLevel.choices),"
+UI-158,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:UserVocabSearchForm:152,2026-09-06 使用者確認：篩選欄旁已有「JLPTレベル」標籤，空選項縮短為「すべて」。已套用。,"choices=[("""",""-----"")] + list(VocabLevel.choices),"
 UI-159,一般使用者,自動標籤日文化,Category,カテゴリー,dictionary/forms.py:UserVocabSearchForm:155,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,category = forms.ModelChoiceField(
-UI-160,一般使用者,清晰度建議,-----,すべてのカテゴリー,dictionary/forms.py:UserVocabSearchForm:158,空選項實際代表不限制篩選；破折號未交代意思。,"empty_label=""-----"","
+UI-160,一般使用者,文案縮短（已套用）,-----,すべて,dictionary/forms.py:UserVocabSearchForm:158,2026-09-06 使用者確認：篩選欄旁已有「カテゴリー」標籤，空選項縮短為「すべて」。已套用。,"empty_label=""-----"","
 UI-161,未接路由的表單,自動標籤／清晰度,Vocabs,単語帳,dictionary/forms.py:UserVocabSelectForm:162,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,vocabs = forms.ModelMultipleChoiceField(
 UI-162,一般使用者,自動標籤／清晰度,In use,出題対象,dictionary/forms.py:UserVocabInUseSingleUpdateForm:192,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,in_use = forms.BooleanField(required=False)
-UI-163,一般使用者／共用來源,日文化,Vocab,一般語彙,dictionary/models.py:VocabType:8,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"VOCAB = ""vocab"", ""Vocab"""
-UI-164,一般使用者／共用來源,日文化,Katakana,カタカナ語,dictionary/models.py:VocabType:9,原英文未必有錯；為達全日文 UI 而翻譯。 共用來源：一般使用者顯示日文，管理員英文介面採英文標籤；勿直接把共用 choices 改成單一日文。,"KATAKANA = ""katakana"", ""Katakana"""
+UI-163,一般使用者／共用來源,日文化,Vocab,一般語彙,dictionary/models.py:VocabType:8,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"VOCAB = ""vocab"", ""Vocab"""
+UI-164,一般使用者／共用來源,日文化,Katakana,カタカナ語,dictionary/models.py:VocabType:9,使用者與管理員共用的文字統一使用日文，不另作英文分流；管理員專用的新申請通知例外，維持英文。,"KATAKANA = ""katakana"", ""Katakana"""
 UI-165,一般使用者,日文保留／用語確認,未定義,未設定,dictionary/models.py:VocabLevel:16,日文可保留；未定義等級以「未設定」更貼近使用者。,"JLPT_N0 = ""0"", ""未定義"""
 UI-166,管理員,英文保留,Category,Category,dictionary/models.py:Category:24,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"name = models.CharField(verbose_name=""Category"", max_length=50, unique=True)"
 UI-167,管理員,英文修訂,Display,Display name,dictionary/models.py:Category:25,僅管理員可見，保留英文。修正文法、用字或標籤清晰度。,"display = models.CharField(max_length=50, blank=True, null=True)"
@@ -227,21 +227,21 @@ UI-225,管理員,英文保留,Approve,Approve,dictionary/templates/admin/diction
 UI-226,管理員,英文保留,Reject,Reject,dictionary/templates/admin/dictionary/vocabrequest/change_form.html:9,僅管理員可見，保留英文。原句可用，毋須翻譯或修改。,"<button type=""submit"" name=""_reject"" value=1 class=""default"">Reject</button>"
 UI-227,一般使用者,清晰度建議,All,すべて出題対象にする,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:8,全選框控制是否納入測驗。,"<label for=""select-all"">All</label>"
 UI-228,一般使用者,一致性建議,word,単語,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:10,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>word</th>
-UI-229,一般使用者,一致性建議,kana,読み方（かな）,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:11,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>kana</th>
+UI-229,一般使用者,文案縮短（已套用）,kana,読み方,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:11,2026-09-06 使用者確認：列表表頭縮短為「読み方」；輸入欄繼續使用「読み方（かな）」。已套用。,<th>kana</th>
 UI-230,一般使用者,一致性建議,meaning,意味,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:12,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>meaning</th>
-UI-231,一般使用者,清晰度建議,Update,出題対象を保存する,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:34,儲存納入測驗的字彙選擇。,"<button type=""submit"">Update</button>"
+UI-231,一般使用者,文案縮短（已套用）,Update,保存,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:34,2026-09-06 記錄，現已套用。現有 UI：「出題対象を保存する」；建議：「保存」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/partials/user_vocab_list_partial.html:34。,"<button type=""submit"">Update</button>"
 UI-232,一般使用者,一致性建議,Prev,前へ,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:39,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}"" class=""page-change"">Prev</a>"
 UI-233,一般使用者,一致性建議,Prev,前へ,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:41,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,Prev
 UI-234,一般使用者,日文化,Next,次へ,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:53,原英文未必有錯；為達全日文 UI 而翻譯。,"<a href=""?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}"" class=""page-change"">Next</a>"
 UI-235,一般使用者,日文化,Next,次へ,dictionary/templates/dictionary/partials/user_vocab_list_partial.html:55,原英文未必有錯；為達全日文 UI 而翻譯。,Next
 UI-236,一般使用者,一致性建議,id,ID,dictionary/templates/dictionary/partials/vocab_list_partial.html:4,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>id</th>
 UI-237,一般使用者,一致性建議,word,単語,dictionary/templates/dictionary/partials/vocab_list_partial.html:5,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>word</th>
-UI-238,一般使用者,一致性建議,kana,読み方（かな）,dictionary/templates/dictionary/partials/vocab_list_partial.html:6,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<th>kana</th>
+UI-238,一般使用者,文案縮短（已套用）,kana,読み方,dictionary/templates/dictionary/partials/vocab_list_partial.html:6,2026-09-06 使用者確認：列表表頭縮短為「読み方」；輸入欄繼續使用「読み方（かな）」。已套用。,<th>kana</th>
 UI-239,一般使用者,一致性建議,Prev,前へ,dictionary/templates/dictionary/partials/vocab_list_partial.html:23,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}"" class=""page-change"">Prev</a>"
 UI-240,一般使用者,一致性建議,Prev,前へ,dictionary/templates/dictionary/partials/vocab_list_partial.html:25,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,Prev
 UI-241,一般使用者,日文化,Next,次へ,dictionary/templates/dictionary/partials/vocab_list_partial.html:37,原英文未必有錯；為達全日文 UI 而翻譯。,"<a href=""?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}"" class=""page-change"">Next</a>"
 UI-242,一般使用者,日文化,Next,次へ,dictionary/templates/dictionary/partials/vocab_list_partial.html:39,原英文未必有錯；為達全日文 UI 而翻譯。,Next
-UI-243,模板存在；未找到目前路由／引用,一致性建議,select vocab,単語を選択する,dictionary/templates/dictionary/select_vocab.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<h1>select vocab</h1>
+UI-243,模板存在；未找到目前路由／引用,文案縮短（已套用）,select vocab,単語の選択,dictionary/templates/dictionary/select_vocab.html:3,2026-09-06 記錄，現已套用。現有 UI：「単語を選択する」；建議：「単語の選択」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/select_vocab.html:3。,<h1>select vocab</h1>
 UI-244,一般使用者,清晰度建議,user vocab detail,マイ単語帳の詳細,dictionary/templates/dictionary/user_vocab_detail.html:3,說明個人字庫條目。,<h1>user vocab detail</h1>
 UI-245,一般使用者,清晰度／一致性建議,in use :,出題対象：,dictionary/templates/dictionary/user_vocab_detail.html:6,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<div>in use : {{ in_use_form.in_use }}</div>
 UI-246,一般使用者,清晰度／一致性建議,weight :,出題優先度：,dictionary/templates/dictionary/user_vocab_detail.html:7,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<div>weight : {{ user_vocab.weight }}</div>
@@ -252,7 +252,7 @@ UI-250,一般使用者,清晰度／一致性建議,streak :,連続正解・不�
 UI-251,一般使用者,拼字錯誤,last quit at :,最終出題日時：,dictionary/templates/dictionary/user_vocab_detail.html:11,quit 誤寫為離開，實際是最後測驗時間。,<div>last quit at : {{ user_vocab.last_quiz_at }}</div>
 UI-252,一般使用者,清晰度／一致性建議,last answer :,前回の回答：,dictionary/templates/dictionary/user_vocab_detail.html:13,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,last answer :
 UI-253,一般使用者,清晰度建議,None,回答履歴はありません。,dictionary/templates/dictionary/user_vocab_detail.html:25,說明欠缺的是作答紀錄。,None
-UI-254,一般使用者,清晰度建議,Update InUse,出題設定を保存する,dictionary/templates/dictionary/user_vocab_detail.html:28,InUse 是內部欄位名；此按鈕儲存是否納入測驗。,"<button type=""submit"">Update InUse</button>"
+UI-254,一般使用者,文案縮短（已套用）,Update InUse,保存,dictionary/templates/dictionary/user_vocab_detail.html:28,2026-09-06 記錄，現已套用。現有 UI：「出題設定を保存する」；建議：「保存」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/user_vocab_detail.html:30。,"<button type=""submit"">Update InUse</button>"
 UI-255,一般使用者,清晰度建議,vocab section,単語の詳細,dictionary/templates/dictionary/user_vocab_detail.html:31,自然的區塊標題。,<h3>vocab section</h3>
 UI-256,一般使用者,清晰度／一致性建議,word :,単語：,dictionary/templates/dictionary/user_vocab_detail.html:32,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<div>word : {{ user_vocab.vocab.word }}</div>
 UI-257,一般使用者,清晰度／一致性建議,meaning :,意味：,dictionary/templates/dictionary/user_vocab_detail.html:33,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<div>meaning : {{ user_vocab.vocab.meaning }}</div>
@@ -263,28 +263,28 @@ UI-261,一般使用者,清晰度／一致性建議,type :,種類：,dictionary/t
 UI-262,一般使用者,內部代碼外露,{{ user_vocab.vocab.type }},{{ user_vocab.vocab.get_type_display }},dictionary/templates/dictionary/user_vocab_detail.html:36,目前顯示 vocab／katakana 內部值。 顯示標籤的 model choices 亦須日文化；分類採現有日文 display。 顯示值須配合頁面語系；管理員專用的新申請通知可保留英文。,<div>type : {{ user_vocab.vocab.type }}</div>
 UI-263,一般使用者,清晰度／一致性建議,categories :,カテゴリー：,dictionary/templates/dictionary/user_vocab_detail.html:38,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,categories :
 UI-264,一般使用者,內部代碼外露,{{ category.name }},{{ category }},dictionary/templates/dictionary/user_vocab_detail.html:40,name 是 people_relationships 等內部代碼；__str__ 已使用日文 display。 顯示標籤的 model choices 亦須日文化；分類採現有日文 display。,<div>{{ category.name }}</div>
-UI-265,一般使用者,語言一致性／語意,更新,変更を申請する,dictionary/templates/dictionary/user_vocab_detail.html:43,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""{% url ""dictionary:vocab_update"" vocab_id=user_vocab.vocab.pk%}"" class=""btn btn-primary"">更新</a>"
-UI-266,一般使用者,清晰度建議,del,削除を申請する,dictionary/templates/dictionary/user_vocab_detail.html:44,避免縮寫，說明需提交申請。,"<a href=""{% url ""dictionary:vocab_delete"" vocab_id=user_vocab.vocab.pk%}"" class=""btn btn-primary"">del</a>"
-UI-267,一般使用者,語意錯誤,last page,マイ単語帳に戻る,dictionary/templates/dictionary/user_vocab_detail.html:45,連結指向個人列表；last page 通常指最後一頁。,"<a href=""{% url ""dictionary:user_vocab_list""%}"" class=""btn btn-primary"">last page</a>"
+UI-265,一般使用者,文案縮短（已套用）,更新,変更申請,dictionary/templates/dictionary/user_vocab_detail.html:43,2026-09-06 記錄，現已套用。現有 UI：「変更を申請する」；建議：「変更申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/user_vocab_detail.html:45。 保留申請／結束的操作含義。,"<a href=""{% url ""dictionary:vocab_update"" vocab_id=user_vocab.vocab.pk%}"" class=""btn btn-primary"">更新</a>"
+UI-266,一般使用者,文案縮短（已套用）,del,削除申請,dictionary/templates/dictionary/user_vocab_detail.html:44,2026-09-06 記錄，現已套用。現有 UI：「削除を申請する」；建議：「削除申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/user_vocab_detail.html:46。 保留申請／結束的操作含義。,"<a href=""{% url ""dictionary:vocab_delete"" vocab_id=user_vocab.vocab.pk%}"" class=""btn btn-primary"">del</a>"
+UI-267,一般使用者,文案縮短（已套用）,last page,一覧に戻る,dictionary/templates/dictionary/user_vocab_detail.html:45,2026-09-06 記錄，現已套用。現有 UI：「マイ単語帳に戻る」；建議：「一覧に戻る」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/user_vocab_detail.html:47。,"<a href=""{% url ""dictionary:user_vocab_list""%}"" class=""btn btn-primary"">last page</a>"
 UI-268,一般使用者,清晰度建議,user vocab list,マイ単語帳,dictionary/templates/dictionary/user_vocab_list.html:3,避免內部模型名稱。,<h1>user vocab list</h1>
 UI-269,一般使用者,語意澄清,Create Vocab,単語の追加を申請する,dictionary/templates/dictionary/user_vocab_list.html:5,建立的是待審批申請，並非立即新增字庫。,"<a href=""{% url ""dictionary:vocab_create"" %}"" class=""btn btn-primary"">Create Vocab</a>"
 UI-270,一般使用者,文法錯誤,"please using feedback ""bulk vocab request"" if you have a lot of vocab want to create",複数の単語をまとめて追加したい場合は、フィードバックフォームで「単語の一括追加申請」を選択してください。,dictionary/templates/dictionary/user_vocab_list.html:6,please 後面用原形動詞；原句缺乏關係結構。選項名稱須與 FeedbackType 同步。,"please using feedback ""bulk vocab request"" if you have a lot of vocab want to create"
-UI-271,一般使用者,清晰度建議,confirm,検索する,dictionary/templates/dictionary/user_vocab_list.html:9,按鈕提交搜尋條件。,"<button type=""submit"">confirm</button>"
+UI-271,一般使用者,文案縮短（已套用）,confirm,検索,dictionary/templates/dictionary/user_vocab_list.html:9,2026-09-06 記錄，現已套用。現有 UI：「検索する」；建議：「検索」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/user_vocab_list.html:9。,"<button type=""submit"">confirm</button>"
 UI-272,一般使用者,清晰度建議,vocab create,単語の追加を申請する,dictionary/templates/dictionary/vocab_create.html:3,標題表達申請用途。,<h1>vocab create</h1>
-UI-273,一般使用者,清晰度建議,create,申請する,dictionary/templates/dictionary/vocab_create.html:7,建立待審批申請。,"<button type=""submit"">create</button>"
+UI-273,一般使用者,文案縮短（已套用）,create,申請,dictionary/templates/dictionary/vocab_create.html:7,2026-09-06 記錄，現已套用。現有 UI：「申請する」；建議：「申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_create.html:7。 保留申請／結束的操作含義。,"<button type=""submit"">create</button>"
 UI-274,一般使用者,清晰度建議,vocab delete,単語の削除申請,dictionary/templates/dictionary/vocab_delete.html:3,標題表達申請用途。,<h1>vocab delete</h1>
-UI-275,一般使用者,清晰度建議,Delete,削除を申請する,dictionary/templates/dictionary/vocab_delete.html:7,刪除須經審批。,"<button type=""submit"">Delete</button>"
+UI-275,一般使用者,文案縮短（已套用）,Delete,削除申請,dictionary/templates/dictionary/vocab_delete.html:7,2026-09-06 記錄，現已套用。現有 UI：「削除を申請する」；建議：「削除申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_delete.html:7。 保留申請／結束的操作含義。,"<button type=""submit"">Delete</button>"
 UI-276,一般使用者,清晰度建議,vocab detail,単語の詳細,dictionary/templates/dictionary/vocab_detail.html:3,以「単語の詳細」表達頁面用途。,<h1>vocab detail</h1>
-UI-277,一般使用者,語言一致性／語意,更新,変更を申請する,dictionary/templates/dictionary/vocab_detail.html:6,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""{% url ""dictionary:vocab_update"" vocab_id=vocab.pk%}"" class=""btn btn-primary"">更新</a>"
-UI-278,一般使用者,清晰度建議,del,削除を申請する,dictionary/templates/dictionary/vocab_detail.html:7,避免縮寫，說明需提交申請。,"<a href=""{% url ""dictionary:vocab_delete"" vocab_id=vocab.pk%}"" class=""btn btn-primary"">del</a>"
+UI-277,一般使用者,文案縮短（已套用）,更新,変更申請,dictionary/templates/dictionary/vocab_detail.html:6,2026-09-06 記錄，現已套用。現有 UI：「変更を申請する」；建議：「変更申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_detail.html:6。 保留申請／結束的操作含義。,"<a href=""{% url ""dictionary:vocab_update"" vocab_id=vocab.pk%}"" class=""btn btn-primary"">更新</a>"
+UI-278,一般使用者,文案縮短（已套用）,del,削除申請,dictionary/templates/dictionary/vocab_detail.html:7,2026-09-06 記錄，現已套用。現有 UI：「削除を申請する」；建議：「削除申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_detail.html:7。 保留申請／結束的操作含義。,"<a href=""{% url ""dictionary:vocab_delete"" vocab_id=vocab.pk%}"" class=""btn btn-primary"">del</a>"
 UI-279,一般使用者,一致性建議,vocab home,単語帳,dictionary/templates/dictionary/vocab_home.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<h1>vocab home</h1>
-UI-280,一般使用者,清晰度建議,List,単語一覧を見る,dictionary/templates/dictionary/vocab_home.html:4,說明前往共用字庫。,"<a href=""{% url ""dictionary:vocab_list"" %}"">List</a>"
+UI-280,一般使用者,文案縮短（已套用）,List,単語一覧,dictionary/templates/dictionary/vocab_home.html:4,2026-09-06 記錄，現已套用。現有 UI：「単語一覧を見る」；建議：「単語一覧」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_home.html:4。,"<a href=""{% url ""dictionary:vocab_list"" %}"">List</a>"
 UI-281,一般使用者,清晰度建議,Create,単語の追加を申請する,dictionary/templates/dictionary/vocab_home.html:6,說明新增申請。,"<a href=""{% url ""dictionary:vocab_create"" %}"">Create</a>"
 UI-282,一般使用者,清晰度建議,MyList,マイ単語帳,dictionary/templates/dictionary/vocab_home.html:7,避免程式式連寫。,"<a href=""{% url ""dictionary:user_vocab_list"" %}"">MyList</a>"
 UI-283,一般使用者,一致性建議,vocab list,単語帳,dictionary/templates/dictionary/vocab_list.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<h1>vocab list</h1>
-UI-284,一般使用者,清晰度建議,confirm,検索する,dictionary/templates/dictionary/vocab_list.html:6,按鈕提交搜尋條件。,"<button type=""submit"">confirm</button>"
+UI-284,一般使用者,文案縮短（已套用）,confirm,検索,dictionary/templates/dictionary/vocab_list.html:6,2026-09-06 記錄，現已套用。現有 UI：「検索する」；建議：「検索」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_list.html:6。,"<button type=""submit"">confirm</button>"
 UI-285,一般使用者,清晰度建議,vocab update,単語の変更申請,dictionary/templates/dictionary/vocab_update.html:3,標題表達申請用途。,<h1>vocab update</h1>
-UI-286,一般使用者,清晰度建議,confirm,変更を申請する,dictionary/templates/dictionary/vocab_update.html:7,更新須經審批。,"<button type=""submit"">confirm</button>"
+UI-286,一般使用者,文案縮短（已套用）,confirm,変更申請,dictionary/templates/dictionary/vocab_update.html:7,2026-09-06 記錄，現已套用。現有 UI：「変更を申請する」；建議：「変更申請」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：dictionary/templates/dictionary/vocab_update.html:7。 保留申請／結束的操作含義。,"<button type=""submit"">confirm</button>"
 UI-287,一般使用者,清晰度建議,The same word already exists on the list. A restore request has been sent to admin for review.,同じ単語と読み方の無効な項目がすでに登録されています。復元申請を送信しました。管理者の審査をお待ちください。,dictionary/views.py:VocabCreateRequestView:form_valid:89,解釋為何需要還原，並統一 review 用詞。,"messages.success(self.request, ""The same word already exists on the list. A restore request has been sent to admin for review."")"
 UI-288,一般使用者,贅字／清晰度,"The same word already exists on the list, and a review request is already waiting for admin review.",同じ単語と読み方の項目がすでに登録されており、申請は管理者の審査待ちです。,dictionary/views.py:VocabCreateRequestView:form_valid:99,避免 review request、admin review 重複。,"messages.info(self.request, ""The same word already exists on the list, and a review request is already waiting for admin review."")"
 UI-289,一般使用者,用字建議,A new word request has been sent to admin for confirmation.,単語の追加申請を送信しました。管理者の審査をお待ちください。,dictionary/views.py:VocabCreateRequestView:form_valid:128,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"messages.success(self.request, ""A new word request has been sent to admin for confirmation."")"
@@ -302,12 +302,12 @@ UI-300,一般使用者,用字建議,No Limit,無制限,quiz/forms.py:QuizSetting
 UI-301,一般使用者,日文化,Type,種類,quiz/forms.py:QuizSettingForm:20,原英文未必有錯；為達全日文 UI 而翻譯。,"label=""Type"","
 UI-302,一般使用者,自動標籤日文化,Level,JLPTレベル,quiz/forms.py:QuizSettingForm:23,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,level = forms.MultipleChoiceField(
 UI-303,一般使用者,自動標籤日文化,Categories,カテゴリー,quiz/forms.py:QuizSettingForm:28,Django 自動從欄位名產生英文標籤；需明確提供日文 label，不能只依賴語言設定。,categories = forms.ModelMultipleChoiceField(
-UI-304,一般使用者,自動標籤／清晰度,Use last setting,前回の設定を使う,quiz/forms.py:QuizSettingForm:33,沒有明確 label 時由 Django 欄位名產生；建議僅調整顯示標籤，毋須改內部欄位名。,use_last_setting = forms.BooleanField(required=False)
+UI-304,一般使用者,文案縮短（已套用）,Use last setting,前回の設定を使用,quiz/forms.py:QuizSettingForm:33,2026-09-06 使用者確認：將現有「前回の設定を使う」縮短為「前回の設定を使用」。已套用。,use_last_setting = forms.BooleanField(required=False)
 UI-305,一般使用者,清晰度建議,"No vocab matched your selected filters, so the quiz is using your full active vocab pool.",条件に一致する単語がありません。今回は、出題対象に設定したすべての単語から出題します。,quiz/helper.py:build_next_question_payload:70,pool 是內部用語；此處是後備出題提示。,"""No vocab matched your selected filters, so the quiz is using your full active vocab pool."""
 UI-306,一般使用者,清晰度建議,BS,1文字削除,quiz/templates/quiz/partials/quiz_input_panel_partial.html:16,縮寫對一般使用者不明確。,BS
-UI-307,一般使用者,清晰度建議,Hide,キーボードを隠す,quiz/templates/quiz/partials/quiz_input_panel_partial.html:19,說明隱藏對象。,Hide
+UI-307,一般使用者,文案縮短（已套用）,Hide,隠す,quiz/templates/quiz/partials/quiz_input_panel_partial.html:19,2026-09-06 記錄，現已套用。現有 UI：「キーボードを隠す」；建議：「隠す」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：quiz/templates/quiz/partials/quiz_input_panel_partial.html:20。,Hide
 UI-308,一般使用者,日文化,No questions are available.,出題できる問題がありません。,quiz/templates/quiz/partials/quiz_no_question_partial.html:8,原英文未必有錯；為達全日文 UI 而翻譯。,No questions are available.
-UI-309,一般使用者,清晰度建議,Back to Settings,クイズ設定に戻る,quiz/templates/quiz/partials/quiz_no_question_partial.html:9,說明返回的設定頁。,"<a href=""{% url ""quiz:quiz_setting"" %}"">Back to Settings</a>"
+UI-309,一般使用者,文案縮短（已套用）,Back to Settings,設定に戻る,quiz/templates/quiz/partials/quiz_no_question_partial.html:9,2026-09-06 記錄，現已套用。現有 UI：「クイズ設定に戻る」；建議：「設定に戻る」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：quiz/templates/quiz/partials/quiz_no_question_partial.html:9。,"<a href=""{% url ""quiz:quiz_setting"" %}"">Back to Settings</a>"
 UI-310,一般使用者,語言一致性建議,{{ current_quiz_num }}/{{ total_quiz_num }}問,第{{ current_quiz_num }}問／全{{ total_quiz_num }}問,quiz/templates/quiz/partials/quiz_question_partial.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,{{ current_quiz_num }}/{{ total_quiz_num }}問
 UI-311,一般使用者,日文保留／用語確認,第{{ current_quiz_num }}問,第{{ current_quiz_num }}問,quiz/templates/quiz/partials/quiz_question_partial.html:5,原句日文自然，可保留。,第{{ current_quiz_num }}問
 UI-312,一般使用者,用字建議,Tip,ヒント,quiz/templates/quiz/partials/quiz_question_partial.html:22,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<button type=""button"" class=""tips-button"">Tip</button>"
@@ -316,8 +316,8 @@ UI-314,一般使用者,語言一致性建議,{{ current_quiz_num }}/{{ total_qui
 UI-315,一般使用者,日文保留／用語確認,第{{ current_quiz_num }}問,第{{ current_quiz_num }}問,quiz/templates/quiz/partials/quiz_result_partial.html:5,原句日文自然，可保留。,第{{ current_quiz_num }}問
 UI-316,一般使用者,日文化,Correct,正解,quiz/templates/quiz/partials/quiz_result_partial.html:12,原英文未必有錯；為達全日文 UI 而翻譯。,Correct
 UI-317,一般使用者,一致性建議,Wrong,不正解,quiz/templates/quiz/partials/quiz_result_partial.html:15,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,Wrong
-UI-318,一般使用者,語意澄清,Summary,クイズを終了して結果を見る,quiz/templates/quiz/partials/quiz_result_partial.html:20,此操作結束測驗，無限模式尤其需要清楚交代。,"<button type=""submit"">Summary</button>"
-UI-319,一般使用者,清晰度建議,Next,次の問題へ,quiz/templates/quiz/partials/quiz_result_partial.html:27,說明前往下一題。,"<button type=""submit"">Next</button>"
+UI-318,一般使用者,文案縮短（已套用）,Summary,結果へ,quiz/templates/quiz/partials/quiz_result_partial.html:20,2026-09-06 使用者確認：現有「クイズを終了して結果を見る」改為「結果へ」，與「次へ」一致。已接受不在按鈕強調結束測驗；已套用。,"<button type=""submit"">Summary</button>"
+UI-319,一般使用者,文案縮短（已套用）,Next,次へ,quiz/templates/quiz/partials/quiz_result_partial.html:27,2026-09-06 使用者確認：將現有「次の問題へ」縮短為「次へ」，現已套用；原句及位置保留盤點快照。,"<button type=""submit"">Next</button>"
 UI-320,一般使用者,內部代碼外露,{{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }},判定：{result_label}／正解：{correct}／あなたの回答：{answer}／詳細：{subtype_label},quiz/templates/quiz/partials/quiz_result_partial.html:42,畫面直接顯示 MATCH／MISSING／NORMAL 等除錯代碼；建議使用可讀標籤，placeholder 需另行實作。,<div>{{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }}</div>
 UI-321,一般使用者,語言一致性建議,{{ current_quiz_num }}/{{ total_quiz_num }}問,第{{ current_quiz_num }}問／全{{ total_quiz_num }}問,quiz/templates/quiz/partials/quiz_summary_partial.html:3,摘要頁建議顯示完成題數；目前先保留進度語意，須確認 current_quiz_num 是否包含未完成題。,{{ current_quiz_num }}/{{ total_quiz_num }}問
 UI-322,一般使用者,日文保留／用語確認,第{{ current_quiz_num }}問,第{{ current_quiz_num }}問,quiz/templates/quiz/partials/quiz_summary_partial.html:5,摘要頁建議顯示完成題數；目前先保留進度語意，須確認 current_quiz_num 是否包含未完成題。,第{{ current_quiz_num }}問
@@ -327,11 +327,11 @@ UI-325,一般使用者,清晰度／一致性建議,total skipped :,スキップ�
 UI-326,一般使用者,清晰度／一致性建議,total tips :,ヒント使用回数：,quiz/templates/quiz/partials/quiz_summary_partial.html:11,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,total tips : {{ total_tips_count }}
 UI-327,一般使用者,一致性建議,Back to Home,ホームに戻る,quiz/templates/quiz/partials/quiz_summary_partial.html:14,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""{% url ""HomePage"" %}"" class=""btn btn-primary"">Back to Home</a>"
 UI-328,一般使用者,一致性建議,Quiz Home,クイズ,quiz/templates/quiz/quiz_home.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<h1>Quiz Home</h1>
-UI-329,一般使用者,一致性建議,Start Quiz,クイズを始める,quiz/templates/quiz/quiz_home.html:4,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,"<a href=""{% url ""quiz:quiz_setting"" %}"" class=""btn btn-primary"">Start Quiz</a>"
+UI-329,一般使用者,文案縮短（已套用）,Start Quiz,開始,quiz/templates/quiz/quiz_home.html:4,2026-09-06 記錄，現已套用。現有 UI：「クイズを始める」；建議：「開始」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：quiz/templates/quiz/quiz_home.html:4。,"<a href=""{% url ""quiz:quiz_setting"" %}"" class=""btn btn-primary"">Start Quiz</a>"
 UI-330,一般使用者,日文化,Quiz,クイズ,quiz/templates/quiz/quiz_play.html:4,原英文未必有錯；為達全日文 UI 而翻譯。,<h1>Quiz</h1>
-UI-331,一般使用者,一致性建議,Show Keyboard,キーボードを表示する,quiz/templates/quiz/quiz_play.html:10,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,Show Keyboard
+UI-331,一般使用者,文案縮短（已套用）,Show Keyboard,キーボード表示,quiz/templates/quiz/quiz_play.html:10,2026-09-06 使用者確認：將現有「キーボードを表示する」縮短為「キーボード表示」。已套用。,Show Keyboard
 UI-332,一般使用者,一致性建議,Quiz Settings,クイズ設定,quiz/templates/quiz/quiz_setting.html:3,目標為全日文 UI；原文未必有文法錯誤。使用日文標籤，並與相同功能統一用語。,<h1>Quiz Settings</h1>
-UI-333,一般使用者,清晰度建議,Start,クイズを始める,quiz/templates/quiz/quiz_setting.html:7,說明開始對象。,"<button type=""submit"">Start</button>"
+UI-333,一般使用者,文案縮短（已套用）,Start,開始,quiz/templates/quiz/quiz_setting.html:7,2026-09-06 記錄，現已套用。現有 UI：「クイズを始める」；建議：「開始」。原句、程式碼位置及原始程式碼行保留初次盤點快照；目前位置：quiz/templates/quiz/quiz_setting.html:7。,"<button type=""submit"">Start</button>"
 UI-334,一般使用者,清晰度建議,You need at least {min_count} active vocab items before starting a quiz. Please enable more vocab items first.,クイズを始めるには、出題対象の単語が{min_count}語以上必要です。マイ単語帳で出題対象を追加してください。,quiz/views.py:QuizSettingView:get:115,active 與個人的 in_use 容易混淆。,"f""You need at least {min_count} active vocab items before starting a quiz. Please enable more vocab items first."""
 UI-335,一般使用者,日文化,No previous quiz settings were found.,前回のクイズ設定が見つかりません。,quiz/views.py:QuizSettingView:form_valid:128,原英文未必有錯；為達全日文 UI 而翻譯。,"form.add_error(""use_last_setting"", ""No previous quiz settings were found."")"
 UI-336,一般使用者,清晰度建議,No active vocab is available for this quiz. Please enable vocab items first.,出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。,quiz/views.py:QuizPlayView:get:169,告訴使用者可以在哪裡操作，與「出題対象」用語一致。,"""No active vocab is available for this quiz. Please enable vocab items first."""

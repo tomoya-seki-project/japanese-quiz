@@ -125,9 +125,9 @@ class FeedbackCreateView(LoginRequiredMixin, FormView):
             )
             messages.warning(
                 self.request,
-                "There is a same feedback pending for admin checking"
+                "同じ内容のフィードバックはすでに送信されています。管理者の確認をお待ちください。"
             )
-            form.add_error(None, "Same feedback")
+            form.add_error(None, "このフィードバックは送信済みです。管理者の確認をお待ちください。")
             return self.form_invalid(form)
         logger.info(
             "Feedback created: "
@@ -219,7 +219,7 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             )
             messages.success(
                 self.request,
-                f"feedback id : {self.kwargs['feedback_pk']} has been replied"
+                f"Your reply to feedback #{self.kwargs['feedback_pk']} has been sent."
             )
         return super().form_valid(form)
     

@@ -112,7 +112,7 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             )
             messages.warning(
                 request,
-                f"You need at least {min_count} active vocab items before starting a quiz. Please enable more vocab items first."
+                f"クイズを始めるには、出題対象の単語が{min_count}語以上必要です。マイ単語帳で出題対象を追加してください。"
             )
             return redirect("dictionary:user_vocab_list")
         return super().get(request, *args, **kwargs)
@@ -125,7 +125,7 @@ class QuizSettingView(LoginRequiredMixin, FormView):
         if form.cleaned_data["use_last_setting"] == True:
             quiz_settings = self.request.session.get("quiz_settings")
             if quiz_settings is None:
-                form.add_error("use_last_setting", "No previous quiz settings were found.")
+                form.add_error("use_last_setting", "前回のクイズ設定が見つかりません。")
                 return self.form_invalid(form)
             quiz_num=quiz_settings["quiz_num"]
             level=quiz_settings["level"]
@@ -166,7 +166,7 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
             )
             messages.warning(
                 request,
-                "No active vocab is available for this quiz. Please enable vocab items first."
+                "出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。"
             )
             return redirect("dictionary:user_vocab_list")
         
@@ -336,7 +336,7 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
             fallback_used = quiz_session.get("fallback_used")
             messages.warning(
                 request,
-                "You have a unanswer yet question!"
+                "まだ回答していない問題があります。"
             )
         else:
             question_pool_qs, fallback_used = get_question_pool(request=self.request)
@@ -352,7 +352,7 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
             )
             messages.warning(
                 request,
-                "No active vocab is available for this quiz. Please enable vocab items first."
+                "出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。"
             )
             return redirect("dictionary:user_vocab_list")
         

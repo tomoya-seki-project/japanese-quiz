@@ -1,10 +1,11 @@
+{% load ui_labels %}
 {% if keyboard_rows %}
     {% for row in keyboard_rows %}
         <div class="kana-row">
             {% for kana in row %}
                 {% if kana %}
                     <button type="button" class="kana-key" data-kana="{{ kana }}">
-                        {{ kana }}
+                        {{ kana|kana_key_label }}
                     </button>
                 {% else %}
                     <span class="kana-placeholder"></span>
@@ -13,10 +14,10 @@
         </div>
     {% endfor %}
     <button type="button" class="kana-key" data-kana="backspace">
-        BS
+        1文字削除
     </button>
     <button type="button" class="kana-key" data-kana="hide">
-        Hide
+        隠す
     </button>
 {% elif mc_rows %}
     <div class="mc-row">

@@ -67,7 +67,7 @@ def build_next_question_payload(*, request, is_skip=False):
     if fallback_used:
         messages.warning(
             request,
-            "No vocab matched your selected filters, so the quiz is using your full active vocab pool."
+            "条件に一致する単語がありません。今回は、出題対象に設定したすべての単語から出題します。"
         )
         return {
             "main_html": render_to_string(

@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（68）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（1）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（11）：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（69）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -928,7 +928,13 @@ Status badge：
 - 清走舊 commented query / obsolete code。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 D：補 tests**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **改善 D：補 tests**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已加入 10 個 UI／語系 regression tests，覆蓋全部 project templates compile、public/admin language boundary、Django built-in validation language、共用 choices、假名 keyboard event values、answer result escaping、notification recipient language同主要 detail labels。
+- `manage.py test`、Django system check 同 migration dry-run 已通過。
 
 
 <p style="margin-left:1.5em;"><strong>未完成</strong></p>
@@ -1091,13 +1097,17 @@ Status badge：
 - 之後可以整理 wording 同 notification summary。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Japanese UI language and wording polish**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Japanese UI language and wording polish**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- Site UI language 之後統一改用日文。
-- Button wording 之後集中整理，避免 logic phase 被 wording 細節卡住。
-- Vocab request update / delete wording 要避免 user 誤會 request removal 係從自己 list 移除。
-- Feedback / event / quiz result / user vocab detail wording 之後一併 polish。
-- UserVocab detail page 之後整理 HTML 結構同 UI layout。
+- 一般 user-facing pages、forms、buttons、validation、feedback、event、quiz result 同 UserVocab detail wording 已統一使用日文；只供管理員使用嘅 admin／feedback review 介面維持英文。
+- 新增 request-level language middleware，按頁面 responsibility 切換 `ja`／`en-us` 並於 response 後還原，避免 public 同 admin request 互相污染語系。
+- 共用 choices、JLPT level、category、answer comparison type／subtype 同假名 keyboard 只修改顯示標籤，保留 database values及 JavaScript event values。
+- 已加入對應 regression tests；10 個 tests、Django system check、migration dry-run 同 template compilation 全部通過。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 仍需 browser 逐頁 visual verification，確認長文案、mobile layout、Ajax partial replacement 同管理員／一般 user 實際操作畫面。

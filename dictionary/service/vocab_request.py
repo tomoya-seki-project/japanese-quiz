@@ -1,3 +1,4 @@
+from core.ui import REQUEST_TYPES_EN, REQUEST_TYPES_JA
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
@@ -32,7 +33,7 @@ class VocabRequestService():
         required_fields = {
             "proposed_word": "Word is required.",
             "proposed_kana": "Kana is required.",
-            "proposed_vocab_type": "Vocab type is required.",
+            "proposed_vocab_type": "Vocabulary type is required.",
             "proposed_meaning": "Meaning is required.",
             "proposed_level": "Level is required.",
         }
@@ -40,14 +41,14 @@ class VocabRequestService():
             if not getattr(vocab_request, field_name):
                 errors[field_name] = error_msg
         if not vocab_request.proposed_categories.exists():
-            errors["proposed_categories"] = "Category is required."
+            errors["proposed_categories"] = "Select at least one category."
         match vocab_request.proposed_vocab_type:
             case VocabType.VOCAB:
                 pass
             case VocabType.KATAKANA:
                 if not vocab_request.proposed_native_japanese:
                     errors["proposed_native_japanese"] = (
-                        "Native Japanese is required for Katakana"
+                        "A Japanese equivalent is required for katakana words."
                     )
         if errors:
             raise ValidationError(errors)
@@ -82,7 +83,7 @@ class VocabRequestService():
     def create_event_for_admin(*, word, kana, request_type, request_by):
         event = EventService.create_event(
                     event_type=EventType.NEW_VOCAB_REQUEST,
-                    event_title=f"A new vocab {request_type} request has been submitted.",
+                    event_title=f"A new vocabulary request has been submitted: {REQUEST_TYPES_EN[request_type]}.",
                     event_msg=f"{word} ({kana}) was requested by {request_by}."
                 )
         EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
@@ -130,7 +131,7 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word already has another request waiting for review.")
+                raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
 
     @staticmethod
@@ -190,7 +191,7 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word already has another request waiting for review.")
+                raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
 
     @staticmethod
@@ -237,7 +238,7 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word already has another request waiting for review.")
+                raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
 
     @staticmethod
@@ -280,7 +281,7 @@ class VocabRequestService():
                         )
                     transaction.on_commit(callback)
             except IntegrityError:
-                raise ValidationError("This word already has another request waiting for review.")
+                raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
 
 
@@ -313,7 +314,7 @@ class VocabRequestService():
                             approved_by=reviewed_by
                         )
                     else:
-                        raise ValidationError("This request requires an active original vocab")
+                        raise ValidationError("The original vocabulary entry must be active for this request.")
                 case VocabRequestType.RESTORE:
                     if locked_request.original_vocab and not locked_request.original_vocab.is_active:
                         VocabActionService.restore_vocab(
@@ -321,7 +322,7 @@ class VocabRequestService():
                             approved_by=reviewed_by
                         )
                     else:
-                        raise ValidationError("This request requires an inactive original vocab")
+                        raise ValidationError("The original vocabulary entry must be inactive for this request.")
                 case VocabRequestType.DELETE:
                     if locked_request.original_vocab and locked_request.original_vocab.is_active:
                         VocabActionService.deactivate_vocab(
@@ -329,7 +330,7 @@ class VocabRequestService():
                             approved_by=reviewed_by
                         )
                     else:
-                        raise ValidationError("This request requires an active original vocab")
+                        raise ValidationError("The original vocabulary entry must be active for this request.")
             locked_request.status = VocabRequestStatus.APPROVED
             locked_request.reviewed_by = reviewed_by
             locked_request.save(
@@ -338,7 +339,7 @@ class VocabRequestService():
             if locked_request.created_by is not None:
                 request_result_event = EventService.create_event(
                                             event_type=EventType.VOCAB_REQUEST_RESULT,
-                                            event_title=f"Your {locked_request.request_type} vocab request has been approved by {reviewed_by}",
+                                            event_title=f"単語の{REQUEST_TYPES_JA[locked_request.request_type]}申請が{reviewed_by}さんに承認されました。",
                                             event_msg=""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
@@ -362,7 +363,7 @@ class VocabRequestService():
             if locked_request.created_by is not None:
                 request_result_event = EventService.create_event(
                                             event_type=EventType.VOCAB_REQUEST_RESULT,
-                                            event_title=f"Your {locked_request.request_type} vocab request has been rejected by {reviewed_by}",
+                                            event_title=f"単語の{REQUEST_TYPES_JA[locked_request.request_type]}申請が{reviewed_by}さんに却下されました。",
                                             event_msg=""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)

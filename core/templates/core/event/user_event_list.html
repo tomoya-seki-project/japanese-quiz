@@ -1,11 +1,11 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>user event list</h1>
+<h1>お知らせ</h1>
 <form method="GET" action="{% url "core:user_event_list" %}" id="event-filter-form">
     <select name="status" id="event-status-filter">
-        <option value="">All</option>
-        <option value="unread">Unread</option>
-        <option value="read">read</option> 
+        <option value="">すべて</option>
+        <option value="unread">未読</option>
+        <option value="read">既読</option>
     </select>
 </form>
 <div id="user-event-list-container">

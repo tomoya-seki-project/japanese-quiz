@@ -1,9 +1,9 @@
 <table>
     <thead>
         <tr>
-            <th>id</th>
-            <th>word</th>
-            <th>kana</th>
+            <th>ID</th>
+            <th>単語</th>
+            <th>読み方</th>
         </tr>
     </thead>
     <tbody>
@@ -20,9 +20,9 @@
 {% if is_paginated %}
 <div>
     {% if page_obj.has_previous %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
     {% else %}
-        Prev
+        前へ
     {% endif %}
 
     {% for num in page_obj.paginator.page_range %}
@@ -34,9 +34,9 @@
     {% endfor %}
 
     {% if page_obj.has_next %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">Next</a>    
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
     {% else %}
-        Next
+        次へ
     {% endif %}
 </div>
 

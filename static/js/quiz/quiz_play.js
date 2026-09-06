@@ -49,16 +49,16 @@ function quizAreaHandler(){
                 document.getElementById("quiz-error-message");
 
             errorContainer.textContent =
-                "系統暫時發生問題，請重新整理頁面再試。";
+                "エラーが発生しました。ページを再読み込みして、もう一度お試しください。";
         });
     })
 }
 
 function getErrorLabel(fieldName){
     const labels = {
-        answer: "答案",
-        tips_count: "提示次數",
-        user_vocab_id: "Quiz資料",
+        answer: "回答",
+        tips_count: "ヒント使用回数",
+        user_vocab_id: "問題",
     };
     return labels[fieldName] ?? fieldName;
 }

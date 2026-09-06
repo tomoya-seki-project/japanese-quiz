@@ -5,15 +5,15 @@ from django.core.validators import MinValueValidator
 from core.models import TimeStampedModel
 
 class VocabType(models.TextChoices):
-    VOCAB = "vocab", "Vocab"
-    KATAKANA = "katakana", "Katakana"
+    VOCAB = "vocab", "一般語彙"
+    KATAKANA = "katakana", "カタカナ語"
     # ADVERB = "adverb", "副詞"
     # MIMETIC = "mimetic", "擬音・擬態語"
     # CONJUNCTION = "conjunction", "接続詞"
     # COLLOQUIAL = "colloquial", "口語表現"
 
 class VocabLevel(models.TextChoices):
-    JLPT_N0 = "0", "未定義"
+    JLPT_N0 = "0", "未設定"
     JLPT_N1 = "1", "N1"
     JLPT_N2 = "2", "N2"
     JLPT_N3 = "3", "N3"
@@ -22,7 +22,7 @@ class VocabLevel(models.TextChoices):
 
 class Category(TimeStampedModel):
     name = models.CharField(verbose_name="Category", max_length=50, unique=True)
-    display = models.CharField(max_length=50, blank=True, null=True)
+    display = models.CharField(verbose_name="Display name", max_length=50, blank=True, null=True)
 
     def __str__(self):
         return self.display or self.name
@@ -34,13 +34,13 @@ class Vocab(TimeStampedModel):
     word_slug = models.CharField(max_length=255, blank=True, null=True)
     meaning = models.CharField(verbose_name="Meaning", max_length=255)
     kana = models.CharField(verbose_name="Kana", max_length=255)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(verbose_name="Active", default=False)
     type = models.CharField(
         verbose_name="Type",
         max_length=20, choices=VocabType.choices
     )
     level = models.CharField(
-        verbose_name="Level",
+        verbose_name="JLPT level",
         max_length=10, choices=VocabLevel.choices
     )
     categories = models.ManyToManyField(
@@ -135,13 +135,13 @@ class UserVocab(TimeStampedModel):
         Vocab, on_delete=models.CASCADE,
         related_name='user_vocabs'
     )
-    in_use = models.BooleanField(default=True)
-    weight = models.IntegerField(verbose_name="Weight", default=50, validators=[MinValueValidator(1)])
-    correct_count = models.IntegerField(verbose_name="Correct", default=0)
-    incorrect_count = models.IntegerField(verbose_name="Incorrect", default=0)
-    streak = models.IntegerField(verbose_name="Streak", default=0)
-    last_quiz_at = models.DateTimeField(verbose_name="Last Quiz", blank=True, null=True)
-    last_answer = models.CharField(max_length=255, blank=True, null=True)
+    in_use = models.BooleanField(verbose_name="Include in quizzes", default=True)
+    weight = models.IntegerField(verbose_name="Selection weight", default=50, validators=[MinValueValidator(1)])
+    correct_count = models.IntegerField(verbose_name="Correct answers", default=0)
+    incorrect_count = models.IntegerField(verbose_name="Incorrect answers", default=0)
+    streak = models.IntegerField(verbose_name="Answer streak", default=0)
+    last_quiz_at = models.DateTimeField(verbose_name="Last practiced", blank=True, null=True)
+    last_answer = models.CharField(verbose_name="Last answer", max_length=255, blank=True, null=True)
     def __str__(self):
         return f"{self.vocab.word} ({self.vocab.kana})"
 
@@ -167,7 +167,7 @@ class VocabRequestStatus(models.TextChoices):
     APPROVED = 'approved', "Approved"
 
 class VocabRequest(TimeStampedModel):
-    request_type = models.CharField(verbose_name="Request", max_length=20, choices=VocabRequestType.choices)
+    request_type = models.CharField(verbose_name="Request type", max_length=20, choices=VocabRequestType.choices)
     status = models.CharField(verbose_name="Status", max_length=20, choices=VocabRequestStatus.choices)
     reason = models.CharField(verbose_name="Reason", max_length=255,blank=True,null=True)
     created_by = models.ForeignKey(
@@ -175,18 +175,18 @@ class VocabRequest(TimeStampedModel):
         on_delete=models.SET_NULL,
         null=True,
         related_name = "applied_vocab_submissions",
-        verbose_name="Created By",
+        verbose_name="Created by",
     )
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name = "approved_vocab_submission",
-        verbose_name="Reviewed By",
+        verbose_name="Reviewed by",
     )
 
     original_vocab = models.ForeignKey(
-        Vocab, on_delete=models.CASCADE,
+        Vocab, verbose_name="Original vocabulary entry", on_delete=models.CASCADE,
         null=True, related_name = "requests"
     )
 
@@ -194,9 +194,9 @@ class VocabRequest(TimeStampedModel):
     proposed_vocab_type = models.CharField(verbose_name="Type", max_length=20, choices=VocabType.choices, default="vocab")
     proposed_meaning = models.CharField(verbose_name="Meaning", max_length=255, blank=True, null=True)
     proposed_kana = models.CharField(verbose_name="Kana", max_length=255, default="kana")
-    proposed_level = models.CharField(verbose_name="level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
+    proposed_level = models.CharField(verbose_name="JLPT level", max_length=10, choices=VocabLevel.choices, blank=True, null=True)
     proposed_categories = models.ManyToManyField(
-        Category,
+        Category, verbose_name="Proposed categories",
         related_name='vocab_requests',
         blank=True,
     )
@@ -207,7 +207,7 @@ class VocabRequest(TimeStampedModel):
     # No special fields right now.
 
     #katakana type
-    proposed_native_japanese = models.CharField(verbose_name="Native Japanese", max_length=255, blank=True, null=True)
+    proposed_native_japanese = models.CharField(verbose_name="Japanese equivalent", max_length=255, blank=True, null=True)
 
     # proposed_sense_meaning = models.CharField(max_length=255, blank=True, null=True)
     # proposed_question_1 = models.CharField(max_length=100)
@@ -217,7 +217,7 @@ class VocabRequest(TimeStampedModel):
     # proposed_mc_answer_3 = models.CharField(max_length=20)
 
     #for update type request only
-    original_data = models.JSONField(verbose_name="Last Record", blank=True, null=True)
+    original_data = models.JSONField(verbose_name="Previous data", blank=True, null=True)
 
     def __str__(self):
         return f"{self.proposed_word}:{self.request_type}:{self.status}"

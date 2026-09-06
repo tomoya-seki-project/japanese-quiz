@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>vocab list</h1>
+<h1>単語帳</h1>
 <form method="GET">
     {{ search_form.as_p }}
-    <button type="submit">confirm</button>
+    <button type="submit">検索</button>
 </form>
 <div id="vocab-list-container">
     {% include "dictionary/partials/vocab_list_partial.html" %}

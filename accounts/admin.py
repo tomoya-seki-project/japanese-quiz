@@ -47,12 +47,12 @@ class CustomizedUserAdmin(UserAdmin):
 
     fieldsets = (
         (
-            'User Info', {
+            'User information', {
                 'fields':('username', 'email', 'password')
             }
         ),
         (
-            'Premission',{
+            'Permissions',{
                 'fields':('is_staff',"is_active",'is_superuser')
             }
         ),
@@ -65,7 +65,7 @@ class CustomizedUserAdmin(UserAdmin):
 
     add_fieldsets = (
         (
-            'User Info', {
+            'User information', {
                 'classes': ("wide",),
                 'fields': ('username', 'email', 'password1', 'password2')
             }
@@ -77,13 +77,13 @@ class CustomizedUserAdmin(UserAdmin):
 
     readonly_fields = ('user_vocab_count','last_sync_at','date_joined','last_login')
 
-    @admin.display(description="Last Vocab Sync At")
+    @admin.display(description="Last vocabulary sync")
     def last_sync_at(self, obj):
         if not obj.profile.last_vocab_sync_at:
-            return "There are not syncing record yet!"
+            return "No vocabulary sync has been recorded yet."
         return timezone.localtime(obj.profile.last_vocab_sync_at).strftime("%B %d, %Y, %H:%M:%S")
     
-    @admin.display(description="User Vocab Count")
+    @admin.display(description="Vocabulary count")
     def user_vocab_count(self, obj):
         count = obj.user_vocabs.count()
         url = (
@@ -91,7 +91,7 @@ class CustomizedUserAdmin(UserAdmin):
             + f"?user__id__exact={obj.id}"
         )
         return format_html(
-            '{} items<br><a href="{}">View user vocab</a>',
+            '{} items<br><a href="{}">View user vocabulary</a>',
             count,
             url,
         )

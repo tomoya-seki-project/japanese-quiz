@@ -1,6 +1,6 @@
 <div id="quiz-count">
     {% if total_quiz_num > 0 %}
-        {{ current_quiz_num }}/{{ total_quiz_num }}問
+        第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
     {% else %}
         第{{ current_quiz_num }}問
     {% endif %}
@@ -19,11 +19,11 @@
 
     <div id="answer-display"></div>
     <div>
-        <button type="button" class="tips-button">Tip</button>
-        <button type="submit">Enter</button>
+        <button type="button" class="tips-button">ヒント</button>
+        <button type="submit">回答</button>
     </div>
 </form>
 <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_skip" %}">
     {% csrf_token %}
-    <button type="submit">Skip</button>
+    <button type="submit">スキップ</button>
 </form>

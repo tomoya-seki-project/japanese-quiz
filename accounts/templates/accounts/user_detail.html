@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>user detail</h1>
+<h1>プロフィール</h1>
 {{ user.name }}
 {{ user.email }}
 {{ user.last_login }}
 
-<a href="{% url "dictionary:user_vocab_list" %}" class="btn btn-primary">My Vocab List</a>
+<a href="{% url "dictionary:user_vocab_list" %}" class="btn btn-primary">マイ単語帳</a>
 {% endblock %}

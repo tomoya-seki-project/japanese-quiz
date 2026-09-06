@@ -1,21 +1,21 @@
 <table>
     <thead>
         <tr>
-            <th>user</th>
+            <th>User</th>
             <th>Type</th>
-            <th>context</th>
-            <th>check it</th>
+            <th>Message</th>
+            <th>Details</th>
         </tr>
     </thead>
     <tbody>
         {% for feedback in feedbacks %}
         <tr>
             <td>{{ feedback.user }}</td>
-            <td>{{ feedback.type }}</td>
+            <td>{{ feedback.get_type_display }}</td>
             <td>{{ feedback.context }}</td>
             <td>
                 <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
-                    Detail
+                    View details
                 </a>
             </td>
         </tr>
@@ -25,9 +25,9 @@
 {% if is_paginated %}
 <div>
     {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Previous</a>
     {% else %}
-        Prev
+        Previous
     {% endif %}
 
     {% for num in page_obj.paginator.page_range %}

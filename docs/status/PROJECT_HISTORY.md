@@ -1572,3 +1572,105 @@ Status: Major vocabulary, quiz and data-management workflows now emit consistent
 ### 學到咩
 
 - 有用嘅 application log 需要同 domain state transition 對齊；記得太多同記得太少都會降低調查效率。
+
+## 2026-08-31 - Vocab sync consistency and complete request snapshots
+
+Commit: `3ad1709`
+
+Status: Vocab synchronization gained concurrency protection and result counts, DELETE requests now preserve complete review snapshots, and the multiple-choice sense schema became reproducible from Git
+
+### 主要改動
+
+- Registration、login、event read 同 feedback workflows 補上 activity logging，延續主要 domain flow 嘅 observability coverage。
+- UserVocab sync 以 per-user row lock 防止 concurrent requests 重複建立 personal vocab records，並回傳／記錄實際 created count。
+- DELETE `VocabRequest` 保存 type、meaning、level、categories 同 katakana native Japanese，令 review record 保留提交當時完整 vocab snapshot。
+- 正式加入 `dictionary/migrations/0027_add_mc_sense.py`，令既有 `MCSense` model foundation 可以由新 clone 重建。
+
+### Database 改動
+
+- 新增並 commit migration `0027_add_mc_sense.py`，建立 `MCSense` table、`Vocab` relationship、sense fields 同 uniqueness constraints。
+- DELETE request 沿用現有 schema，但建立時補齊 scalar、M2M 同 type-specific snapshot data。
+
+### 技術重點
+
+- User-level synchronization 需要將「找出缺少資料」同「建立 records」放入同一 concurrency boundary，避免兩個 request 同時讀到相同缺口。
+- Delete review record 唔應只保存 word／kana；審批及事後 audit 需要完整 proposed snapshot。
+- Model definition 同 migration 必須一同進入 Git，其他 environment 先可以重建相同 database state。
+
+### 理由
+
+- Login／profile 都可能觸發 vocab sync，沒有 row lock 時 concurrent requests 會重複工作或撞 uniqueness constraint。
+- DELETE action 會令原資料進入 inactive state，request 本身要保存足夠資料支援 review 同歷史理解。
+
+### 學到咩
+
+- Idempotent sync 唔只靠 `get_or_create()`；讀取 checkpoint、missing-set calculation 同 write scope 都要一併考慮。
+- Review workflow 嘅 snapshot completeness 係 data integrity 一部分，而唔只係 admin 顯示改善。
+
+## 2026-09-02 - Unsupported vocabulary type boundary
+
+Commit: `a5b071b`
+
+Status: Incomplete multiple-choice vocabulary types are rejected consistently across user input, import, service and admin approval boundaries
+
+### 主要改動
+
+- Vocab request forms 只接受目前正式支援嘅 `vocab`／`katakana` types。
+- CSV import 會拒絕 unsupported type，記入 row failure 而唔建立半完成 data。
+- `VocabActionService` create／update 同 admin request approval 再做 service-side type guard，避免繞過 form validation。
+- Quiz answer form maximum length 收窄至 25 字，限制同步 request input size。
+- 加入 answer-comparison optimization options、bottom-up DP walkthrough 同完整 cell examples，記錄後續 refactor 設計。
+
+### Database 改動
+
+- 無新增 migration；今次先以 form、command、service 同 approval boundaries 隔離未完成 types。
+
+### 技術重點
+
+- `choices` 主要提供 validation／display metadata，真正 domain boundary 仍應由 service 層保護，因為 command、admin 或其他 caller 可以繞過一般 user form。
+- 未完成 feature 可以保留 schema foundation，但唔應向 user 暴露一條無法完成嘅 runtime path。
+
+### 理由
+
+- Multiple-choice schema 已開始建立，但 import、request、admin 同 quiz vertical flow 尚未完成；暫時拒絕 unsupported writes 可以避免 inconsistent records。
+- Answer input boundary 可以限制極端 payload，但演算法本身仍需另外處理最壞執行時間。
+
+### 學到咩
+
+- Public choices、accepted writes 同 runtime support 要保持一致；只隱藏 UI 並不足以形成完整 boundary。
+- Input length validation 同 performance-safe implementation 係兩層不同保護，唔應互相取代。
+
+## 2026-09-05 - Bottom-up answer comparison and vocabulary type isolation
+
+Commit: `e78408e`
+
+Status: Kana answer comparison now runs in bounded polynomial time, while unfinished multiple-choice types are removed from active choices until their full flow is ready
+
+### 主要改動
+
+- 將無 memoization 嘅 recursive answer comparison 改為 bottom-up DP；每個 `(i, j)` state 只計一次，再由 `dp[0][0]` reconstruction 原有 result list。
+- 使用 `Score`／`DPCell` 保存 cost、match、non-normal wrong、operation 同 subtype，並保留原有 minimum-cost、maximum-match、special-subtype preference 及 deterministic candidate order。
+- `compare_kana_answer()` 正式切換到 DP implementation，public result dictionary contract 保持不變。
+- `VocabType` active choices 收窄至 `vocab`／`katakana`；四種 MC definitions 以註解保留，待 vertical flow 完成後恢復。
+- 加入 DP improvement report、coding reference 同 UI wording review artifacts。
+
+### Database 改動
+
+- 新增 migration `dictionary/migrations/0028_vocabtype_cut_out_mc.py`，同步收窄 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices metadata。
+- `MCSense` table 保留，無刪除 MC schema foundation 或既有資料欄位。
+
+### 技術重點
+
+- Suffix-based DP state 依賴右、下、右下 cells，所以由右下向左上填表；reconstruction 則由左上沿 operation 行到 `END`。
+- 每格只保存 score 同 operation，避免 recursive branches 重複計算及複製完整 result lists。
+- Candidate key 以 `(cost, -match_count, -non_normal_wrong_count)` 排序；完全同分時利用 `WRONG`、`MISSING`、`EXTRA` 傳入次序保持舊行為。
+
+### 理由
+
+- 舊版喺大量 mismatch 時呈指數級增長，11 字 targeted benchmark 已超過 5 秒，無法安全支援最多 25 字輸入。
+- MC runtime flow 未完成前收窄 model choices，可以令 quiz setting 同共用 forms 自動停止公開 unsupported types。
+
+### 學到咩
+
+- DP 效能改善要同 output compatibility 一起驗證；唔只比較 minimum edit cost，亦要保留 operation sequence、match count、subtype preference 同最後 tie-breaking。
+- 由 operation 已可推算下一格時，唔需要額外保存 next coordinates，避免 duplicate state。

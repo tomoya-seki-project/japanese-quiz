@@ -1,16 +1,18 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>user vocab detail</h1>
+{% load ui_labels %}
+<h1>マイ単語帳の詳細</h1>
 <form method="POST">
     {% csrf_token %}
-    <div>in use : {{ in_use_form.in_use }}</div>
-    <div>weight : {{ user_vocab.weight }}</div>
-    <div>correct count : {{ user_vocab.correct_count }}</div>
-    <div>incorrect count : {{ user_vocab.incorrect_count }}</div>
-    <div>streak : {{ user_vocab.streak }}</div>
-    <div>last quit at : {{ user_vocab.last_quiz_at }}</div>
+    <div>出題対象： {{ in_use_form.in_use }}</div>
+    <div>出題優先度： {{ user_vocab.weight }}</div>
+    <div>正解数： {{ user_vocab.correct_count }}</div>
+    <div>不正解数： {{ user_vocab.incorrect_count }}</div>
+    <div>連続正解・不正解数： {{ user_vocab.streak }}</div>
+    <small>正の数は連続正解、負の数は連続不正解を表します。</small>
+    <div>最終出題日時： {{ user_vocab.last_quiz_at|default_if_none:"未出題" }}</div>
     <div>
-        last answer : 
+        前回の回答：
         {% if user_vocab.last_answer %}
             {% load static %}
             <div class="compared-answer-result">
@@ -22,25 +24,25 @@
             {% endfor %}
             </div>
         {% else %}
-            None
+            回答履歴はありません。
         {% endif %}
     </div>  
-    <button type="submit">Update InUse</button>
+    <button type="submit">保存</button>
 </form>
 <hr>
-<h3>vocab section</h3>
-<div>word : {{ user_vocab.vocab.word }}</div>
-<div>meaning : {{ user_vocab.vocab.meaning }}</div>
-<div>kana : {{ user_vocab.vocab.kana }}</div>
-<div>level : {{ user_vocab.vocab.level }}</div>
-<div>type : {{ user_vocab.vocab.type }}</div>
+<h3>単語の詳細</h3>
+<div>単語： {{ user_vocab.vocab.word }}</div>
+<div>意味： {{ user_vocab.vocab.meaning }}</div>
+<div>読み方（かな）： {{ user_vocab.vocab.kana }}</div>
+<div>JLPTレベル： {{ user_vocab.vocab.level|vocab_level_label }}</div>
+<div>種類： {{ user_vocab.vocab.type|vocab_type_label }}</div>
 <div>
-    categories :
+    カテゴリー：
     {% for category in user_vocab.vocab.categories.all %}
-        <div>{{ category.name }}</div>
+        <div>{{ category }}</div>
     {% endfor %}
 </div>
-<a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">更新</a>
-<a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">del</a>
-<a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">last page</a>
+<a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">変更申請</a>
+<a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">削除申請</a>
+<a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">一覧に戻る</a>
 {% endblock %}

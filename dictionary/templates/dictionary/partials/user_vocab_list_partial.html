@@ -5,11 +5,11 @@
             <tr>
                 <th>
                     <input type="checkbox" id="select-all">
-                    <label for="select-all">All</label>
+                    <label for="select-all">すべて</label>
                 </th>
-                <th>word</th>
-                <th>kana</th>
-                <th>meaning</th>
+                <th>単語</th>
+                <th>読み方</th>
+                <th>意味</th>
             </tr>
         </thead>
         <tbody>
@@ -31,14 +31,14 @@
             {% endfor %}
         </tbody>
     </table>
-    <button type="submit">Update</button>
+    <button type="submit">保存</button>
 </form>
 {% if is_paginated %}
 <div>
     {% if page_obj.has_previous %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">Prev</a>
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
     {% else %}
-        Prev
+        前へ
     {% endif %}
 
     {% for num in page_obj.paginator.page_range %}
@@ -50,9 +50,9 @@
     {% endfor %}
 
     {% if page_obj.has_next %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
     {% else %}
-        Next
+        次へ
     {% endif %}
 </div>
 {% endif %}

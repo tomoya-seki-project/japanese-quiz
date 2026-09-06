@@ -3,6 +3,7 @@ db.sqlite3
 .vscode/
 .venv/
 log/*.log
+log/log.*
 docs/diagrams/last_ver/
 review-reports/
 docs/diagrams/

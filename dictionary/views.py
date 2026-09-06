@@ -86,7 +86,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                     self.request.user.pk,
                     form.deactived_vocab.pk,
                 )
-                messages.success(self.request, "The same word already exists on the list. A restore request has been sent to admin for review.")
+                messages.success(self.request, "同じ単語と読み方の無効な項目がすでに登録されています。復元申請を送信しました。管理者の審査をお待ちください。")
             else:
                 logger.info(
                     "Vocab restoration request skipped: "
@@ -96,7 +96,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                     form.deactived_vocab.pk,
                     "pending_request_exists",
                 )
-                messages.info(self.request, "The same word already exists on the list, and a review request is already waiting for admin review.")
+                messages.info(self.request, "同じ単語と読み方の項目がすでに登録されており、申請は管理者の審査待ちです。")
             return redirect(self.get_success_url())
         else:
             try:
@@ -125,7 +125,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                     form.cleaned_data["word"],
                     form.cleaned_data["kana"],
                 )
-                messages.success(self.request, "A new word request has been sent to admin for confirmation.")
+                messages.success(self.request, "単語の追加申請を送信しました。管理者の審査をお待ちください。")
             else:
                 logger.info(
                     "Vocab creation request skipped: "
@@ -136,7 +136,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                     form.cleaned_data["kana"],
                     "pending_request_exists",
                 )
-                messages.info(self.request, "Another user has already requested the same word. It is waiting for admin confirmation.")
+                messages.info(self.request, "この単語と読み方については、すでに申請があり、管理者の審査待ちです。")
             return redirect(self.get_success_url())
 
     def get_success_url(self):

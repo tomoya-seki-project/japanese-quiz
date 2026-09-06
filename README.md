@@ -6,7 +6,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification、user feedback、Ajax quiz play、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、automated tests 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification、user feedback、Ajax quiz play、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -60,7 +60,14 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Skip question flow 已建立，會增加 skipped vocab weight、更新 streak 同 `last_quiz_at`。
 - Quiz result 已可顯示 kana-by-kana answer comparison visual feedback，支援 match、wrong、missing 同 extra kana 顯示。
 - Answer comparison 會判斷 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA` wrong subtype，並用 static kana image assets 顯示初版錯位圖。
+- Answer comparison 已由指數級 recursive branch search 改為 `O(m × n)` bottom-up DP，保留原有 score ranking、subtype preference、deterministic tie-breaking 同 result contract。
 - Quiz summary flow 已可統計答題數、正確數、錯誤數、skip 數同 tips 使用量。
+
+### Interface Language
+
+- 一般 user-facing UI 使用日文；Django Admin 同只供管理員處理 feedback／審批嘅介面維持英文。
+- Request-level language middleware 會按頁面切換 `ja`／`en-us`，response 後還原原本語系，避免相鄰 requests 互相污染。
+- Model／form choices 保留原有 database values，只調整顯示 label；假名 keyboard 同 JavaScript event values亦保持不變。
 
 ### Events
 
@@ -120,7 +127,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `KatakanaDetail`：katakana 專用資料，例如 native Japanese。
 - `UserVocab`：連接 user 同 vocab，保存 `in_use`、weight、answer counts、streak 同 last quiz time。
 - `VocabRequest`：保存 create、update、delete、restore request。
-- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；migration 已建立並在目前 local database 套用，但尚未 commit，實際 import/admin/request/quiz flow仍未接通。
+- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；migration `0027_add_mc_sense.py` 已 commit，實際 import/admin/request/quiz flow仍未接通。
 
 ### Core
 
@@ -330,9 +337,9 @@ The generator has its own notes in [devtools/image_generator/README.md](devtools
 
 ## Testing
 
-> **未準備完善**
+> **初步建立，尚未完整**
 
-各 app 已有 `tests.py`，但目前未有實際 automated tests。
+目前已有 10 個 UI／language regression tests，覆蓋 templates compile、public/admin language boundary、built-in validation language、共用 choices、假名 keyboard event values、answer escaping、notification language 同主要 detail labels。
 
 之後預計加入：
 
@@ -342,6 +349,8 @@ The generator has its own notes in [devtools/image_generator/README.md](devtools
 - UserVocab streak 同 weight calculation tests。
 - Weighted random 同 recent 10 questions tests。
 - Event notification tests。
+- Quiz answer comparison correctness／performance tests。
+- Quiz initial／Next／Skip fallback integration tests。
 
 預計 test command：
 
@@ -352,15 +361,15 @@ python manage.py test
 ## Current Limitations
 
 - Kana quiz 已有 Ajax play、weight adjustment 同 answer comparison flow，但 multiple-choice answer flow 仍未接通。
-- Kana answer comparison 對較長 mismatch input 有嚴重效能問題；filter fallback 亦會在第一題後錯誤停止，兩項已列入 TODO。
-- `MCSense` model 同 migration foundation 已建立；validation、import、admin、request 同 quiz integration 仍未完成，而 migration 目前尚未 commit。
+- Kana answer comparison performance 問題已用 bottom-up DP 解決；filter fallback 仍會在第一題後錯誤停止，已列入 TODO。
+- `MCSense` model 同 migration foundation 已建立並 commit；validation、import、admin、request 同 quiz integration 仍未完成。四種未完成 MC vocab choices 暫時停用，避免 user 進入未接通流程。
 - VocabRequest approve/reject 已有 transaction、row lock、permission、`original_vocab` state guard 同完整 DELETE proposed snapshot。
 - Event notification system 已有 request result、vocab sync summary 同 feedback reply flow，UI / wording 同更多 event type 仍可改善。
 - Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
 - Logging handlers 同主要 domain flow coverage 已建立；log assertions、concurrent sync 同 rotation／retention 仍待自動驗證。
 - 完整 export / restore 尚未完成。
-- Automated tests 未建立。
-- UI 仍然係 development / temporary version。
+- Automated tests 已有初步 UI／language coverage，但主要 domain、concurrency、quiz correctness 同 fallback integration tests 仍未建立。
+- User-facing wording 已完成日文化及語系分流；UI layout、answer overlay 同 browser visual verification 仍需繼續整理。
 - Production deployment settings 未準備。
 
 ## Security Notes

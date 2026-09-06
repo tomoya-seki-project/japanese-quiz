@@ -1,1 +1,7 @@
-404
+{% load i18n %}
+{% get_current_language as language %}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head><meta charset="utf-8"><title>404</title></head>
+<body><p>404 — {% if language == "en-us" %}Page not found. Please check the address.{% else %}ページが見つかりません。URLを確認してください。{% endif %}</p></body>
+</html>

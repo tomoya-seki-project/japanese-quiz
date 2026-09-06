@@ -1,13 +1,13 @@
 {% extends "core/base_clear.html" %}
 {% load static %}
 {% block content %}
-<h1>Quiz</h1>
+<h1>クイズ</h1>
 <div id="quiz-error-message"></div>
 <div id="quiz-area-container">
     {% include "quiz/partials/quiz_question_partial.html" %}
 </div>
 <button type="button" id="show-input-panel-button">
-    Show Keyboard
+    キーボード表示
 </button>
 <div id="quiz-input-panel-container" hidden>
     {% include "quiz/partials/quiz_input_panel_partial.html" %}

@@ -83,7 +83,7 @@ class VocabAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related('vocab_detail','katakana_detail')
 
-    @admin.display(description="Native Japanese")
+    @admin.display(description="Japanese equivalent")
     def native_japanese(self, obj):
         try:
             detail = obj.katakana_detail
@@ -210,7 +210,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
         if change and obj.status != VocabRequestStatus.PENDING:
             self.message_user(
                 request,
-                "Reviewed request cannot be changed",
+                "A request cannot be changed after it has been reviewed.",
                 messages.ERROR,
             )
             return
@@ -268,14 +268,14 @@ class VocabRequestAdmin(admin.ModelAdmin):
                     self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="approved")
                     self.message_user(
                         request,
-                        f"Vocab request approved by {request.user}",
+                        f"Vocabulary request approved by {request.user}.",
                         messages.SUCCESS,
                     )
                 else:
                     self.log_review_result(request=request, review_action="approve", vocab_request=obj, result="skipped")
                     self.message_user(
                         request,
-                        f"Vocab request reviewed by {request.user}",
+                        f"This request has already been reviewed. No changes were made.",
                         messages.WARNING,
                     )
                 return redirect(
@@ -296,14 +296,14 @@ class VocabRequestAdmin(admin.ModelAdmin):
                     self.log_review_result(request=request, review_action="reject", vocab_request=obj, result="rejected")
                     self.message_user(
                         request,
-                        f"Vocab request rejected by {request.user}",
+                        f"Vocabulary request rejected by {request.user}.",
                         messages.WARNING,
                     )
                 else:
                     self.log_review_result(request=request, review_action="reject", vocab_request=obj, result="skipped")
                     self.message_user(
                         request,
-                        f"Vocab request reviewed by {request.user}",
+                        f"This request has already been reviewed. No changes were made.",
                         messages.WARNING,
                     )
                 return redirect(

@@ -1,14 +1,9 @@
-<div id="quiz-count">
-    {% if total_quiz_num > 0 %}
-        {{ current_quiz_num }}/{{ total_quiz_num }}問
-    {% else %}
-        第{{ current_quiz_num }}問
-    {% endif %}
-</div>
-total correct : {{ correct_count }}
-total wrong : {{ wrong_count }}
-total skipped : {{ skipped_count }}
-total tips : {{ total_tips_count }}
+<h1>クイズ結果</h1>
+<div id="quiz-count">回答・スキップした問題数：{{ correct_count|add:wrong_count|add:skipped_count }}問</div>
+正解数： {{ correct_count }}
+不正解数： {{ wrong_count }}
+スキップ数： {{ skipped_count }}
+ヒント使用回数： {{ total_tips_count }}
 
 
-<a href="{% url "HomePage" %}" class="btn btn-primary">Back to Home</a>
+<a href="{% url "HomePage" %}" class="btn btn-primary">ホームに戻る</a>

@@ -1,6 +1,6 @@
 <div id="quiz-count">
     {% if total_quiz_num > 0 %}
-        {{ current_quiz_num }}/{{ total_quiz_num }}問
+        第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
     {% else %}
         第{{ current_quiz_num }}問
     {% endif %}
@@ -9,22 +9,22 @@
 {{ question_vocab.vocab.kana }}
 {% if is_correct %}
 <div>{{ question_vocab.last_answer }}</div>
-Correct
+正解
 {% else %}
 <div>{{ question_vocab.last_answer }}</div>
-Wrong
+不正解
 {% endif %}
 {% if total_quiz_num < 0 or total_quiz_num == current_quiz_num %}
     <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_summary" %}">
         {% csrf_token %}
-            <button type="submit">Summary</button>
+            <button type="submit">結果へ</button>
     </form>
 {% endif %}
 {% if not fallback_used %}
     {% if total_quiz_num < 0 or total_quiz_num > current_quiz_num %}
         <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
             {% csrf_token %}
-                <button type="submit">Next</button>
+                <button type="submit">次へ</button>
         </form>
     {% endif %}
 {% endif %}
@@ -38,6 +38,23 @@ Wrong
     {% endif %}
 {% endfor %}
 </div>
-{% for item in compared_result %}
-    <div>{{ item.type }} {{ item.correct }} {{ item.answer }} {{ item.sub_type }}</div>
-{% endfor %}
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th scope="col">type</th>
+            <th scope="col">correct</th>
+            <th scope="col">user</th>
+            <th scope="col">sub_stype</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in compared_result %}
+            <tr>
+                <td>{{ item.type }}</td>
+                <td>{{ item.correct }}</td>
+                <td>{{ item.answer }}</td>
+                <td>{{ item.sub_type }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

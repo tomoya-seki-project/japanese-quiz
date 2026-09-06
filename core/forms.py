@@ -20,8 +20,8 @@ class UserEventIsReadedUpdateForm(forms.Form):
             self.fields["selected_ids"].queryset = user_event_queryset
 
 class FeedbackCreateForm(forms.Form):
-    feedback_type = forms.ChoiceField(choices=FeedbackType.choices)
-    context = forms.CharField(max_length=255, widget=forms.Textarea)
+    feedback_type = forms.ChoiceField(label="種類", choices=FeedbackType.choices)
+    context = forms.CharField(label="内容", max_length=255, widget=forms.Textarea)
 
 class FeedbackReplyForm(forms.Form):
-    context = forms.CharField(max_length=255, widget=forms.Textarea)
+    context = forms.CharField(label="Message", max_length=255, widget=forms.Textarea)

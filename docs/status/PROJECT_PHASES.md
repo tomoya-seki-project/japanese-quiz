@@ -27,6 +27,7 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 6](#phase-6-user-facing-workflows-and-domain-hardening) | 2026-08-13 ～ 2026-08-22 | Feedback、UserVocab detail、permissions、data integrity |
 | [Phase 7](#phase-7-extensibility-and-application-resilience) | 2026-08-24 ～ 2026-08-28 | MC sense foundation、error handling、resilient sync、logging foundation |
 | [Phase 8](#phase-8-workflow-observability-and-project-review) | 2026-08-31 | Domain logging coverage、MCSense migration、全 project review |
+| [Phase 9](#phase-9-quiz-performance-and-interface-language) | 2026-09-02 ～ 2026-09-06 | Bottom-up DP、unsupported-type isolation、日文 UI／語系分流、初步 regression tests |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -259,6 +260,34 @@ Project 由「主要正常流程可用」進入處理 failure modes、recovery�
 
 Project 嘅主要 workflow 已有較完整 observability，同時將下一輪工作收斂到三個 quiz／state correctness 問題、最小 regression suite，以及尚未接通嘅 multiple-choice vertical flow。
 
+## Phase 9: Quiz Performance and Interface Language
+
+**時間：2026-09-02 ～ 2026-09-06**
+
+### 目標
+
+處理 project review 發現嘅 quiz 最壞效能及 unsupported-type exposure，並將一般 user interface 統一成日文，同時保留管理員英文操作環境。
+
+### 主要成果
+
+- Kana answer comparison 由指數級 recursive branch search 改成 `O(m × n)` bottom-up DP，保留原有 result contract、score ranking、wrong subtype preference 同 deterministic tie-breaking。
+- 新舊 implementation 以 24,336 組 0 至 3 字元輸入作完整 equivalence comparison，結果無 mismatch；25 對 25 全 mismatch 約 0.0018 秒。
+- 未完成嘅 `adverb`、`mimetic`、`conjunction`、`colloquial` choices 暫時停用，並以 migration `0028_vocabtype_cut_out_mc.py` 同步 model state；`MCSense` schema foundation 保留。
+- 一般 user-facing templates、forms、validation、events、feedback、quiz result 同 dictionary labels 統一使用日文；管理員後台及管理員專用 feedback handling 保留英文。
+- 新增 request-level interface language middleware，按頁面切換 `ja`／`en-us` 並於 response 後還原，避免不同 request 互相污染 active language。
+- 建立首批 10 個 regression tests，覆蓋 project templates compilation、語系 boundary、built-in validation、shared choices、keyboard values、output escaping、notification language 同 detail labels。
+
+### 工程決策
+
+- 未完成 MC feature 保留 model／migration foundation，但 active choices 暫時只公開 runtime 已完整支援嘅 `vocab` 同 `katakana`。
+- Answer comparison 將「計最佳 score」同「重建逐字 result」分開；DP cell 只保存必要 state，下一格由 operation 推算。
+- 語系以頁面 responsibility 分流，而唔係單純按登入 user role：管理員開啟一般使用者頁面仍見日文，只有管理員專用頁面使用英文。
+- 共用 enum／choice 保留穩定 database value，只修改 display label；假名 keyboard data attributes 同 JavaScript event contract 同樣保持不變。
+
+### 階段結果
+
+Quiz answer comparison 嘅 request-time performance risk 已解除，未完成 MC 路徑亦唔再向 user 公開。Project 由零 automated tests 進入有基本 UI／language regression protection嘅狀態；下一輪核心 correctness 工作係修正 filter fallback continuation，並逐步補齊 domain、concurrency 同 quiz integration tests。
+
 ## Current Architecture
 
 ```text
@@ -279,7 +308,7 @@ Vocab services  Quiz service   Core services
 
 主要 responsibility boundaries：
 
-- **Views / Forms**：HTTP input、validation presentation、redirect／JSON response。
+- **Middleware / Views / Forms**：interface language boundary、HTTP input、validation presentation、redirect／JSON response。
 - **Services**：domain rules、跨 model orchestration、transactions、side effects。
 - **Models / Constraints**：持久化結構、uniqueness、relationship 同基本 integrity。
 - **Templates / JavaScript**：server-rendered UI、Ajax partial replacement、custom kana input。
@@ -299,14 +328,14 @@ Vocab services  Quiz service   Core services
 
 ## Current State and Remaining Work
 
-目前 dictionary、VocabRequest review、UserVocab management、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Project 仍然係 development-stage，以下項目未完成：
+目前 dictionary、VocabRequest review、UserVocab management、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP，一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
 
-- Automated test suite 尚未建立，目前主要依賴 Django system check、targeted inspection 同 manual browser testing。
+- Automated test suite 已有 10 個 UI／language regression tests，但主要 domain、concurrency、quiz correctness 同 fallback integration coverage 尚未建立。
 - Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
 - Application logging handler、formatter、routing、daily rotation、retention 同主要 domain coverage 已建立；log assertions、rotation／retention 同 concurrent sync 尚待自動驗證。
-- `MCSense` migration 已建立並在目前 local database 套用，但尚未 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成。
-- Quiz answer comparison 最壞情況有嚴重效能問題；filter fallback 亦會在第一題後錯誤停止。
+- `MCSense` migration 已 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成，相關 active choices 暫時停用。
+- Quiz filter fallback 仍會在第一題後錯誤停止；Next／Skip continuation 尚待修正。
 - Whole-database export／restore 尚未建立。
-- Japanese UI wording、layout 同 answer overlay 仍需 polish。
+- Japanese UI wording 同語系分流已完成 code-level implementation；browser visual verification、layout 同 answer overlay 仍需 polish。
 
 詳細工作狀態可參考 [TODO.md](TODO.md)，未納入目前 scope 嘅方向可參考 [FUTURE_IDEAS.md](FUTURE_IDEAS.md)。

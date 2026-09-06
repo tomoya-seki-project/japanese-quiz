@@ -115,7 +115,7 @@ class EventService():
         if create_count != 0:
             create_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
-                                event_title=f"There {"is" if create_count == 1 else "are"} {create_count} new vocab item(s) since your last vocab sync.",
+                                event_title=f"前回の単語同期以降に追加された単語：{create_count}件",
                                 event_msg=", ".join(created_word)
                             )
             EventService.assign_event_to_user(
@@ -125,7 +125,7 @@ class EventService():
         if update_count != 0:
             update_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
-                                event_title=f"There {"is" if update_count == 1 else "are"} {update_count} updated vocab item(s) since your last vocab sync.",
+                                event_title=f"前回の単語同期以降に更新された単語：{update_count}件",
                                 event_msg=", ".join(updated_word)
                             )
             EventService.assign_event_to_user(
@@ -135,7 +135,7 @@ class EventService():
         if restore_count != 0:
             restore_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
-                                event_title=f"There {"is" if restore_count == 1 else "are"} {restore_count} restored vocab item(s) since your last vocab sync.",
+                                event_title=f"前回の単語同期以降に復元された単語：{restore_count}件",
                                 event_msg=", ".join(restored_word)
                             )
             EventService.assign_event_to_user(
@@ -145,7 +145,7 @@ class EventService():
         if delete_count != 0:
             delete_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
-                                event_title=f"There {"is" if delete_count == 1 else "are"} {delete_count} deleted vocab item(s) since your last vocab sync.",
+                                event_title=f"前回の単語同期以降に削除された単語：{delete_count}件",
                                 event_msg=", ".join(deleted_word)
                             )
             EventService.assign_event_to_user(

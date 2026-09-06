@@ -1,1 +1,7 @@
-500
+{% load i18n %}
+{% get_current_language as language %}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head><meta charset="utf-8"><title>500</title></head>
+<body><p>500 — {% if language == "en-us" %}Something went wrong. Please try again later.{% else %}エラーが発生しました。しばらくしてから、もう一度お試しください。{% endif %}</p></body>
+</html>

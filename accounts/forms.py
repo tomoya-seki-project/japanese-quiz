@@ -9,18 +9,21 @@ from django import forms
 User = get_user_model()
 
 class RegistForm(forms.ModelForm):
-    password2 = forms.CharField(label='Password(confirm)', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='パスワード（確認用）', widget=forms.PasswordInput)
     
     class Meta:
         model = User
         fields = ['username', 'email', 'password',]
         labels = {
-            'username': 'Username',
-            'email': 'Email',
-            'password': 'Password',
+            'username': 'ユーザー名',
+            'email': 'メールアドレス',
+            'password': 'パスワード',
         }
         widgets = {
             'password': forms.PasswordInput(),
+        }
+        error_messages = {
+            "email": {"unique": "このメールアドレスはすでに登録されています。"},
         }
     
     field_order = [
@@ -39,7 +42,7 @@ class RegistForm(forms.ModelForm):
         
         if password1 and password2:
             if password1 != password2:
-                self.add_error('password2', 'Password and Password(confirm) have to be the same')
+                self.add_error('password2', 'パスワードが一致しません。')
             else:
                 user = User(username=username, email=email)
                 try:
@@ -57,12 +60,12 @@ class RegistForm(forms.ModelForm):
         return user
 
 class UserLoginForm(AuthenticationForm):
-    username = forms.EmailField(label='Email : ')
-    password = forms.CharField(label='Password', widget=forms.PasswordInput())
-    remember_me = forms.BooleanField(label='Remember Me', required=False)
+    username = forms.EmailField(label='メールアドレス')
+    password = forms.CharField(label='パスワード', widget=forms.PasswordInput())
+    remember_me = forms.BooleanField(label='ログイン状態を保持', required=False)
 
 class UserChangeAdminForm(forms.ModelForm):
-    password = ReadOnlyPasswordHashField(label='password')
+    password = ReadOnlyPasswordHashField(label='Password')
 
     class Meta:
         model = User
@@ -73,7 +76,7 @@ class UserChangeAdminForm(forms.ModelForm):
 
 class UserCreationAdminForm(forms.ModelForm):
     password1 = forms.CharField(label="Password", widget=forms.PasswordInput())
-    password2 = forms.CharField(label="Password(Confirm)", widget=forms.PasswordInput())
+    password2 = forms.CharField(label="Confirm password", widget=forms.PasswordInput())
 
     class Meta:
         model = User
@@ -87,7 +90,7 @@ class UserCreationAdminForm(forms.ModelForm):
         password2 = cleaned_data.get('password2')
         if password1 and password2:
             if password1 != password2:
-                self.add_error("password2", "password and password(confirm) have to be the same")
+                self.add_error("password2", "The passwords do not match.")
             else:
                 user = User(username=username, email=email)
                 try:
@@ -95,7 +98,7 @@ class UserCreationAdminForm(forms.ModelForm):
                 except ValidationError as e:
                     self.add_error("password1", e)
         else:
-            self.add_error(None, "Please enter both password")
+            self.add_error(None, "Please fill in both password fields.")
         return cleaned_data
     
     def save(self, commit=True):

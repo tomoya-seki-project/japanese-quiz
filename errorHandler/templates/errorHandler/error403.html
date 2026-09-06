@@ -1,1 +1,7 @@
-403
+{% load i18n %}
+{% get_current_language as language %}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head><meta charset="utf-8"><title>403</title></head>
+<body><p>403 — {% if language == "en-us" %}Access denied. You do not have permission to view this page.{% else %}このページを表示する権限がありません。{% endif %}</p></body>
+</html>

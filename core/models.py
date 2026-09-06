@@ -3,40 +3,40 @@ from django.conf import settings
 from datetime import date, datetime
 
 class EventType(models.TextChoices):
-    VOCAB_REQUEST_RESULT = "vocab_request_result", "Vocab Request Result"
-    NEW_VOCAB_REQUEST = "new_vocab_request", "New Vocab Request Result"
-    VOCAB = "vocab", "Vocab"
-    WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system", "Weight Update by System"
-    FEEDBACK_REPLY = "feedback_reply", "Feedback Reply"
+    VOCAB_REQUEST_RESULT = "vocab_request_result", "単語申請の審査結果"
+    NEW_VOCAB_REQUEST = "new_vocab_request", "New vocabulary request"
+    VOCAB = "vocab", "単語"
+    WEIGHT_UPDATE_BY_SYSTEM = "weight_update_by_system", "出題優先度の自動更新"
+    FEEDBACK_REPLY = "feedback_reply", "フィードバックへの返信"
 
 class FeedbackType(models.TextChoices):
-    VOCAB_SUGGESTION = "vocab_suggestion", "Vocab Suggestion"
-    BULK_VOCAB_REQUEST = "bulk_vocab_request", "Bulk Vocab Request"
-    BUG_REPORT = "bug_report", "Bug Report"
-    FEATURE_REQUEST = "feature_request", "Feature Request"
-    OTHERS = "others", "Others"
+    VOCAB_SUGGESTION = "vocab_suggestion", "単語に関する提案"
+    BULK_VOCAB_REQUEST = "bulk_vocab_request", "単語の一括追加申請"
+    BUG_REPORT = "bug_report", "不具合の報告"
+    FEATURE_REQUEST = "feature_request", "機能の追加・改善要望"
+    OTHERS = "others", "その他"
 
 class FeedbackStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     REPLIED = "replied", "Replied"
 
 class TimeStampedModel(models.Model):
-    create_at = models.DateTimeField(auto_now_add=True)
-    update_at = models.DateTimeField(auto_now=True)
+    create_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)
+    update_at = models.DateTimeField(verbose_name="Updated at", auto_now=True)
 
     class Meta:
         abstract = True
 
 class Event(models.Model):
     event_type = models.CharField(
-        verbose_name="Event",
+        verbose_name="Notification type",
         max_length=100,
         choices=EventType.choices
     )
     title = models.CharField(max_length=255)
     message = models.TextField(blank=True)
 
-    create_at = models.DateTimeField(auto_now_add=True)
+    create_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through='UserEvent',
