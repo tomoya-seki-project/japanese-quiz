@@ -14,13 +14,14 @@ from dictionary.models import (
 )
 def get_question_pool(*, request):
     quiz_settings = request.session.get("quiz_settings")
-    question_pool_qs, fallback_used = QuizService.create_question_pool(
+    question_pool_qs = QuizService.create_question_pool(
         user=request.user,
         vocab_type=quiz_settings["vocab_type"],
         level=quiz_settings["level"],
         categories=quiz_settings["categories"],
+        use_full_pool=quiz_settings.get("use_full_pool", False),
     )
-    return question_pool_qs, fallback_used
+    return question_pool_qs
 
 def get_target_user_vocab_id(*, user, pool_queryset):
     return QuizService.pick_random_vocab(user=user, queryset=pool_queryset)
@@ -37,9 +38,9 @@ def get_input_panel_rows(*, question_vocab):
         mc_rows = ["A", "B", "C", "D", "E"]
     return keyboard_rows, mc_rows
 
-def render_quiz_question_payload_html(*, request, target_vocab, fallback_used):
+def render_quiz_question_payload_html(*, request, target_vocab):
     keyboard_rows, mc_rows = get_input_panel_rows(question_vocab = target_vocab)
-    
+
     quiz_session = request.session["quiz_session"]
     main_html = render_to_string(
         "quiz/partials/quiz_question_partial.html",
@@ -47,7 +48,6 @@ def render_quiz_question_payload_html(*, request, target_vocab, fallback_used):
             "current_quiz_num": quiz_session["quizzed_count"],
             "total_quiz_num": quiz_session["aims_quiz_num"],
             "question_vocab": target_vocab,
-            "fallback_used": fallback_used,
         },
         request=request,
     )
@@ -62,20 +62,7 @@ def render_quiz_question_payload_html(*, request, target_vocab, fallback_used):
     return main_html, input_panel_html
 
 def build_next_question_payload(*, request, is_skip=False):
-    question_pool_qs, fallback_used = get_question_pool(request=request)
-
-    if fallback_used:
-        messages.warning(
-            request,
-            "条件に一致する単語がありません。今回は、出題対象に設定したすべての単語から出題します。"
-        )
-        return {
-            "main_html": render_to_string(
-                "quiz/partials/quiz_no_question_partial.html",
-                request=request,
-            ),
-            "input_panel_html": "",
-        }
+    question_pool_qs = get_question_pool(request=request)
 
     user_vocab_id = get_target_user_vocab_id(user=request.user, pool_queryset=question_pool_qs)
 
@@ -90,7 +77,6 @@ def build_next_question_payload(*, request, is_skip=False):
 
     quiz_session = request.session["quiz_session"]
     quiz_session["question_user_vocab_id"] = user_vocab_id
-    quiz_session["fallback_used"] = fallback_used
     if is_skip is False:
         quiz_session["quizzed_count"] += 1
     request.session["quiz_session"] = quiz_session
@@ -104,7 +90,6 @@ def build_next_question_payload(*, request, is_skip=False):
     main_html, input_panel_html = render_quiz_question_payload_html(
         request=request,
         target_vocab=target_vocab,
-        fallback_used=fallback_used,
     )
 
     return {
@@ -112,3 +97,22 @@ def build_next_question_payload(*, request, is_skip=False):
         "main_html": main_html,
         "input_panel_html": input_panel_html,
     }
+
+def handle_insufficient_pool(*, request, min_count, logger, operation):
+    in_use_count = UserVocab.objects.filter(user=request.user, in_use=True, vocab__is_active=True).count()
+
+    if in_use_count < min_count:
+        logger.info(
+            "Quiz start rejected due to insufficient active vocab: "
+            "operation=%s user_id=%s required_count=%s in_use_count=%s",
+            operation,
+            request.user.pk,
+            min_count,
+            in_use_count,
+        )
+        messages.warning(
+            request,
+            f"クイズを始めるには、出題対象の単語が{min_count}語以上必要です。マイ単語帳で出題対象を追加してください。"
+        )
+        return True
+    return False

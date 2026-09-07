@@ -1,85 +1,85 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>お知らせ</h1>
-<form method="GET" action="{% url "core:user_event_list" %}" id="event-filter-form">
-    <select name="status" id="event-status-filter">
-        <option value="">すべて</option>
-        <option value="unread">未読</option>
-        <option value="read">既読</option>
-    </select>
-</form>
-<div id="user-event-list-container">
-    {% include "core/event/partials/user_event_list_partial.html" %}
-</div>
+    <h1>お知らせ</h1>
+    <form method="GET" action="{% url "core:user_event_list" %}" id="event-filter-form">
+        <select name="status" id="event-status-filter">
+            <option value="">すべて</option>
+            <option value="unread">未読</option>
+            <option value="read">既読</option>
+        </select>
+    </form>
+    <div id="user-event-list-container">
+        {% include "core/event/partials/user_event_list_partial.html" %}
+    </div>
 {% endblock %}
 {% block javascript %}
-<script>
-    document.addEventListener("DOMContentLoaded", function(){
-        const userEventListContainer = document.getElementById('user-event-list-container');
+    <script>
+        document.addEventListener("DOMContentLoaded", function(){
+            const userEventListContainer = document.getElementById('user-event-list-container');
 
-        const form = document.getElementById('event-filter-form');
-        const statusSelector = document.getElementById('event-status-filter');
+            const form = document.getElementById('event-filter-form');
+            const statusSelector = document.getElementById('event-status-filter');
 
-        statusSelector.addEventListener('change', function(e){
-            //form.submit();
-            const params = new URLSearchParams(new FormData(form));
-            const url = `${form.action}?${params.toString()}`;
-                fetch(url, {
-                    headers:{
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(res => res.text())
-                .then(html => {
-                    userEventListContainer.innerHTML = html;
-                    selectorReload();
+            statusSelector.addEventListener('change', function(e){
+                //form.submit();
+                const params = new URLSearchParams(new FormData(form));
+                const url = `${form.action}?${params.toString()}`;
+                    fetch(url, {
+                        headers:{
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(res => res.text())
+                    .then(html => {
+                        userEventListContainer.innerHTML = html;
+                        selectorReload();
+                    });
+            })
+
+            userEventListContainer.addEventListener('click', function(e){
+                if(e.target.classList.contains('page-change')){
+                    e.preventDefault();
+                    const url = e.target.href;
+                    fetch(url, {
+                        headers:{
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(res => res.text())
+                    .then(html => {
+                        userEventListContainer.innerHTML = html;
+                        selectorReload();
+                    })
+                    .catch(error => console.error('Error fetching filter user event:', error));
+                }
+            });
+
+            function selectorReload(){
+                const selectAll = document.getElementById("select-all");
+                if(!selectAll) return;
+                const checkboxes = document.querySelectorAll(".is-read-checkbox");
+
+                selectAll.addEventListener("change", function(){
+                    checkboxes.forEach(function(checkbox){
+                        checkbox.checked = selectAll.checked;
+                    });
                 });
-        })
-
-        userEventListContainer.addEventListener('click', function(e){
-            if(e.target.classList.contains('page-change')){
-                e.preventDefault();
-                const url = e.target.href;
-                fetch(url, {
-                    headers:{
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(res => res.text())
-                .then(html => {
-                    userEventListContainer.innerHTML = html;
-                    selectorReload();
-                })
-                .catch(error => console.error('Error fetching filter user event:', error));
-            }
-        });
-
-        function selectorReload(){
-            const selectAll = document.getElementById("select-all");
-            if(!selectAll) return;
-            const checkboxes = document.querySelectorAll(".is-read-checkbox");
-
-            selectAll.addEventListener("change", function(){
                 checkboxes.forEach(function(checkbox){
-                    checkbox.checked = selectAll.checked;
-                });
-            });
-            checkboxes.forEach(function(checkbox){
-                checkbox.addEventListener("change", function(){
-                    const allChecked = Array.from(checkboxes).every(function(box){
-                        return box.checked;
-                    });
-                    const noneChecked = Array.from(checkboxes).every(function(box){
-                        return !box.checked;
-                    });
+                    checkbox.addEventListener("change", function(){
+                        const allChecked = Array.from(checkboxes).every(function(box){
+                            return box.checked;
+                        });
+                        const noneChecked = Array.from(checkboxes).every(function(box){
+                            return !box.checked;
+                        });
 
-                    selectAll.checked = allChecked;
-                    selectAll.indeterminate = !allChecked && !noneChecked;
+                        selectAll.checked = allChecked;
+                        selectAll.indeterminate = !allChecked && !noneChecked;
+                    });
                 });
-            });
-        }
+            }
 
-        selectorReload();
-    });
-</script>
+            selectorReload();
+        });
+    </script>
 {% endblock %}

@@ -34,7 +34,9 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Request creation flow 使用 `transaction.atomic()`。
 - Django Admin 已經有 approve / reject UI，經 POST request 處理。
 - Approve 會按 request type 執行 create、update、restore 或 deactivate vocab。
-- Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
+- User 可為 create、update、restore 同 delete request 提供 optional request reason；reviewer 亦可另外填寫 review note。
+- Reject 會更新 request status 同 reviewer，但唔會改動 vocab，並要求 reviewer 必須填寫 review note。
+- Approve／reject 結果通知會包含 reviewer note。
 - Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
 
 > **未完善：** DELETE request 已保存完整 proposed snapshot；additional vocab types 同 `MCSense` schema foundation 已建立，但 request、import、admin 同 quiz runtime flow 仍未接通。
@@ -53,7 +55,8 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Quiz question pool 來自目前 user 嘅 `UserVocab(in_use=True)`。
 - 支援 weighted random selection，weight 越高越容易被抽中。
 - 會避開最近 quiz 過嘅 10 個 vocab，減少短時間重複出題。
-- Filter 無題時 initial play 會 fallback 到 user full active vocab pool並保留 `fallback_used` state；Next／Skip fallback continuation 目前有已知 bug，已列入 TODO。
+- Filter 無題時唔會自動提供設定範圍外嘅題目；user 會先進入確認頁，選擇返回 setting 或經 POST 明確改用 full active／in-use pool。
+- Full active pool 數量不足最低出題要求時會返回 `UserVocab` list 並顯示 warning；確認使用 full pool 後，Next／Skip 會沿用同一 pool。
 - Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
 - Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
 - Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。
@@ -145,7 +148,7 @@ config/        Django settings、root URLs、WSGI / ASGI
 core/          Shared models、base templates、general pages
 devtools/      Development-only helper tools, including image generators
 dictionary/    Vocab models、forms、views、admin、request service
-docs/          Project status notes, learning notes and modification reports
+docs/          Project status and development documentation
 errorHandler/  Global HTTP error handlers and templates
 log/           Runtime application logs; generated .log files are ignored
 quiz/          Quiz settings、weighted random service、Ajax quiz play flow
@@ -156,7 +159,6 @@ quiz/          Quiz settings、weighted random service、Ajax quiz play flow
 - [docs/status/PROJECT_PHASES.md](docs/status/PROJECT_PHASES.md)：按開發階段整理嘅 portfolio 技術總覽。
 - [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)：主要開發歷史。
 - [docs/status/TODO.md](docs/status/TODO.md)：已發現問題、planned features 同 implementation notes。
-- [docs/status/CODING_REFERENCE.md](docs/status/CODING_REFERENCE.md)：開發期間整理嘅 coding reference，方便遇到類似問題時查閱。
 
 ## Local Setup
 
@@ -350,7 +352,7 @@ The generator has its own notes in [devtools/image_generator/README.md](devtools
 - Weighted random 同 recent 10 questions tests。
 - Event notification tests。
 - Quiz answer comparison correctness／performance tests。
-- Quiz initial／Next／Skip fallback integration tests。
+- Quiz filtered no-pool confirmation、full-pool initial／Next／Skip integration tests。
 
 預計 test command：
 
@@ -361,14 +363,14 @@ python manage.py test
 ## Current Limitations
 
 - Kana quiz 已有 Ajax play、weight adjustment 同 answer comparison flow，但 multiple-choice answer flow 仍未接通。
-- Kana answer comparison performance 問題已用 bottom-up DP 解決；filter fallback 仍會在第一題後錯誤停止，已列入 TODO。
+- Kana answer comparison performance 問題已用 bottom-up DP 解決；filter 無題改為由 user 明確確認是否使用 full pool，唔再靜默 fallback。
 - `MCSense` model 同 migration foundation 已建立並 commit；validation、import、admin、request 同 quiz integration 仍未完成。四種未完成 MC vocab choices 暫時停用，避免 user 進入未接通流程。
-- VocabRequest approve/reject 已有 transaction、row lock、permission、`original_vocab` state guard 同完整 DELETE proposed snapshot。
+- VocabRequest approve/reject 已有 transaction、row lock、permission、`original_vocab` state guard、完整 DELETE proposed snapshot，以及分開嘅 request reason／review note；Reject 必須提供 review note。
 - Event notification system 已有 request result、vocab sync summary 同 feedback reply flow，UI / wording 同更多 event type 仍可改善。
 - Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
 - Logging handlers 同主要 domain flow coverage 已建立；log assertions、concurrent sync 同 rotation／retention 仍待自動驗證。
 - 完整 export / restore 尚未完成。
-- Automated tests 已有初步 UI／language coverage，但主要 domain、concurrency、quiz correctness 同 fallback integration tests 仍未建立。
+- Automated tests 已有初步 UI／language coverage，但主要 domain、concurrency、quiz correctness 同 no-pool/full-pool integration tests 仍未建立。
 - User-facing wording 已完成日文化及語系分流；UI layout、answer overlay 同 browser visual verification 仍需繼續整理。
 - Production deployment settings 未準備。
 

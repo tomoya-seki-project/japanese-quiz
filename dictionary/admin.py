@@ -158,6 +158,7 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'original_vocab',
         'create_at',
         'update_at',
+        'request_reason',
     )
 
     fields = (
@@ -175,6 +176,8 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'created_by',
         'create_at',
         'update_at',
+        'request_reason',
+        'review_note',
     )
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
@@ -218,6 +221,12 @@ class VocabRequestAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
+        if "_reject" in request.POST:
+            if "review_note" in form.base_fields:
+                form.base_fields["review_note"].required = True
+                form.base_fields["review_note"].error_messages["required"] = (
+                    "A review note is required when rejecting a request."
+                )
         if obj is not None and obj.status != VocabRequestStatus.PENDING:
             if "proposed_categories" in form.base_fields:
                 form.base_fields["proposed_categories"].disabled = True

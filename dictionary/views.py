@@ -66,6 +66,7 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
                 created = VocabRequestService.gen_restore_vocab_request(
                     user=self.request.user,
                     vocab=form.deactived_vocab,
+                    form=form,
                 )
             except ValidationError as e:
                 form.add_error(None, e)
@@ -247,7 +248,8 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
         try:
             created = VocabRequestService.gen_delete_vocab_request(
                 user=self.request.user,
-                vocab=self.target_vocab
+                vocab=self.target_vocab,
+                form=form,
             )
         except ValidationError as e:
             form.add_error(None, e)

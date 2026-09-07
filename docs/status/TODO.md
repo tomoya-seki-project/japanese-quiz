@@ -6,7 +6,7 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（69）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（71）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
 -  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
 
@@ -34,7 +34,9 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - Approve 已按 CREATE / UPDATE / RESTORE / DELETE request type 呼叫對應 vocab action。
-- Reject 會更新 request status 同 reviewer，但唔會改動 vocab。
+- Reject 會更新 request status 同 reviewer，但唔會改動 vocab；Reject submit 必須填寫 `review_note`。
+- User 可在 CREATE／UPDATE／RESTORE／DELETE request 提供 optional `request_reason`；admin review page 會將 request reason 設為 readonly，並可另外填寫 review note。
+- Approve／reject 結果 event 會使用 `review_note` 作訊息內容，將 reviewer 嘅補充說明傳回申請人。
 - Admin 會根據 service 回傳結果顯示成功或已處理 warning。
 - 已用 browser / admin 手動測試 create、restore、update、delete request，以及 approve / reject 正常 flow。
 
@@ -305,14 +307,16 @@ Status badge：
 - 25 對 25 全 mismatch targeted benchmark 約 0.0018 秒；Django system check 通過。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 27 點（Quiz Filter Fallback）：Next / Skip 要繼續使用 full active pool**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 27 點（Quiz Filter Fallback）：由 user 確認是否改用 full active pool**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- Initial play 可以由 fallback full pool 正常抽出第一題，但 `build_next_question_payload()` 見到 `fallback_used=True` 就會在抽題前回傳 no-question partial。
-- 保留「正使用 full active pool」warning，但 Next / Skip 必須繼續從 fallback queryset 抽題。
-- 為 initial play、Next 同 Skip 三條 fallback path 補 integration tests。
+- 已移除自動 fallback 同 `fallback_used` state；filtered pool 無題時唔再靜默提供設定範圍外嘅題目。
+- 新增 no-pool confirmation page；user 可返回修改 quiz setting，或經 POST 明確確認使用 full active pool。
+- Full-pool 選擇以 `use_full_pool` session flag 保存，原本 level、vocab type 同 categories 設定仍然保留；Next / Skip 會沿用同一 full pool。
+- Setting 入口同 QuizPlay 無題分支會共用 `handle_insufficient_pool()` 檢查 full active/in-use pool；少過最低出題數量時返回 user vocab list 並顯示 warning，避免進入無法開始嘅 confirmation flow 或形成 redirect loop。
+- Django system check、`git diff --check` 同現有 10 個 automated tests 已通過。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 28 點（Feedback Reply）：防止重複 reply event**
@@ -418,6 +422,8 @@ Status badge：
 
 - CREATE / UPDATE / RESTORE / DELETE request creation flow 已完成。
 - Request creation、approve 同 reject 均經 service transaction 處理；review action 使用 POST、row lock 同 `PENDING` guard 防止重複處理。
+- `VocabRequest` 分開保存 optional `request_reason` 同 `review_note`：前者由申請人提供並在 admin readonly 顯示，後者由 reviewer 填寫；Reject 時由 admin form 動態要求 review note 必填。
+- Review 完成後，結果 event 會以 `review_note` 作訊息內容通知申請人。
 - Duplicate pending request 同 concurrency 由 application validation、conditional unique constraints，以及 `IntegrityError` → `ValidationError` handling 共同保護。
 - Reviewed request 同 workflow-controlled fields 會變成 readonly；approve 前亦會驗證最終 proposed data。
 - CREATE／UPDATE／RESTORE／DELETE request 及 approve／reject 主要流程已手動驗證，admin 會按 service result 顯示 feedback。
@@ -582,6 +588,17 @@ Status badge：
 ## Data Import / Export / Database Migration
 
 
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **由 SQLite 轉用 PostgreSQL**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- 加入 PostgreSQL driver，將 database connection settings 改為由 environment variables 提供，並保留清楚嘅 local development setup。
+- 規劃及執行現有 SQLite data migration，驗證 primary key、foreign key、Many-to-Many relationship、timestamp 同 sequence 均正確保留。
+- 在 PostgreSQL 重新執行 migrations、Django system checks 同主要 workflow tests，特別驗證 conditional unique constraints、transactions、row locks 同 concurrent request behavior。
+- 更新 setup／deployment 文件及 backup／restore 操作，確認切換後唔再意外連接舊 SQLite database。
+
+
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **CSV vocab import command**
 
 
@@ -693,7 +710,7 @@ Status badge：
 - `QuizSettingForm` 可用 checkbox 複選 vocab type、level 同 categories；空選項代表不限制該條件。
 - Settings 會保存到 session，並由 play／next flow 傳入 `QuizService.create_question_pool()`。
 - Question pool 只使用目前 user `in_use=True` 嘅 UserVocab，支援單一、複數或無條件 filter 組合。
-- Filter 後無題會 fallback 到 full active vocab pool，並回傳 `fallback_used`；active vocab 數量不足則 redirect 到 user vocab list 並顯示 warning。
+- Filter 後無題會先進入 confirmation page；user 可返回 setting，或經 POST 明確改用 full active／in-use pool。Full pool 數量不足則 redirect 到 user vocab list 並顯示 warning。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
@@ -943,7 +960,7 @@ Status badge：
 - Create / update / delete request flow tests。
 - Approve / reject flow tests。
 - Admin concurrency / reviewed request readonly tests。
-- Quiz answer comparison correctness／performance tests，以及 initial／Next／Skip fallback integration tests。
+- Quiz answer comparison correctness／performance tests，以及 filtered no-pool confirmation、full-pool initial／Next／Skip integration tests。
 - Feedback repeated／concurrent reply idempotency tests。
 
 
@@ -1022,6 +1039,16 @@ Status badge：
 - 如果日後 quiz pool 大到現有 Python list 計算變慢，再研究 DB-level weighted random 或更完整嘅抽題 cache strategy。
 
 ## UI / UX
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Quiz Ajax accessibility announcement / focus management**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Quiz question、answer result 同 summary partial 已加入可由 JavaScript focus 嘅語意 heading；Ajax replacement 完成後會將 focus 移到新內容標題。
+- Quiz 動態內容區使用 polite live region／atomic announcement，validation 同 request error 區使用 assertive alert，令輔助技術知道內容或錯誤已更新。
+- Django system check、template compilation、`git diff --check` 同現有 10 個 automated tests 已通過。
 
 
 > <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Quiz answer comparison overlay display**

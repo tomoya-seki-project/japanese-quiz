@@ -1,8 +1,8 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>Feedback details</h1>
-{{ feedback.user }}
-{{ feedback.get_type_display }}
-{{ feedback.context }}
-<a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
+    <h1>Feedback details</h1>
+    {{ feedback.user }}
+    {{ feedback.get_type_display }}
+    {{ feedback.context }}
+    <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
 {% endblock %}

@@ -7,6 +7,7 @@
 
 - [Django Admin 與 User 管理](#GROUP-DJANGO-ADMIN)
   - [DJANGO-CUSTOM-USER-ADMIN — #### `[DJANGO-CUSTOM-USER-ADMIN]` Django Custom User Admin](#DJANGO-CUSTOM-USER-ADMIN)
+  - [DJANGO-ADMIN-REVIEW-LIFECYCLE — #### `[DJANGO-ADMIN-REVIEW-LIFECYCLE]` Django Admin approve / reject 完整生命週期與分工](#DJANGO-ADMIN-REVIEW-LIFECYCLE)
   - [DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL — #### `[DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL]` Admin change form 用 readonly field 顯示 action link 嘅做法](#DJANGO-ADMIN-FIELD-BUTTON-CUSTOM-URL)
   - [DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW — #### `[DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW]` Admin approve / reject 點樣處理 form save 同 row lock](#DJANGO-ADMIN-RESPONSE-CHANGE-CHANGEFORM-VIEW)
   - [DJANGO-ADMIN-GET-FORM-BASE-FIELDS — #### `[DJANGO-ADMIN-GET-FORM-BASE-FIELDS]` Django Admin `get_form()` 同 `form.base_fields`](#DJANGO-ADMIN-GET-FORM-BASE-FIELDS)
@@ -137,6 +138,144 @@ password2
   - 使用慣常的 `password1`、`password2` 命名。
   - 在 `save()` 內呼叫 `set_password(password1)`。
   - 將 `add_form` 改成這個專用表單。
+
+#### 理解內容
+
+-
+
+<a id="DJANGO-ADMIN-REVIEW-LIFECYCLE"></a>
+
+### `[DJANGO-ADMIN-REVIEW-LIFECYCLE]` Django Admin approve / reject 完整生命週期與分工
+
+#### 核心概念
+
+Custom submit button、`get_queryset()`、`get_form()`、`save_model()`、`response_change()` 同 service 唔係六個互相獨立嘅做法，而係同一個 POST request 入面唔同階段嘅 hook。
+
+以 `VocabRequestAdmin` 為例，完整主線係：
+
+```text
+change_form.html submit button
+    → Django Admin 收到 POST
+    → get_queryset() 取得目標 object
+    → get_readonly_fields() / get_form() 組成 ModelForm
+    → form.is_valid()
+    → save_model() / save_related()
+    → response_change()
+    → VocabRequestService approve / reject
+    → message_user() + redirect
+```
+
+如果 form 驗證失敗，例如按 Reject 但 `review_note` 空白，流程會喺 `form.is_valid()` 停止，唔會進入 `save_model()`、`response_change()` 或 service。
+
+#### 各部分責任
+
+| 部分 | 負責 | 唔應該負責 |
+|---|---|---|
+| `change_form.html` | 顯示按鈕；透過 `_approve` / `_reject` 表達 admin 意圖 | 直接改 database、做權限或業務驗證 |
+| `get_queryset()` | Django Admin 取得 object 嘅查詢方式；review POST 時提早 `select_for_update()` | 決定 approve 定 reject |
+| `get_readonly_fields()` | 根據 object 狀態限制普通 model fields | 執行審批 |
+| `get_form()` | 建立／調整本次 ModelForm class；Reject 時令 `review_note` required；處理 form field 狀態 | 寫入審批結果 |
+| ModelForm validation | 將 POST 轉成可信嘅 `cleaned_data`，擋住缺少 required field 等輸入錯誤 | 執行 domain transaction |
+| `save_model()` | 保存已通過驗證嘅普通 model fields；阻止 reviewed request 再被保存 | 代替 approve / reject service |
+| `response_change()` | 保存後辨認按鈕、檢查 admin permission、呼叫 service、顯示 message、redirect | 承擔最終 data consistency |
+| `VocabRequestService` | transaction、row lock、重新檢查 pending、執行 vocab 變更、更新審批狀態、建立通知 | 處理 admin HTML 或 redirect |
+
+#### Custom button 點樣將意圖放入 POST
+
+```django
+<button type="submit" name="_approve" value="1">Approve</button>
+<button type="submit" name="_reject" value="1">Reject</button>
+```
+
+Browser 只會提交被按嗰個 submit button 嘅 name/value。因此：
+
+- 按 Approve：`request.POST` 有 `_approve`。
+- 按 Reject：`request.POST` 有 `_reject`。
+
+按鈕本身唔會 call Python method；Django Admin 收到同一條 change-form POST 後，各 hook 再讀 `request.POST` 判斷意圖。
+
+#### Reject 點解可以動態要求 `review_note`
+
+```python
+def get_form(self, request, obj=None, **kwargs):
+    form = super().get_form(request, obj, **kwargs)
+
+    if "_reject" in request.POST and "review_note" in form.base_fields:
+        form.base_fields["review_note"].required = True
+        form.base_fields["review_note"].error_messages["required"] = (
+            "A review note is required when rejecting a request."
+        )
+
+    return form
+```
+
+Model field 可以保持 `blank=True`，因為「資料庫層面容許空白」同「某個 action 要求必填」係兩件事。Approve 可以唔填 note；只有今次 POST 包含 `_reject` 時，admin form field 先變成 required。
+
+重要次序：`get_form()` 唔係負責驗證輸入；佢係設定規則。之後 form instance 執行 `is_valid()`，先真正檢查 `review_note`。
+
+#### `save_model()` 同 `response_change()` 點解兩個都要有
+
+當 form valid，Django Admin 會先保存 form，再問 `response_change()` 應該回傳邊個 response。呢個 project 亦利用後者辨認自訂按鈕：
+
+```python
+def response_change(self, request, obj):
+    if "_approve" in request.POST:
+        return handle_approve(...)
+    if "_reject" in request.POST:
+        return handle_reject(...)
+    return super().response_change(request, obj)
+```
+
+因此兩者分工係：
+
+- `save_model()`：保存 admin form 資料，例如 `review_note`。
+- `response_change()`：保存完成後，開始 approve / reject action，然後決定 message 同 redirect。
+
+如果 override `save_model()` 而正常分支冇 call `super().save_model(...)`，form 表面驗證成功都唔會真正保存。
+
+#### 點解 service 仲要重新 lock 同 check status
+
+Admin layer 嘅 early lock 保護今次 admin POST；service 仍然要自己做：
+
+```python
+with transaction.atomic():
+    locked_request = (
+        VocabRequest.objects
+        .select_for_update()
+        .get(pk=vocab_request.pk)
+    )
+
+    if locked_request.status != VocabRequestStatus.PENDING:
+        return False
+```
+
+原因係 service 可能日後由 admin 以外嘅 API、command 或 test 呼叫。最終業務規則應由 service 自己保證，而唔係假設 caller 一定鎖好資料。
+
+`select_for_update()` 只係令同時處理同一 row 嘅 transaction 排隊；真正防止重複審批嘅判斷仍然係重新讀取後檢查 `status == PENDING`。
+
+#### Approve 同 Reject 嘅差異
+
+共同部分：
+
+- 都要有 change permission。
+- 都用 transaction + row lock。
+- 都重新檢查 request 仍然 pending。
+- 都保存 `reviewed_by`，並用 `review_note` 建立結果通知。
+
+不同部分：
+
+- Approve 會按 request type 執行 create / update / restore / deactivate vocab，亦可能產生 domain `ValidationError`。
+- Reject 唔改 vocab，只將 request 轉為 rejected；但 admin form 要求 `review_note` 必填。
+
+#### 三條要記住嘅失敗路線
+
+1. Reject note 空白：form invalid，留喺 change page；未保存、未 call service。
+2. 冇 change permission：`response_change()` 唔 call service，顯示錯誤並 redirect。
+3. 第二個 reviewer 處理同一 request：service lock 後見到已非 pending，回傳 `False`；唔重複改 vocab。
+
+#### Project 圖解
+
+詳細圖解同逐步例子：[`vocab_request_admin_review_flow.html`](../modification/example/vocab_request_admin_review_flow.html)。
 
 #### 理解內容
 

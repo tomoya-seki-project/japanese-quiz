@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>クイズ設定</h1>
-<form method="POST">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">開始</button>
-</form>
+    <h1>クイズ設定</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">開始</button>
+    </form>
 {% endblock %}

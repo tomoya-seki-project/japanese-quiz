@@ -25,6 +25,15 @@ class BaseVocabRequestForm(forms.Form):
     kana = forms.CharField(max_length=255, label='読み方（かな）')
     level = forms.ChoiceField(label="JLPTレベル", choices=VocabLevel.choices)
     # similar_word = forms.CharField(max_length=255, required=False)
+    request_reason = forms.CharField(label="理由",
+                                     max_length=255,
+                                     required=False,
+                                     widget=forms.Textarea(
+                                         attrs={
+                                             "rows":1,
+                                             "cols":20
+                                         }
+                                     ))
 
     categories = forms.ModelMultipleChoiceField(label="カテゴリー",
         queryset=Category.objects.all(),
@@ -101,6 +110,15 @@ class VocabUpdateRequestForm(BaseVocabRequestForm):
         return cleaned_data
 
 class VocabDeleteRequestForm(forms.Form):
+    request_reason = forms.CharField(label="理由",
+                                     max_length=255,
+                                     required=False,
+                                     widget=forms.Textarea(
+                                         attrs={
+                                             "rows":1,
+                                             "cols":20
+                                         }
+                                     ))
     confirm = forms.BooleanField(label="削除申請を確認しました", required=False)
 
     def clean_confirm(self):

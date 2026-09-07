@@ -1674,3 +1674,42 @@ Status: Kana answer comparison now runs in bounded polynomial time, while unfini
 
 - DP 效能改善要同 output compatibility 一起驗證；唔只比較 minimum edit cost，亦要保留 operation sequence、match count、subtype preference 同最後 tie-breaking。
 - 由 operation 已可推算下一格時，唔需要額外保存 next coordinates，避免 duplicate state。
+
+## 2026-09-06 - Japanese interface localization and language boundaries
+
+Commit: `ee31424`
+
+Status: User-facing workflows now use consistent Japanese wording, while administrator-only interfaces retain English through an explicit request-level language boundary
+
+### 主要改動
+
+- Accounts、dictionary、quiz、event、feedback 同 HTTP error pages 嘅一般 user-facing 文案統一改用日文，並整理按鈕、欄名、validation message 同 result labels。
+- 新增 `InterfaceLanguageMiddleware`，一般頁面使用 `ja`，Django Admin 同管理員專用 feedback handling 使用 `en-us`；request 完成後會還原原本 active language。
+- 建立 `core.ui` shared labels 同 `ui_labels` template filters，將 event type、request type、answer operation／subtype 等 internal values 轉成適合介面顯示嘅文字。
+- 管理員收到嘅新 vocab request notification 保留英文；申請人收到嘅審批結果及 vocab sync notifications 使用日文。
+- 新增 10 個 regression tests，覆蓋 templates compile、language isolation、built-in validation、shared choices、keyboard data values、output escaping、notification language 同 detail labels。
+
+### Database 改動
+
+- 新增 `accounts/migrations/0006_improve_ui_labels.py`。
+- 新增 `core/migrations/0008_improve_ui_labels.py` 同 `0009_shared_japanese_labels.py`。
+- 新增 `dictionary/migrations/0029_improve_ui_labels.py` 同 `0030_shared_japanese_labels.py`。
+- Migrations 只同步 verbose names、choices labels 同 model state；field types、choice values 同既有 domain data保持不變。
+
+### 技術重點
+
+- 語言 boundary 按頁面 responsibility 決定，而唔係只按目前 user role：管理員進入一般功能頁仍使用日文，只有 admin-only workflow 使用英文。
+- Middleware 使用 `translation.activate()` 建立 request locale，並喺 response 後恢復先前語言，避免 thread／request context leakage。
+- 翻譯 display label 時保留 form field name、URL、database value 同 JavaScript `data-*` contract，避免純文案改動破壞 backend／frontend行為。
+- Template 顯示 internal code 前經集中 mapping，同時依賴 Django auto-escaping 防止 user answer 被當成 HTML。
+
+### 理由
+
+- Project 主要服務日語學習者，一般使用者流程需要一致、自然而簡短嘅日文介面；管理員操作則保留英文以符合現有管理 workflow。
+- 全域只設定單一語言無法同時滿足 public 同 admin 頁面，亦可能令一個 request 嘅 active locale 洩漏到下一個 request。
+- Choice label 同儲存值責任不同；只改 display metadata 可以改善 UI 而無需搬移 domain data。
+
+### 學到咩
+
+- Localization 唔只係 template 字串替換，亦包括 Django built-in validation、model choices、notifications、HTML `lang`／`Content-Language` 同 request lifecycle。
+- 共用文字要按真正 audience 分類；檔案位於 core 或 admin 目錄，唔足以單獨判斷應使用日文定英文。

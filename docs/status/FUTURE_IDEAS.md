@@ -39,6 +39,7 @@
 - 正式加入 multiple choice question / answer flow。
 - Multiple choice panel 要產生實際選項，並接上 answer submit 同 backend checking。
 - Multiple choice answer flow 要回傳答題結果，方便 view/template 顯示答啱或答錯。
+- 為 smartphone 實作日文假名 flick keyboard：以「あ・か・さ・た・な・は・ま・や・ら」等行首假名作主鍵，按住主鍵後向指定方向滑動手指選擇同一行嘅目標假名。
 - 如之後需要更精準嘅 recent skip，可只保存最近 10 個 vocab ids；暫時唔建立完整 question history model。
 
 ## Vocab Data Model

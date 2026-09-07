@@ -20,6 +20,7 @@ from .forms import (
     QuizNextForm,
     QuizSkipForm,
     QuizSummaryForm,
+    QuizFullPoolConfirmForm,
 )
 
 from dictionary.models import (
@@ -34,6 +35,7 @@ from .helper import (
     get_input_panel_rows,
     build_next_question_payload,
     render_quiz_question_payload_html,
+    handle_insufficient_pool,
 )
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ class QuizAjaxFormMixin:
             },
             status = 400,
         )
-    
+
 
 class QuizHomeView(LoginRequiredMixin, TemplateView):
     template_name = "quiz/quiz_home.html"
@@ -97,23 +99,10 @@ class QuizSettingView(LoginRequiredMixin, FormView):
                 return redirect("quiz:quiz_unfinished")
             if last_aims_quiz_num > 0 and last_aims_quiz_num <= last_quizzed_count:
                 self.request.session.pop("quiz_session", None)
-
-        in_use_count = UserVocab.objects.filter(user=request.user, in_use=True, vocab__is_active=True).count()
-
-        min_count = QUIZ_CONFIG["pool"]["min_in_use"]
-        if in_use_count < min_count:
-            logger.info(
-                "Quiz start rejected due to insufficient active vocab: "
-                "operation=%s user_id=%s required_count=%s in_use_count=%s",
-                "quiz_setting",
-                self.request.user.pk,
-                min_count,
-                in_use_count,
-            )
-            messages.warning(
-                request,
-                f"クイズを始めるには、出題対象の単語が{min_count}語以上必要です。マイ単語帳で出題対象を追加してください。"
-            )
+        if handle_insufficient_pool(request=request,
+                                    min_count=QUIZ_CONFIG["pool"]["min_in_use"],
+                                    logger=logger,
+                                    operation="quiz_setting"):
             return redirect("dictionary:user_vocab_list")
         return super().get(request, *args, **kwargs)
 
@@ -131,7 +120,7 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             level=quiz_settings["level"]
             vocab_type=quiz_settings["vocab_type"]
             categories=quiz_settings["categories"]
-            
+
         self.request.session["quiz_settings"] = {
             "quiz_num": quiz_num,
             "level": level,
@@ -149,12 +138,33 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             categories,
         )
         return redirect("quiz:quiz_play")
-    
+
+class QuizNoPoolConfirmView(LoginRequiredMixin, QuizSettingRequiredMixin, FormView):
+    template_name = "quiz/quiz_no_pool_confirm.html"
+    form_class = QuizFullPoolConfirmForm
+
+    def form_valid(self, form):
+        quiz_settings = self.request.session.get("quiz_settings")
+        quiz_settings["use_full_pool"] = True
+        self.request.session["quiz_settings"] = quiz_settings
+        return redirect("quiz:quiz_play")
+
 class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
     template_name = "quiz/quiz_play.html"
 
     def get(self, request, *args, **kwargs):
-        question_pool_qs, fallback_used = get_question_pool(request=self.request)
+        question_pool_qs = get_question_pool(request=self.request)
+        if not question_pool_qs.exists():
+            if handle_insufficient_pool(request=request,
+                                        min_count=QUIZ_CONFIG["pool"]["min_in_use"],
+                                        logger=logger,
+                                        operation="quiz_play"):
+                return redirect("dictionary:user_vocab_list")
+            messages.warning(
+                request,
+                "出題できる単語がありません。"
+            )
+            return redirect("quiz:quiz_no_pool_confirm")
         user_vocab_id = get_target_user_vocab_id(user=self.request.user, pool_queryset=question_pool_qs)
         if user_vocab_id is None:
             logger.info(
@@ -169,7 +179,7 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
                 "出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。"
             )
             return redirect("dictionary:user_vocab_list")
-        
+
         self.request.session["quiz_session"] = {
             "aims_quiz_num": self.request.session["quiz_settings"].get("quiz_num", -1),
             "quizzed_count":1,
@@ -178,10 +188,8 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
             "skipped_count":0,
             "total_tips_count":0,
             "question_user_vocab_id": user_vocab_id,
-            "fallback_used": fallback_used,
         }
         self.question_vocab = get_object_or_404(UserVocab, pk=user_vocab_id, user=self.request.user)
-        self.fallback_used = fallback_used
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -190,7 +198,6 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
         context["current_quiz_num"] = self.request.session["quiz_session"].get("quizzed_count", 1)
         context["total_quiz_num"] = self.request.session["quiz_session"].get("aims_quiz_num", -1)
         context["question_vocab"] = self.question_vocab
-        context["fallback_used"] = self.fallback_used
         context["keyboard_rows"] = keyboard_rows
         context["mc_rows"] = mc_rows
         return context
@@ -231,7 +238,6 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
             main_html, input_panel_html = render_quiz_question_payload_html(
                 request=self.request,
                 target_vocab=target_vocab,
-                fallback_used=quiz_session.get("fallback_used", False),
             )
 
             return JsonResponse({
@@ -241,11 +247,10 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
             })
 
         question_vocab = get_object_or_404(
-            UserVocab, 
-            pk=form.cleaned_data.get("user_vocab_id"), 
+            UserVocab,
+            pk=form.cleaned_data.get("user_vocab_id"),
             user=self.request.user
-        )        
-        fallback_used = quiz_session.get("fallback_used",False)
+        )
         is_correct = False
         if True: # question_vocab.vocab.type == VocabType.VOCAB:
             is_correct = QuizService.check_kana_answer(
@@ -262,10 +267,10 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
             form.cleaned_data.get("answer"),
             is_correct,
         )
-        
+
         if question_vocab.vocab.type == VocabType.VOCAB or question_vocab.vocab.type == VocabType.KATAKANA:
             compared_data = QuizService.compare_kana_answer(
-                                correct_answer=question_vocab.vocab.kana, 
+                                correct_answer=question_vocab.vocab.kana,
                                 user_answer=form.cleaned_data.get("answer")
                             )
             compared_result = QuizService.gen_answer_image(compared_result=compared_data)
@@ -277,7 +282,6 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 "current_quiz_num": quiz_session["quizzed_count"],
                 "total_quiz_num": quiz_session["aims_quiz_num"],
                 "question_vocab": question_vocab,
-                "fallback_used": fallback_used,
                 "is_correct": is_correct,
                 "compared_result": compared_result,
             },
@@ -321,7 +325,7 @@ class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequ
                 self.request.user.pk,
                 skipped_question_vocab,
             )
-        
+
         payload = build_next_question_payload(request=self.request, is_skip=True)
         return JsonResponse(payload)
 
@@ -333,13 +337,12 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
         unfinished_question_user_vocab_id = quiz_session.get("question_user_vocab_id")
         if unfinished_question_user_vocab_id:
             user_vocab_id = unfinished_question_user_vocab_id
-            fallback_used = quiz_session.get("fallback_used")
             messages.warning(
                 request,
                 "まだ回答していない問題があります。"
             )
         else:
-            question_pool_qs, fallback_used = get_question_pool(request=self.request)
+            question_pool_qs = get_question_pool(request=self.request)
             user_vocab_id = get_target_user_vocab_id(user=self.request.user, pool_queryset=question_pool_qs)
             quiz_session["quizzed_count"] += 1
         if user_vocab_id is None:
@@ -355,24 +358,21 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
                 "出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。"
             )
             return redirect("dictionary:user_vocab_list")
-        
-        
+
+
         quiz_session["question_user_vocab_id"] = user_vocab_id
-        quiz_session["fallback_used"] = fallback_used
         request.session["quiz_session"] = quiz_session
         self.question_vocab = get_object_or_404(UserVocab, pk=user_vocab_id, user=self.request.user)
-        self.fallback_used = fallback_used
         return super().get(request, *args, **kwargs)
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         keyboard_rows, mc_rows = get_input_panel_rows(question_vocab = self.question_vocab)
-        
+
         quiz_session = self.request.session.get("quiz_session", {})
         context["current_quiz_num"] = quiz_session["quizzed_count"]
         context["total_quiz_num"] = quiz_session["aims_quiz_num"]
         context["question_vocab"] = self.question_vocab
-        context["fallback_used"] = self.fallback_used
         context["keyboard_rows"] = keyboard_rows
         context["mc_rows"] = mc_rows
         return context
@@ -381,7 +381,6 @@ class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionR
     form_class = QuizSummaryForm
     def form_valid(self, form):
         quiz_session = self.request.session.get("quiz_session",{})
-        fallback_used = quiz_session.get("fallback_used",False)
         main_html = render_to_string(
             "quiz/partials/quiz_summary_partial.html",
             context={
@@ -396,7 +395,7 @@ class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionR
         )
         logger.info(
             "Quiz completed: "
-            "operation=%s user_id=%s quiz_count=%s target_count=%s correct_count=%s wrong_count=%s skipped_count=%s total_tips_count=%s fallback_used=%s",
+            "operation=%s user_id=%s quiz_count=%s target_count=%s correct_count=%s wrong_count=%s skipped_count=%s total_tips_count=%s",
             "quiz_complete",
             self.request.user.pk,
             quiz_session["quizzed_count"],
@@ -405,7 +404,6 @@ class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionR
             quiz_session["wrong_count"],
             quiz_session["skipped_count"],
             quiz_session["total_tips_count"],
-            fallback_used,
         )
         self.request.session.pop("quiz_session", None)
         return JsonResponse({

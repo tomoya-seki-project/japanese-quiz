@@ -1,27 +1,27 @@
 {% extends "core/base_clear.html" %}
 {% load static %}
 {% block content %}
-<h1>クイズ</h1>
-<div id="quiz-error-message"></div>
-<div id="quiz-area-container">
-    {% include "quiz/partials/quiz_question_partial.html" %}
-</div>
-<button type="button" id="show-input-panel-button">
-    キーボード表示
-</button>
-<div id="quiz-input-panel-container" hidden>
-    {% include "quiz/partials/quiz_input_panel_partial.html" %}
-</div>
-{% endblock %}
-{% block javascript %}
-<script src="{% static 'js/quiz/kana_input.js' %}"></script>
-<script src="{% static 'js/quiz/quiz_play.js' %}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function(){
-        quizAreaHandler();
-        answerAreaReactionHandler();
-        inputPanelToggleHandler();
-        tipsHandler();
-    })
-</script>
+    <h1>クイズ</h1>
+    <div id="quiz-error-message" role="alert" aria-live="assertive"></div>
+    <div id="quiz-area-container" aria-live="polite" aria-atomic="true">
+        {% include "quiz/partials/quiz_question_partial.html" %}
+    </div>
+    <button type="button" id="show-input-panel-button">
+        キーボード表示
+    </button>
+    <div id="quiz-input-panel-container" hidden>
+        {% include "quiz/partials/quiz_input_panel_partial.html" %}
+    </div>
+    {% endblock %}
+    {% block javascript %}
+    <script src="{% static 'js/quiz/kana_input.js' %}"></script>
+    <script src="{% static 'js/quiz/quiz_play.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            quizAreaHandler();
+            answerAreaReactionHandler();
+            inputPanelToggleHandler();
+            tipsHandler();
+        })
+    </script>
 {% endblock %}

@@ -1,8 +1,8 @@
 {% extends "core/base.html" %}
 {% block content %}
-{% load ui_labels %}
-<h1>お知らせの詳細</h1>
-{{ user_event.event.event_type|event_label }}
-{{ user_event.event.title }}
-{{ user_event.event.message }}
+    {% load ui_labels %}
+    <h1>お知らせの詳細</h1>
+    {{ user_event.event.event_type|event_label }}
+    {{ user_event.event.title }}
+    {{ user_event.event.message }}
 {% endblock %}

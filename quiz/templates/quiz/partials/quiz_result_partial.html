@@ -1,3 +1,4 @@
+<h2 class="quiz-content-heading" tabindex="-1">結果</h2>
 <div id="quiz-count">
     {% if total_quiz_num > 0 %}
         第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
@@ -8,11 +9,11 @@
 {{ question_vocab.vocab.word }}
 {{ question_vocab.vocab.kana }}
 {% if is_correct %}
-<div>{{ question_vocab.last_answer }}</div>
-正解
+    <div>{{ question_vocab.last_answer }}</div>
+    正解
 {% else %}
-<div>{{ question_vocab.last_answer }}</div>
-不正解
+    <div>{{ question_vocab.last_answer }}</div>
+    不正解
 {% endif %}
 {% if total_quiz_num < 0 or total_quiz_num == current_quiz_num %}
     <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_summary" %}">
@@ -20,23 +21,21 @@
             <button type="submit">結果へ</button>
     </form>
 {% endif %}
-{% if not fallback_used %}
-    {% if total_quiz_num < 0 or total_quiz_num > current_quiz_num %}
-        <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
-            {% csrf_token %}
-                <button type="submit">次へ</button>
-        </form>
-    {% endif %}
+{% if total_quiz_num < 0 or total_quiz_num > current_quiz_num %}
+    <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
+        {% csrf_token %}
+            <button type="submit">次へ</button>
+    </form>
 {% endif %}
 
 {% load static %}
 <div class="compared-answer-result">
-{% for result_image in compared_result %}
-    <img src="{% static result_image.image_path %}" style="width:100px;height:100px;object-fit:contain;">
-    {% if result_image.sub_image_path != ""%}    
-        <img src="{% static result_image.sub_image_path %}" style="width:100px;height:100px;object-fit:contain;">
-    {% endif %}
-{% endfor %}
+    {% for result_image in compared_result %}
+        <img src="{% static result_image.image_path %}" style="width:100px;height:100px;object-fit:contain;">
+        {% if result_image.sub_image_path != ""%}
+            <img src="{% static result_image.sub_image_path %}" style="width:100px;height:100px;object-fit:contain;">
+        {% endif %}
+    {% endfor %}
 </div>
 <table class="table table-bordered table-sm">
     <thead>

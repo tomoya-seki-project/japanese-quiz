@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>単語の追加</h1>
-<form method="POST">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">申請</button>
-</form>
+    <h1>単語の追加</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">申請</button>
+    </form>
 {% endblock %}

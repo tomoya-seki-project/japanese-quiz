@@ -9,39 +9,39 @@
     </thead>
     <tbody>
         {% for feedback in feedbacks %}
-        <tr>
-            <td>{{ feedback.user }}</td>
-            <td>{{ feedback.get_type_display }}</td>
-            <td>{{ feedback.context }}</td>
-            <td>
-                <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
-                    View details
-                </a>
-            </td>
-        </tr>
+            <tr>
+                <td>{{ feedback.user }}</td>
+                <td>{{ feedback.get_type_display }}</td>
+                <td>{{ feedback.context }}</td>
+                <td>
+                    <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
+                        View details
+                    </a>
+                </td>
+            </tr>
         {% endfor %}
     </tbody>
 </table>
 {% if is_paginated %}
-<div>
-    {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Previous</a>
-    {% else %}
-        Previous
-    {% endif %}
-
-    {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-            {{ num }}
+    <div>
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Previous</a>
         {% else %}
-            <a href="?page={{ num }}" class="page-change">{{ num }}</a>
+            Previous
         {% endif %}
-    {% endfor %}
 
-    {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="page-change">Next</a>
-    {% else %}
-        Next
-    {% endif %}
-</div>
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                {{ num }}
+            {% else %}
+                <a href="?page={{ num }}" class="page-change">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+        {% else %}
+            Next
+        {% endif %}
+    </div>
 {% endif %}

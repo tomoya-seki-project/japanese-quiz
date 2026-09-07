@@ -45,3 +45,6 @@ class QuizSkipForm(forms.Form):
 
 class QuizSummaryForm(forms.Form):
     pass
+
+class QuizFullPoolConfirmForm(forms.Form):
+    pass

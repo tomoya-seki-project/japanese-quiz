@@ -2,6 +2,11 @@
 {% get_current_language as language %}
 <!DOCTYPE html>
 <html lang="{{ language }}">
-<head><meta charset="utf-8"><title>400</title></head>
-<body><p>400 — {% if language == "en-us" %}Bad request. Please check your request and try again.{% else %}リクエストを処理できません。内容を確認して、もう一度お試しください。{% endif %}</p></body>
+    <head>
+        <meta charset="utf-8">
+        <title>400</title>
+    </head>
+    <body>
+        <p>400 — {% if language == "en-us" %}Bad request. Please check your request and try again.{% else %}リクエストを処理できません。内容を確認して、もう一度お試しください。{% endif %}</p>
+    </body>
 </html>

@@ -38,9 +38,10 @@ function quizAreaHandler(){
             }
 
             errorContainer.replaceChildren();
-            
+
             quizAreaContainer.innerHTML = data.main_html;
             quizInputPanelContainer.innerHTML = data.input_panel_html;
+            quizAreaContainer.querySelector(".quiz-content-heading")?.focus();
         })
         .catch(error => {
             console.error(error);
@@ -87,17 +88,17 @@ function answerAreaReactionHandler(){
         if(!e.target.classList.contains('kana-key')){
             return;
         }
-        
+
         const answerInput = document.getElementById("answer-input");
         const answerDisplay = document.getElementById("answer-display");
-        
+
         if(!answerInput || !answerDisplay){
             return;
         }
         if(e.target.dataset.kana === "hide"){
             const showInputPanelButton = document.getElementById("show-input-panel-button");
             const inputPanelContainer = document.getElementById("quiz-input-panel-container");
-            
+
             inputPanelContainer.hidden = true;
             showInputPanelButton.hidden = false;
         }else{
@@ -105,7 +106,7 @@ function answerAreaReactionHandler(){
             answerInput.value = newAnswer;
             answerDisplay.textContent = newAnswer;
         }
-        
+
     });
 }
 
@@ -165,7 +166,7 @@ function applyAnswerTips(correctAnswer, currentInput){
         afterTipAnswer = correctAnswer.slice(0,1);
         return afterTipAnswer;
     }
-    
+
     // The current input has the same length as the correct answer, but is not correct.
     // Or the current input is shorter than the correct answer, but is not a correct prefix.
     if(((currentInput != correctAnswer) && (currentInput.length == correctAnswer.length))
@@ -177,12 +178,12 @@ function applyAnswerTips(correctAnswer, currentInput){
                 break;
             }
         }
-        
+
         if(firstDiffPos == 0){
             afterTipAnswer = correctAnswer.slice(0,1) + currentInput.slice(1,currentInput.length);
         }else{
-            afterTipAnswer = currentInput.slice(0, firstDiffPos) 
-                                + correctAnswer.slice(firstDiffPos, firstDiffPos+1) 
+            afterTipAnswer = currentInput.slice(0, firstDiffPos)
+                                + correctAnswer.slice(firstDiffPos, firstDiffPos+1)
                                 + currentInput.slice(firstDiffPos+1, currentInput.length);
         }
         return afterTipAnswer;

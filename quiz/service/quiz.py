@@ -31,39 +31,33 @@ class DPCell:
 
 class QuizService():
     @staticmethod
-    def create_question_pool(*, user, vocab_type=None, level=None, categories=None):
+    def create_question_pool(*, user, vocab_type=None, level=None, categories=None, use_full_pool=False):
         full_qs = UserVocab.objects.filter(user=user, in_use=True, vocab__is_active=True).select_related("vocab").distinct()
 
         filtered_qs = full_qs
 
-        if vocab_type:
-            filtered_qs = filtered_qs.filter(vocab__type__in=vocab_type)
-        if level:
-            filtered_qs = filtered_qs.filter(vocab__level__in=level)
-        if categories:
-            filtered_qs = filtered_qs.filter(vocab__categories__in=categories).distinct()
+        if not use_full_pool:
+            if vocab_type:
+                filtered_qs = filtered_qs.filter(vocab__type__in=vocab_type)
+            if level:
+                filtered_qs = filtered_qs.filter(vocab__level__in=level)
+            if categories:
+                filtered_qs = filtered_qs.filter(vocab__categories__in=categories).distinct()
 
-        if filtered_qs.count() > QUIZ_CONFIG["pool"]["min_in_use"]:
-            recently_quizzed_ids = (
-                filtered_qs.filter(last_quiz_at__isnull=False)
-                .order_by("-last_quiz_at")
-                .values_list("id", flat=True)[:QUIZ_CONFIG["pool"]["min_in_use"]]
-            )
-            filtered_qs = filtered_qs.exclude(id__in=recently_quizzed_ids)
+            if filtered_qs.count() > QUIZ_CONFIG["pool"]["min_in_use"]:
+                recently_quizzed_ids = (
+                    filtered_qs.filter(last_quiz_at__isnull=False)
+                    .order_by("-last_quiz_at")
+                    .values_list("id", flat=True)[:QUIZ_CONFIG["pool"]["min_in_use"]]
+                )
+                filtered_qs = filtered_qs.exclude(id__in=recently_quizzed_ids)
 
-        fallback_used = False
-        if not filtered_qs.exists():
-            output_qs = full_qs
-            fallback_used = True
-        else:
-            output_qs = filtered_qs
-
-        return output_qs, fallback_used
+        return filtered_qs
 
     @staticmethod
     def pick_random_vocab(*, user, queryset=None):
         if queryset is None:
-            queryset, fallback_used = QuizService.create_question_pool(user=user)
+            queryset = QuizService.create_question_pool(user=user)
 
         weight_rows = list(queryset.values_list("id", "weight"))
 

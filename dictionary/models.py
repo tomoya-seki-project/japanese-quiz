@@ -169,7 +169,6 @@ class VocabRequestStatus(models.TextChoices):
 class VocabRequest(TimeStampedModel):
     request_type = models.CharField(verbose_name="Request type", max_length=20, choices=VocabRequestType.choices)
     status = models.CharField(verbose_name="Status", max_length=20, choices=VocabRequestStatus.choices)
-    reason = models.CharField(verbose_name="Reason", max_length=255,blank=True,null=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -218,6 +217,10 @@ class VocabRequest(TimeStampedModel):
 
     #for update type request only
     original_data = models.JSONField(verbose_name="Previous data", blank=True, null=True)
+
+
+    request_reason = models.TextField(verbose_name="Request reason / source", max_length=255,blank=True,null=True)
+    review_note = models.TextField(verbose_name="Review note", max_length=255,blank=True,null=True)
 
     def __str__(self):
         return f"{self.proposed_word}:{self.request_type}:{self.status}"

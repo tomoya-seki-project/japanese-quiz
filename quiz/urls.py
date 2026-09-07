@@ -11,6 +11,7 @@ from .views import (
     QuizSkipView,
     QuizUnfinishedView,
     QuizSummaryView,
+    QuizNoPoolConfirmView
 )
 
 app_name = 'quiz'
@@ -24,4 +25,5 @@ urlpatterns = [
     path('skip/', QuizSkipView.as_view(), name='quiz_skip'),
     path('unfinished/', QuizUnfinishedView.as_view(), name='quiz_unfinished'),
     path('summary/', QuizSummaryView.as_view(), name='quiz_summary'),
+    path('no_pool_confirm/', QuizNoPoolConfirmView.as_view(), name='quiz_no_pool_confirm'),
 ]

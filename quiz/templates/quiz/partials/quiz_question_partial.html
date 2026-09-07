@@ -1,3 +1,4 @@
+<h2 class="quiz-content-heading" tabindex="-1">問題</h2>
 <div id="quiz-count">
     {% if total_quiz_num > 0 %}
         第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
@@ -5,8 +6,8 @@
         第{{ current_quiz_num }}問
     {% endif %}
 </div>
-<form class="quiz-ajax-form" 
-    method="POST" 
+<form class="quiz-ajax-form"
+    method="POST"
     action="{% url "quiz:quiz_submit_answer" %}"
     data-correct-answer="{{ question_vocab.vocab.kana }}">
     {% csrf_token %}

@@ -89,7 +89,7 @@ class VocabRequestService():
         EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
 
     @staticmethod
-    def gen_create_vocab_request(user, form):
+    def gen_create_vocab_request(*, user, form):
         is_created = False
         word = form.cleaned_data["word"]
         kana = form.cleaned_data["kana"]
@@ -108,6 +108,7 @@ class VocabRequestService():
                         proposed_meaning = form.cleaned_data["meaning"],
                         proposed_kana = kana,
                         proposed_level = form.cleaned_data["level"],
+                        request_reason = form.cleaned_data.get("request_reason", "")
                         #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     create_request.proposed_categories.set(form.cleaned_data["categories"])
@@ -135,7 +136,7 @@ class VocabRequestService():
         return is_created
 
     @staticmethod
-    def gen_update_vocab_request(user, form):
+    def gen_update_vocab_request(*, user, form):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = form.target_vocab):
             # Add logging later.
@@ -153,6 +154,7 @@ class VocabRequestService():
                         proposed_kana = form.cleaned_data["kana"],
                         proposed_level = form.cleaned_data["level"],
                         original_vocab = form.target_vocab,
+                        request_reason = form.cleaned_data.get("request_reason", "")
                         #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     update_request.proposed_categories.set(form.cleaned_data["categories"])
@@ -195,7 +197,7 @@ class VocabRequestService():
         return is_created
 
     @staticmethod
-    def gen_restore_vocab_request(user, vocab):
+    def gen_restore_vocab_request(*, user, vocab, form):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = vocab):
             # Add logging later.
@@ -213,6 +215,7 @@ class VocabRequestService():
                         proposed_kana = vocab.kana,
                         proposed_level = vocab.level,
                         original_vocab = vocab,
+                        request_reason = form.cleaned_data.get("request_reason", "")
                         #proposed_similar_word = vocab.similar_word,
                     )
                     restore_request.proposed_categories.set(vocab.categories.all())
@@ -242,7 +245,7 @@ class VocabRequestService():
         return is_created
 
     @staticmethod
-    def gen_delete_vocab_request(user, vocab):
+    def gen_delete_vocab_request(*, user, vocab, form):
         is_created = False
         if VocabRequestService.has_pending_request(target_vocab = vocab):
             # Add logging later.
@@ -260,6 +263,7 @@ class VocabRequestService():
                         proposed_vocab_type = vocab.type,
                         proposed_meaning = vocab.meaning,
                         proposed_level = vocab.level,
+                        request_reason = form.cleaned_data.get("request_reason", "")
                     )
                     delete_request.proposed_categories.set(
                         vocab.categories.all()
@@ -340,7 +344,7 @@ class VocabRequestService():
                 request_result_event = EventService.create_event(
                                             event_type=EventType.VOCAB_REQUEST_RESULT,
                                             event_title=f"単語の{REQUEST_TYPES_JA[locked_request.request_type]}申請が{reviewed_by}さんに承認されました。",
-                                            event_msg=""
+                                            event_msg=locked_request.review_note or ""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
         return True
@@ -364,7 +368,7 @@ class VocabRequestService():
                 request_result_event = EventService.create_event(
                                             event_type=EventType.VOCAB_REQUEST_RESULT,
                                             event_title=f"単語の{REQUEST_TYPES_JA[locked_request.request_type]}申請が{reviewed_by}さんに却下されました。",
-                                            event_msg=""
+                                            event_msg=locked_request.review_note or ""
                                         )
                 EventService.assign_event_to_user(event=request_result_event, user=locked_request.created_by)
         return True

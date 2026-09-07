@@ -1,48 +1,48 @@
 {% extends "core/base.html" %}
 {% block content %}
-{% load ui_labels %}
-<h1>マイ単語帳の詳細</h1>
-<form method="POST">
-    {% csrf_token %}
-    <div>出題対象： {{ in_use_form.in_use }}</div>
-    <div>出題優先度： {{ user_vocab.weight }}</div>
-    <div>正解数： {{ user_vocab.correct_count }}</div>
-    <div>不正解数： {{ user_vocab.incorrect_count }}</div>
-    <div>連続正解・不正解数： {{ user_vocab.streak }}</div>
-    <small>正の数は連続正解、負の数は連続不正解を表します。</small>
-    <div>最終出題日時： {{ user_vocab.last_quiz_at|default_if_none:"未出題" }}</div>
+    {% load ui_labels %}
+    <h1>マイ単語帳の詳細</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <div>出題対象： {{ in_use_form.in_use }}</div>
+        <div>出題優先度： {{ user_vocab.weight }}</div>
+        <div>正解数： {{ user_vocab.correct_count }}</div>
+        <div>不正解数： {{ user_vocab.incorrect_count }}</div>
+        <div>連続正解・不正解数： {{ user_vocab.streak }}</div>
+        <small>正の数は連続正解、負の数は連続不正解を表します。</small>
+        <div>最終出題日時： {{ user_vocab.last_quiz_at|default_if_none:"未出題" }}</div>
+        <div>
+            前回の回答：
+            {% if user_vocab.last_answer %}
+                {% load static %}
+                <div class="compared-answer-result">
+                {% for result_image in compared_result %}
+                    <img src="{% static result_image.image_path %}" style="width:20px;height:20px;object-fit:contain;">
+                    {% if result_image.sub_image_path != ""%}
+                        <img src="{% static result_image.sub_image_path %}" style="width:20px;height:20px;object-fit:contain;">
+                    {% endif %}
+                {% endfor %}
+                </div>
+            {% else %}
+                回答履歴はありません。
+            {% endif %}
+        </div>
+        <button type="submit">保存</button>
+    </form>
+    <hr>
+    <h3>単語の詳細</h3>
+    <div>単語： {{ user_vocab.vocab.word }}</div>
+    <div>意味： {{ user_vocab.vocab.meaning }}</div>
+    <div>読み方（かな）： {{ user_vocab.vocab.kana }}</div>
+    <div>JLPTレベル： {{ user_vocab.vocab.level|vocab_level_label }}</div>
+    <div>種類： {{ user_vocab.vocab.type|vocab_type_label }}</div>
     <div>
-        前回の回答：
-        {% if user_vocab.last_answer %}
-            {% load static %}
-            <div class="compared-answer-result">
-            {% for result_image in compared_result %}
-                <img src="{% static result_image.image_path %}" style="width:20px;height:20px;object-fit:contain;">
-                {% if result_image.sub_image_path != ""%}    
-                    <img src="{% static result_image.sub_image_path %}" style="width:20px;height:20px;object-fit:contain;">
-                {% endif %}
-            {% endfor %}
-            </div>
-        {% else %}
-            回答履歴はありません。
-        {% endif %}
-    </div>  
-    <button type="submit">保存</button>
-</form>
-<hr>
-<h3>単語の詳細</h3>
-<div>単語： {{ user_vocab.vocab.word }}</div>
-<div>意味： {{ user_vocab.vocab.meaning }}</div>
-<div>読み方（かな）： {{ user_vocab.vocab.kana }}</div>
-<div>JLPTレベル： {{ user_vocab.vocab.level|vocab_level_label }}</div>
-<div>種類： {{ user_vocab.vocab.type|vocab_type_label }}</div>
-<div>
-    カテゴリー：
-    {% for category in user_vocab.vocab.categories.all %}
-        <div>{{ category }}</div>
-    {% endfor %}
-</div>
-<a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">変更申請</a>
-<a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">削除申請</a>
-<a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">一覧に戻る</a>
+        カテゴリー：
+        {% for category in user_vocab.vocab.categories.all %}
+            <div>{{ category }}</div>
+        {% endfor %}
+    </div>
+    <a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">変更申請</a>
+    <a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">削除申請</a>
+    <a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">一覧に戻る</a>
 {% endblock %}
