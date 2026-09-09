@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+    <h1>認証メールの送信を受け付けました</h1>
+
+    <p>
+        入力されたメールアドレスに未認証のアカウントがある場合、
+        認証メールを送信しました。
+    </p>
+
+    <p>
+        メール内のリンクを開き、アカウントを有効にしてください。
+    </p>
+
+    <p>
+        メールが届かない場合は、迷惑メールフォルダもご確認ください。
+    </p>
+
+    <a href="{% url 'accounts:user_login' %}">
+        ログイン画面に戻る
+    </a>
+    <a href="{% url 'accounts:resend_activation_email' %}">
+        認証メールを再送する
+    </a>
+{% endblock %}

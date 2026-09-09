@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（71）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（72）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（9）：未開始或暫時只係計劃
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -452,6 +452,30 @@ Status badge：
 ## Account / User Management
 
 
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Account email activation**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Public registration會建立 `is_active=False` user；Admin add-user維持active預設，未認證帳戶唔會預先建立 `UserVocab`。
+- 專用stateless token綁定user id、password、email、timestamp及 `is_active`，24小時後過期；GET只顯示確認，POST先啟用，成功後舊link失效並執行resilient vocab sync。
+- Registration會建立完整activation URL、用日文template寄信並進入檢查email頁；development使用console backend及只限 `DEBUG`嘅URL輸出。
+- Resend支援email驗證、inactive-only寄送、統一回應及每個user 60秒cache cooldown；registration首封信亦會啟動cooldown，寄信失敗會釋放key。
+- 寄信回傳0或拋exception會記錄安全audit context；registration失敗會保留inactive account並引導resend，resend失敗則維持不洩漏account狀態嘅統一回應。
+- Inactive、錯密碼及不存在email使用相同日文登入錯誤並提供resend入口；temporary integration diagnostics及現有10個automated tests均通過。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 將目前temporary diagnostics轉成正式accounts automated tests，覆蓋registration、email內容、valid／invalid／expired／reused token、inactive login、resend cooldown、寄信失敗及activation後vocab sync。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- 正式部署前改用production email backend、共享cache及HTTPS site domain；credentials同 `SECRET_KEY`必須由安全環境設定提供。
+- 如之後增加admin resend、background task或更多caller，可將activation email function由view module移到accounts service層。
+
+
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Custom User Admin foundation**
 
 
@@ -482,7 +506,7 @@ Status badge：
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
 - `UserVocab.in_use` 已改成 default `True`。
-- Login／register 後會由 `UserVocabService.sync_new_vocab()` 補齊 user 尚未擁有嘅 vocab，並以 `bulk_create(ignore_conflicts=True)` 減少同步成本。
+- Login／account activation後會由 `UserVocabService.sync_new_vocab()`補齊 user尚未擁有嘅 vocab，並以 `bulk_create(ignore_conflicts=True)`減少同步成本；inactive registration唔會預先建立關係。
 - UserVocab list 可按 `in_use` filter，亦支援以 `selectable_ids`／`selected_ids` 安全地 bulk update quiz 使用狀態。
 - Select-all、checkbox 同 `in_use` 更新流程已用 browser 驗證。
 
@@ -843,6 +867,17 @@ Status badge：
 - 決定各階段等待時間、每次加幾多、high value 幾多。
 - 研究 management command + cron、Celery Beat 或其他 scheduler。
 - 計算 average weight 時要以每個 user 自己嘅 `UserVocab` 為範圍。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **移除 Quiz action endpoints 嘅空 Django Forms**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- `QuizNextForm`、`QuizSkipForm`、`QuizSummaryForm` 同 `QuizFullPoolConfirmForm` 目前無 fields 或 custom validation，只係為配合 `FormView` lifecycle 而存在。
+- 將 `QuizNextView`、`QuizSkipView`、`QuizSummaryView` 同 `QuizNoPoolConfirmView` 改用普通 `View.post()`，保留原有 login、quiz setting、quiz session、Ajax response 同 domain guards。
+- 保留 templates 入面用作提交 action 嘅 HTML `<form method="post">`、CSRF token及既有 endpoint；移除無輸出嘅 `{{ form.as_p }}`。
+- 移除四個空 form classes、相關 imports，以及對呢幾個 endpoints 已無實際用途嘅 form validation plumbing；重構後驗證 Next、Skip、Summary同 full-pool confirmation flow無 regression。
 
 ## Error Handling
 

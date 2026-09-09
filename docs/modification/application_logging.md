@@ -568,8 +568,9 @@ Summary log會保存：
 - Target count；
 - Correct／wrong count；
 - Skipped count；
-- Tips count；
-- Fallback有冇使用。
+- Tips count。
+
+現時summary log並無記錄 `use_full_pool`或舊fallback狀態；如果將來需要分析使用者由無題提示轉用full pool嘅比例，要另外加入明確而非敏感嘅boolean欄位。
 
 普通question pick同Next唔記，因為：
 
@@ -919,14 +920,14 @@ Project例子：
 - Code inspection確認safe sync failure保留traceback；
 - Code inspection確認success log placement同transaction boundary。
 
-目前project test discovery結果：
+當次logging implementation驗證時，project test discovery結果係：
 
 ```text
 Found 0 test(s).
 NO TESTS RAN
 ```
 
-因此現有驗證主要係system check、compile、manual routing同code review，尚未有自動log assertions。
+以上係當時嘅歷史結果。至2026-09-09重新核對，project已有10個UI／language相關Django tests，但仍然未有自動log assertions；logging本身嘅證據仍主要來自system check、compile、manual routing同code review。
 
 ## 建議補測試
 

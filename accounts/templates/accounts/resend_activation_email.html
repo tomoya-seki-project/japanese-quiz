@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+    <h1>認証メールの再送</h1>
+
+    <p>
+        ご登録いただいたメールアドレスを入力してください。
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button type="submit">
+            認証メールを再送する
+        </button>
+    </form>
+
+    <a href="{% url 'accounts:user_login' %}">
+        ログイン画面に戻る
+    </a>
+{% endblock %}

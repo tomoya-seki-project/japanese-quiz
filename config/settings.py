@@ -134,7 +134,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = 'accounts.User'
 
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "Japanese Quiz <noreply@japanese-quiz.local>"
+
+ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS = 60
 LOGIN_URL = '/accounts/user_login/'
 
 LOGGING = {

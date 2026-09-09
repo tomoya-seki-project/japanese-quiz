@@ -86,9 +86,9 @@ User未輸入答案就提交時，本來只應該係「答案必填」validation
 - `quiz/views.py`
   - 新增共用 `QuizAjaxFormMixin`。
   - 四個 AJAX `FormView`使用相同 invalid-form JSON contract。
-  - 成功 response加入 `success=True`。
+  - View直接建立嘅成功 response加入 `success=True`。
 - `quiz/helper.py`
-  - Next／Skip共用 payload加入 `success=True`。
+  - Next／Skip正常題目 payload加入 `success=True`；無下一題分支目前係例外，詳見下文。
 - `quiz/templates/quiz/quiz_play.html`
   - 新增 `#quiz-error-message`容器。
 - `static/js/quiz/quiz_play.js`
@@ -148,9 +148,9 @@ class QuizSubmitAnswerView(
 
 Next、Skip同Summary forms目前冇fields，正常情況下幾乎一定valid；仍然接入mixin可以保持contract一致，並避免將來新增欄位後重新出現同一問題。
 
-### 成功response contract
+### 成功response contract與現時例外
 
-成功response統一加入：
+正常成功response加入：
 
 ```python
 "success": True
@@ -175,6 +175,17 @@ return {
     "input_panel_html": input_panel_html,
 }
 ```
+
+不過，`build_next_question_payload()`嘅「無下一題」分支目前只回傳：
+
+```python
+return {
+    "main_html": main_html,
+    "input_panel_html": "",
+}
+```
+
+即係呢個分支未有 `success=True`，所以現時backend success contract未算完全統一。Frontend只將 `data.success === false`視為validation failure，因此缺少 `success`仍然會進入正常更新流程，功能上可以運作。日後如果要收緊contract，應為呢個分支補上 `success=True`，或者加入明確嘅完成狀態欄位。
 
 ### Invalid response contract
 
@@ -325,9 +336,9 @@ function renderFormErrorMessages(errors, container) {
 ```javascript
 function getErrorLabel(fieldName) {
     const labels = {
-        answer: "答案",
-        tips_count: "提示次數",
-        user_vocab_id: "Quiz資料",
+        answer: "回答",
+        tips_count: "ヒント使用回数",
+        user_vocab_id: "問題",
     };
 
     return labels[fieldName] ?? fieldName;
@@ -345,7 +356,7 @@ function getErrorLabel(fieldName) {
 
 ```javascript
 getErrorLabel("answer");
-// "答案"
+// "回答"
 
 getErrorLabel("unknown_field");
 // "unknown_field"
@@ -370,7 +381,7 @@ errorMsg.textContent = error.message;
 - 四個 AJAX views嘅MRO全部使用 `QuizAjaxFormMixin.form_invalid()`。
 - 直接建立invalid form並呼叫Next view時，回傳 `400 application/json`及structured errors。
 - 直接模擬Submit Answer空答案POST時，回傳 `400 application/json`及 `answer` required error，唔再變成500。
-- 成功payload已統一加入 `success=True`。
+- 一般成功payload已加入 `success=True`；無下一題嘅helper分支仍然缺少呢個欄位，但現時frontend會將佢當成功處理。
 - Code-path review確認非JSON response會喺 `Content-Type` guard拋出error，network／parse／callback error會由 `.catch()`顯示通用提示，而400 JSON仍會進入structured validation error分支。
 
 目前 `quiz` app顯示 `0 tests`，所以上述證據係system check、syntax check、MRO inspection同直接request驗證，唔代表已有automated test suite coverage。
@@ -484,7 +495,7 @@ response.headers.get("content-type")
         document.getElementById("quiz-error-message");
 
     errorContainer.textContent =
-        "系統暫時發生問題，請重新整理頁面再試。";
+        "エラーが発生しました。ページを再読み込みして、もう一度お試しください。";
 });
 ```
 
@@ -493,6 +504,9 @@ response.headers.get("content-type")
 ```text
 200 JSON + success=true
 → 更新Quiz partials
+
+200 JSON + 沒有success欄位
+→ 現時無下一題分支仍會更新Quiz partials，因為frontend只將success=false視為錯誤
 
 400 JSON + success=false
 → 顯示全部form errors
@@ -504,7 +518,7 @@ response.headers.get("content-type")
 → .catch()顯示通用錯誤提示
 ```
 
-目前實作已形成以上四條分流。要留意 `.catch()`同時會捕捉network failure、非JSON response、JSON parsing failure，以及前面Promise callback內拋出嘅JavaScript error；browser console保留技術error，頁面就只向user顯示安全、可恢復嘅通用訊息。
+目前實作已形成以上分流。要留意「沒有 `success`」係現時contract例外，唔應該理解成另一種正式success格式。另外，`.catch()`同時會捕捉network failure、非JSON response、JSON parsing failure，以及前面Promise callback內拋出嘅JavaScript error；browser console保留技術error，頁面就只向user顯示安全、可恢復嘅通用訊息。
 
 ## 建議補測試
 

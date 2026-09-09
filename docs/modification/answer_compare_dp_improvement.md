@@ -529,7 +529,7 @@ System check identified no issues (0 silenced).
 
 ### 新舊 implementation equivalence
 
-保留舊 recursive `answer_compare()` 作短輸入 oracle，將相同 correct/user input 分別傳入新舊 implementation，再比較完整 return dictionary。
+改動驗證期間曾暫時使用舊 recursive `answer_compare()`作短輸入 oracle，將相同 correct/user input分別傳入新舊implementation，再比較完整return dictionary；完成比對後，舊function已喺同一次改動中移除，現時codebase並無保留兩套runtime implementation。
 
 測試範圍：
 
@@ -571,7 +571,7 @@ Benchmark 數字會因硬件、OS 負載同 Python runtime 有變化；重要結
 - Output contract 保持不變。
 - 原有 ranking、subtype preference 同 deterministic tie-breaking 保持不變。
 - 長 mismatch 輸入唔再呈指數級增長。
-- 舊 recursive function 暫時保留，可作 characterization／regression comparison reference。
+- 舊 recursive function已在完成characterization comparison後移除；runtime只保留DP implementation。
 
 ## 之後注意事項
 
@@ -591,7 +591,7 @@ Tests 統一由 TODO「改善 D：補 tests」追蹤。
 
 ### 2. 舊 recursive implementation
 
-正式 regression tests 穩定後，可以考慮移除舊 `answer_compare()`，避免日後兩套 implementation 同時存在而產生維護混亂。
+舊 `answer_compare()`已移除。上面嘅equivalence結果來自改動期間嘅一次性比較，唔代表repository現時仍有舊implementation可直接重跑。若日後需要持續驗證相容性，應將代表性輸入及預期output固化成automated regression tests，而唔係重新保留兩套production implementation。
 
 ### 3. Type hints
 

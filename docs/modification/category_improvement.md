@@ -2,7 +2,7 @@
 
 ## 目的
 
-今次改動係將 dictionary app 原本單一 category 設計，改成一個 vocab 可以擁有 1 至 3 個 categories。
+今次改動係將 dictionary app原本單一category設計，改成一個vocab可以擁有多個categories。現時user request form容許提交0至3個categories，方便管理員補充資料；approve時則要求最少有1個。Database model本身並無全域強制最多3個。
 
 舊設計：
 
@@ -26,7 +26,7 @@
 - `日常生活`
 - `文化・娯楽`
 
-改成最多三個 categories 後，可以保持資料彈性，同時避免 category 過多令 quiz / filter / admin review 變得混亂。
+現時user request form以最多三個categories作產品層限制，可以保持資料彈性，同時避免一般提交包含過多category，令quiz／filter／admin review變得混亂。呢個上限唔係M2M data model本身嘅invariant，其他寫入入口需要自行執行相同validation先會得到一致規則。
 
 ## Database / Model 變更
 
@@ -476,7 +476,7 @@ Applying dictionary.0022_remove_vocab_category_and_more... OK
 
 ## 最終狀態
 
-目前 category system 已完成由 single category 遷移到 1 至 3 個 M2M categories。
+目前category system已完成由single category遷移到M2M categories。正常request approval流程會得到最少1個category，而user request form限制最多3個；系統及database並未全域保證每筆資料一定係1至3個。
 
 目前唯一 category source：
 
@@ -502,9 +502,9 @@ Applying dictionary.0022_remove_vocab_category_and_more... OK
 
 ### 2. Category count rule
 
-目前 form 層限制最多三個 categories。
+目前user request form嘅欄位係optional，所以提交時可以選0至3個categories；form只執行最多3個嘅限制。Review／approve service會要求最少有1個category，但無執行最多3個限制。`ManyToManyField`及database亦無內建呢個cardinality constraint。
 
-如果將來有其他入口直接 call service，例如 API / command，可能要考慮喺 service 或 model validation 再加一次限制。
+如果產品規則真係要求所有已批准vocab一律只有1至3個categories，就要喺所有寫入入口統一執行限制，例如集中喺service validation，並為admin、API同management command補相同保護。單靠一般user form不足以形成全系統invariant。
 
 ### 3. Query performance
 

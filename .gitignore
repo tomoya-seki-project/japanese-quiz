@@ -4,6 +4,7 @@ db.sqlite3
 .venv/
 log/*.log
 log/log.*
+log/*.log.*
 docs/diagrams/last_ver/
 review-reports/
 docs/diagrams/

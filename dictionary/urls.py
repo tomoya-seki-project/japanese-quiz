@@ -8,7 +8,7 @@ from .views import (
     VocabUpdateRequestView,
     VocabDeleteRequestView,
     VocabListView,
-    UserVocabListView, 
+    UserVocabListView,
     UserVocabDetailView,
 )
 

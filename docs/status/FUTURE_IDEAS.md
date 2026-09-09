@@ -14,14 +14,7 @@
 
 ## Account
 
-- 設計 account email activation flow。
-- 實作 email activation 時，拆成 public registration form 同 `UserCreationAdminForm`。
-- Public registration 建立 `is_active=False` 的 user，等待 email activation。
-- Admin 建立 user 時可以直接設定 `is_active=True`。
-- 設計 registration 後是否即時限制 login。
-- 建立 activation link flow。
-- 決定 activation link expiry。
-- 設計 resend activation email flow。
+- 加入 password reset flow，使用 Django內建 views、forms及 `default_token_generator`；如需要同 activation不同期限，再拆分 timeout策略。
 
 ## Event Notification
 
