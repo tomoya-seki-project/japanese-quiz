@@ -1,4 +1,11 @@
 <h2 class="quiz-content-heading" tabindex="-1">クイズ結果</h2>
+{% if ended_early %}
+    {% if end_reason == "question_unavailable" %}
+        <p>現在の問題が出題対象から外れたため、クイズを終了しました。</p>
+    {% elif end_reason == "no_question_pool" %}
+        <p>出題できる問題がなくなったため、クイズを終了しました。</p>
+    {% endif %}
+{% endif %}
 <div id="quiz-count">回答・スキップした問題数：{{ correct_count|add:wrong_count|add:skipped_count }}問</div>
 正解数： {{ correct_count }}
 不正解数： {{ wrong_count }}

@@ -6,14 +6,16 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、event notification、user feedback、Ajax quiz play、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation、event notification、user feedback、Ajax quiz play、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
 
 ## Current Features
 
 ### Accounts
 
 - Custom `User` model，以 email 作為 login identifier。
-- User registration、login、logout 同 profile page。
+- User registration 會先建立 inactive account，經有時限嘅一次性 email link 確認後先啟用；亦支援統一回應及 cooldown 保護嘅 activation email resend。
+- Registration、login、resend 同 admin user forms 會將 email 統一成 lowercase；database 亦以 case-insensitive unique constraint 防止大小寫變體帳戶。
+- Login、logout 同 profile page。
 - Login session 可以選擇 remember me。
 - Django Admin 可以管理 users。
 
@@ -99,7 +101,6 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
 - `MCSense` CSV import、admin/request integration 同 multiple-choice quiz answer flow。
 - Whole database CSV export / restore。
-- Account email activation。
 
 完整規劃可以睇 [docs/status/TODO.md](docs/status/TODO.md)。
 

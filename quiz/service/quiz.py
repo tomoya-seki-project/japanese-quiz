@@ -86,17 +86,24 @@ class QuizService():
 
     @staticmethod
     def skip_question_punish(*, user, user_vocab_id):
-        skipped_user_vocab = UserVocab.objects.filter(pk=user_vocab_id, user=user).first()
-        if skipped_user_vocab is not None:
-            skipped_user_vocab.weight += QUIZ_CONFIG["weight"]["skip"]
-            if skipped_user_vocab.streak > 0:
-                skipped_user_vocab.streak = 0
-            else:
-                skipped_user_vocab.streak -= 1
-            skipped_user_vocab.last_quiz_at = timezone.now()
-            skipped_user_vocab.save(
-                update_fields=["weight","streak","last_quiz_at"]
-            )
+        skipped_user_vocab = UserVocab.objects.filter(
+            pk=user_vocab_id,
+            user=user,
+            in_use=True,
+            vocab__is_active=True,
+        ).first()
+        if skipped_user_vocab is None:
+            return False
+        skipped_user_vocab.weight += QUIZ_CONFIG["weight"]["skip"]
+        if skipped_user_vocab.streak > 0:
+            skipped_user_vocab.streak = 0
+        else:
+            skipped_user_vocab.streak -= 1
+        skipped_user_vocab.last_quiz_at = timezone.now()
+        skipped_user_vocab.save(
+            update_fields=["weight","streak","last_quiz_at"]
+        )
+        return True
 
     @staticmethod
     def check_kana_answer(*, question_vocab=None, answer=None, tips_count=0):

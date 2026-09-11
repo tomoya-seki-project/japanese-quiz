@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（72）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（73）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（10）：未開始或暫時只係計劃
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（11）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -327,6 +327,27 @@ Status badge：
 - `FeedbackService.reply_feedback()` 目前未鎖定 feedback row，亦未要求 target status 仍然係 `PENDING`；重覆 POST 或 concurrent admin reply 可以建立多個 reply events。
 - 在同一 transaction 內用 `select_for_update()` 重新取得 feedback，並以 `PENDING -> REPLIED` status transition 作 idempotency guard。
 - 為已回覆重試同 concurrent reply 補 service / integration tests。
+
+
+> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 29 點（Quiz Session）：失效題目與空 pool 嘅 terminal recovery**
+
+
+<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+
+- Quiz 已開始後，如目前設定嘅 question pool 中途變空，Next／Skip 只會顯示 no-question partial；既有 `quiz_session` 未被終止，之後返回 setting 仍可能被送去 unfinished flow。
+- `QuizUnfinishedView` 恢復 session 內舊題時只檢查 `UserVocab` ownership，未重新驗證 `in_use=True`、`vocab__is_active=True`；record 已刪除時亦會直接 404。
+- 集中定義恢復規則：先驗證 current question eligibility；失效時嘗試按原 pool 取得替代題，仍無題時清除 `quiz_session`、顯示通知並返回可重新設定嘅入口。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 30 點（Account Email Identity）：統一 email canonicalization 與大小寫唯一性**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Custom `UserManager.normalize_email()` 會將完整 email `strip()` 後轉成 lowercase；registration、login、activation resend 同 admin create／change forms 共用同一規則。
+- Registration 同 admin forms 以 `email__iexact` 提早攔截大小寫變體 duplicate，並保留清楚 validation message。
+- `User` model 加入 `Lower("email")` database unique constraint 作最終 data-integrity guard；migration `accounts/0007_email_upper_lower_problem` 已套用。
+- 現有 database 掃描結果為 0 組 case-insensitive collision、0 筆非 lowercase email；Django system check 同 migration drift check 通過。
 
 ## Vocab Planned Work
 

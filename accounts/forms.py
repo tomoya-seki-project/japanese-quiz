@@ -33,6 +33,17 @@ class RegistForm(forms.ModelForm):
         'password2',
     ]
 
+    def clean_email(self):
+        email = User.objects.normalize_email(
+            self.cleaned_data["email"]
+        )
+
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                "このメールアドレスはすでに登録されています。"
+            )
+        return email
+
     def clean(self):
         cleaned_data = super().clean()
         username = cleaned_data.get('username')
@@ -74,12 +85,34 @@ class UserLoginForm(AuthenticationForm):
         ),
     }
 
+    def clean_username(self):
+        return User.objects.normalize_email(
+            self.cleaned_data["username"]
+        )
+
 class UserChangeAdminForm(forms.ModelForm):
     password = ReadOnlyPasswordHashField(label='Password')
 
     class Meta:
         model = User
         fields = ('username', 'email', 'password', 'is_active', 'is_staff', 'is_superuser')
+
+    def clean_email(self):
+        email = User.objects.normalize_email(
+            self.cleaned_data["email"]
+        )
+        duplicated = (
+            User.objects.filter(
+                email__iexact = email
+            ).exclude(
+                pk=self.instance.pk
+            ).exists()
+        )
+        if duplicated:
+            raise ValidationError(
+                "A user with this email address already exists."
+            )
+        return email
 
     def clean_password(self):
         return self.instance.password
@@ -91,6 +124,17 @@ class UserCreationAdminForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ('username', 'email')
+
+    def clean_email(self):
+        email = User.objects.normalize_email(
+            self.cleaned_data["email"]
+        )
+
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                "A user with this email address already exists."
+            )
+        return email
 
     def clean(self):
         cleaned_data = super().clean()
@@ -123,3 +167,7 @@ class ResendActivationEmailForm(forms.Form):
         label="メールアドレス",
         max_length=254,
     )
+    def clean_email(self):
+        return User.objects.normalize_email(
+            self.cleaned_data["email"]
+        )

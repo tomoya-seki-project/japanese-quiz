@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quiz answer_compare 效能改善：Memoization 與 Bottom-up DP</title>
+  <style>
+    :root{--bg:#f4f6fa;--paper:#fff;--ink:#172033;--muted:#5d6878;--line:#dce2eb;--blue:#3157c8;--orange:#b65312;--green:#1d7354;--red:#a52b38;--code:#111827}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,"Noto Sans TC",sans-serif}
+    main{width:min(1120px,94vw);margin:30px auto 70px} header,section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:18px;box-shadow:0 4px 18px #1f293708}
+    h1{font-size:2rem;line-height:1.25;margin:0 0 8px} h2{font-size:1.38rem;margin:0 0 14px} h3{font-size:1.08rem;margin:22px 0 8px} p{margin:7px 0 12px} ul,ol{padding-left:23px} li{margin:4px 0}
+    a{color:var(--blue)} code{background:#eef1f6;padding:1px 5px;border-radius:4px} pre{background:var(--code);color:#edf2f7;border-radius:10px;padding:16px;overflow:auto;line-height:1.5} pre code{background:transparent;padding:0}
+    table{width:100%;border-collapse:collapse;margin:10px 0 18px} th,td{border:1px solid var(--line);padding:9px;text-align:left;vertical-align:top} th{background:#eef2f8}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px}.box{border:1px solid var(--line);border-radius:10px;padding:14px}
+    .good{border-left:5px solid var(--green)}.warn{border-left:5px solid var(--orange)}.danger{border-left:5px solid var(--red)}.note{background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:12px 14px}.pill{display:inline-block;border-radius:999px;padding:2px 9px;color:#fff;font-size:.8rem;font-weight:700;background:var(--blue)}
+    .flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}.step{flex:1 1 150px;border:1px solid var(--line);border-radius:9px;padding:11px;background:#fbfcfe}.arrow{align-self:center;color:var(--muted);font-weight:700}
+    .score{white-space:nowrap}.muted{color:var(--muted)} @media(max-width:650px){header,section{padding:17px}.arrow{display:none}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <h1>Quiz <code>answer_compare()</code> 效能改善</h1>
+    <p>兩套方案：<strong>Top-down recursion + memoization</strong> 同 <strong>Bottom-up dynamic programming + backpointer</strong></p>
+    <p class="muted">根據 2026-09-01 working tree；只係設計說明，未修改 quiz implementation。</p>
+  </header>
+
+  <section>
+    <h2>1. 結論先講</h2>
+    <div class="grid">
+      <div class="box warn"><span class="pill">方案 A</span><h3>Memoization</h3><p>最少改動、較容易保留目前輸出，適合作為快速修正。時間複雜度由指數級降至 <strong>O(mn)</strong>，但 recursive call、完整 result list 複製同 cache memory 仍存在。</p></div>
+      <div class="box good"><span class="pill">方案 B</span><h3>Bottom-up DP</h3><p>正式建議。每格只保存 score、operation 同下一步位置，最後一次過重建結果。同樣係 <strong>O(mn)</strong>，控制流程、記憶體用途同 performance testing 都比較清楚。</p></div>
+    </div>
+    <p><strong>推薦：</strong>如果下一步只想安全修止血，用 A；如果你準備正式重整呢段核心演算法，直接做 B，避免短期修完之後再重寫一次。</p>
+  </section>
+
+  <section>
+    <h2>2. 現有問題係點樣產生</h2>
+    <p>目前 <a href="../../../../quiz/service/quiz.py#L225">quiz/service/quiz.py:225</a> 用兩個位置表示比較進度：</p>
+    <pre><code>state = (pos_of_correct, pos_of_user)</code></pre>
+    <p>字符相同時行對角線；字符唔同時同時嘗試三種 operation：</p>
+    <table>
+      <thead><tr><th>Operation</th><th>下一個 state</th><th>意思</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td><code>WRONG</code></td><td><code>(i+1, j+1)</code></td><td>正確字同輸入字互相替換</td><td>1</td></tr>
+        <tr><td><code>MISSING</code></td><td><code>(i+1, j)</code></td><td>答案漏咗正確字</td><td>1</td></tr>
+        <tr><td><code>EXTRA</code></td><td><code>(i, j+1)</code></td><td>答案多咗一個字</td><td>1</td></tr>
+      </tbody>
+    </table>
+    <div class="flow"><div class="step"><strong>(i, j)</strong><br>遇到 mismatch</div><div class="arrow">→</div><div class="step">WRONG<br>(i+1, j+1)</div><div class="step">MISSING<br>(i+1, j)</div><div class="step">EXTRA<br>(i, j+1)</div></div>
+    <p>問題唔係有三種選擇，而係同一個 state 會經唔同路徑重覆計。例如 <code>(2, 2)</code> 可以由較早嘅 WRONG、MISSING+EXTRA、EXTRA+MISSING 到達。現有 recursion 唔記得自己計過，所以成棵 tree 不斷重算。</p>
+    <div class="danger note"><strong>已觀察到嘅風險：</strong>全 mismatch 長度 9 約 2.36 秒；長度 11 已超過 5 秒 timeout。你將 form 上限由 50 改成 25，可以阻擋 26 字以上 input，但 11 字仍然合法，因此唔係演算法修正。</div>
+  </section>
+
+  <section>
+    <h2>3. 現有選擇規則必須保留</h2>
+    <p>呢段 code 唔係普通 Levenshtein distance；佢除咗搵最低 cost，仲會喺同分時揀較有教學價值嘅 alignment：</p>
+    <pre><code>key = (
+    cost,                         # 越少越好
+    -match_count,                 # 同 cost 時，MATCH 越多越好
+    -non_normal_wrong_count,      # 再同分時，特殊錯誤分類越多越優先
+)</code></pre>
+    <p><code>non_normal_wrong_count</code> 包括 <code>DAKUTEN</code>、<code>HANDAKUTEN</code>、<code>SMALL_KANA</code>，令「が → か」可以呈現為濁音錯誤，而唔係被拆成難理解嘅 missing/extra。</p>
+    <p>所以無論 A 或 B，都唔可以只保存一個 integer distance；每個 state 最少要比較以下 score：</p>
+    <pre><code>Score(cost, match_count, non_normal_wrong_count)
+ranking = (cost, -match_count, -non_normal_wrong_count)</code></pre>
+  </section>
+
+  <section>
+    <h2>4. 方案 A：Top-down recursion + memoization</h2>
+    <h3>理論</h3>
+    <p>保持「由目前位置問：餘下字串最佳答案係乜」嘅 recursive 思維，但第一次計完 <code>(i, j)</code> 後存入 cache。下次再到同一 state，直接取結果，唔再展開三條 branches。</p>
+    <div class="flow"><div class="step">compare(i,j)</div><div class="arrow">→</div><div class="step">Cache 有？<br><strong>有：直接 return</strong></div><div class="arrow">／</div><div class="step">冇：計三條 path<br>選最佳再 cache</div></div>
+
+    <h3>建議結構</h3>
+    <p>將 answer strings 放喺外層，cached function 只接收兩個 integer positions，cache key 就會簡單而穩定：</p>
+    <pre><code>def answer_compare(correct_answer, user_answer):
+    @lru_cache(maxsize=None)
+    def solve(i, j):
+        if i == len(correct_answer) and j == len(user_answer):
+            return Score(0, 0, 0), ()
+
+        if i == len(correct_answer):
+            return extra_tail(j)
+
+        if j == len(user_answer):
+            return missing_tail(i)
+
+        if correct_answer[i] == user_answer[j]:
+            next_score, next_result = solve(i + 1, j + 1)
+            return add_match(next_score), (MATCH,) + next_result
+
+        candidates = (
+            add_wrong(solve(i + 1, j + 1), i, j),
+            add_missing(solve(i + 1, j), i),
+            add_extra(solve(i, j + 1), j),
+        )
+        return min(candidates, key=ranking_key)
+
+    score, result = solve(0, 0)
+    return result_as_current_contract(score, result)</code></pre>
+    <p>上面係設計 pseudocode，重點係 cache 只屬於今次 function call；唔好將帶住某一對答案嘅 cache 長期放喺 class/global scope。</p>
+
+    <h3>正式執行流程</h3>
+    <ol>
+      <li><code>compare_kana_answer()</code> normalize <code>None</code> 成空字串。</li>
+      <li>建立 request-local cached <code>solve(i,j)</code>。</li>
+      <li>遇到 base case 直接產生 remaining MISSING／EXTRA。</li>
+      <li>遇到 MATCH，只計 <code>solve(i+1,j+1)</code>。</li>
+      <li>遇到 mismatch，取三個 child states；child 如已 cache 就直接重用。</li>
+      <li>用現有 ranking key 選最佳 candidate。</li>
+      <li><code>solve(0,0)</code> 回傳同目前完全相同嘅 dictionary contract，後面 <code>gen_answer_image()</code> 毋須改。</li>
+    </ol>
+
+    <h3>優點、代價及陷阱</h3>
+    <table><thead><tr><th>面向</th><th>評估</th></tr></thead><tbody>
+      <tr><td>改動量</td><td>低；最容易沿用現有 recursion、base cases 同 output。</td></tr>
+      <tr><td>時間</td><td>O(mn)，每個 <code>(i,j)</code> 最多真正計一次。</td></tr>
+      <tr><td>空間</td><td>基本 state O(mn)，但如果每個 cached state 都保存完整 result tuple/list，實際複製量可高於 O(mn)。</td></tr>
+      <tr><td>風險</td><td>Mutable list 被 caller 修改會污染 cached result；應使用 immutable tuple，輸出前先轉 list。</td></tr>
+      <tr><td>可讀性</td><td>同現有寫法最接近，但 recursion、cache、result reconstruction 混合埋一齊。</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>5. 方案 B：Bottom-up DP + backpointer</h2>
+    <h3>理論</h3>
+    <p>建立一個 <code>(m+1) × (n+1)</code> table。<code>dp[i][j]</code> 表示「由 correct[i:] 同 answer[j:] 開始，最佳結果嘅 score」。由右下角 base case 倒轉填到左上角，確保計一格之前，佢依賴嘅右、下、右下三格已完成。</p>
+    <pre><code>填表方向：
+
+  dp[m][n] 係終點
+  i: m → 0
+  j: n → 0
+
+dp[i][j] 依賴：
+  dp[i+1][j+1]  WRONG / MATCH
+  dp[i+1][j]    MISSING
+  dp[i][j+1]    EXTRA</code></pre>
+    <p>每格唔保存完整 result list，只保存：</p>
+    <pre><code>Cell(
+    score=Score(cost, match_count, non_normal_wrong_count),
+    operation="MATCH|WRONG|MISSING|EXTRA|END",
+    next_i=...,
+    next_j=...,
+    sub_type=...,
+)</code></pre>
+
+    <h3>建議填表 pseudocode</h3>
+    <pre><code>m, n = len(correct), len(answer)
+dp = matrix(m + 1, n + 1)
+dp[m][n] = Cell(score=(0, 0, 0), operation="END")
+
+for i from m down to 0:
+    for j from n down to 0:
+        if (i, j) == (m, n):
+            continue
+
+        candidates = []
+
+        if i &lt; m and j &lt; n and correct[i] == answer[j]:
+            candidates.append(MATCH + dp[i+1][j+1])
+        else:
+            if i &lt; m and j &lt; n:
+                candidates.append(WRONG + dp[i+1][j+1])
+            if i &lt; m:
+                candidates.append(MISSING + dp[i+1][j])
+            if j &lt; n:
+                candidates.append(EXTRA + dp[i][j+1])
+
+        dp[i][j] = min(candidates, key=ranking_key)
+
+# reconstruction
+i, j = 0, 0
+result = []
+while dp[i][j].operation != "END":
+    result.append(make_result_item(dp[i][j], correct, answer, i, j))
+    i, j = dp[i][j].next_i, dp[i][j].next_j</code></pre>
+
+    <h3>正式執行流程</h3>
+    <ol>
+      <li>Normalize correct/user answer，驗證長度。</li>
+      <li>建立 score table 同 backpointer table。</li>
+      <li>初始化 <code>dp[m][n]</code>；table edge 自然只會有 MISSING 或 EXTRA candidate。</li>
+      <li>由右下至左上填表，每格按現有三層 ranking 選最佳 operation。</li>
+      <li>由 <code>(0,0)</code> 沿 backpointer 重建 result items。</li>
+      <li>將 score/result 包裝成目前 caller 預期嘅 dictionary。</li>
+      <li><code>gen_answer_image()</code> 繼續消費同一 output contract。</li>
+    </ol>
+
+    <h3>優點、代價及陷阱</h3>
+    <table><thead><tr><th>面向</th><th>評估</th></tr></thead><tbody>
+      <tr><td>改動量</td><td>中；要清楚分開 score calculation 同 result reconstruction。</td></tr>
+      <tr><td>時間</td><td>O(mn)，每格最多比較三個固定 candidates。</td></tr>
+      <tr><td>空間</td><td>O(mn) cells；每格只保存固定大小 metadata，唔複製完整 suffix result。</td></tr>
+      <tr><td>穩定性</td><td>無 recursion depth、cache lifetime 或 mutable cached value 問題。</td></tr>
+      <tr><td>可測性</td><td>可以分開測 ranking、table score、backpointer 同 final contract，適合長期維護。</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>6. 完整流程例子</h2>
+    <p>正確答案：<code>がっこう</code>；用戶答案：<code>かこう</code>。</p>
+    <p>期望教學結果：</p>
+    <table><thead><tr><th>次序</th><th>Operation</th><th>Correct</th><th>User</th><th>Subtype</th></tr></thead><tbody>
+      <tr><td>1</td><td>WRONG</td><td>が</td><td>か</td><td>DAKUTEN</td></tr>
+      <tr><td>2</td><td>MISSING</td><td>っ</td><td>—</td><td>—</td></tr>
+      <tr><td>3</td><td>MATCH</td><td>こ</td><td>こ</td><td>—</td></tr>
+      <tr><td>4</td><td>MATCH</td><td>う</td><td>う</td><td>—</td></tr>
+    </tbody></table>
+    <p>總 score：</p>
+    <pre><code>cost = 2
+match_count = 2
+non_normal_wrong_count = 1
+ranking key = (2, -2, -1)</code></pre>
+
+    <h3>方案 A 點行</h3>
+    <ol>
+      <li><code>solve(0,0)</code> 見到 が／か mismatch，試 WRONG、MISSING、EXTRA。</li>
+      <li>WRONG 進入 <code>solve(1,1)</code>；っ／こ mismatch，再試三路。</li>
+      <li>MISSING 進入 <code>solve(2,1)</code>；こ／こ MATCH，再到 <code>solve(3,2)</code>；う／う MATCH，最後終點。</li>
+      <li>其他 branches 如再次需要 <code>solve(2,1)</code> 或其他已計 state，直接讀 cache。</li>
+      <li>各層按 ranking key 回傳最佳 suffix，最終組成上表結果。</li>
+    </ol>
+
+    <h3>方案 B 點行</h3>
+    <ol>
+      <li>先填 <code>dp[4][3]=END</code>，再填最底 row（剩餘 user chars 全部 EXTRA）及最右 column（剩餘 correct chars 全部 MISSING）。</li>
+      <li>倒序遇到 う／う、こ／こ，分別記錄 MATCH backpointer。</li>
+      <li>到 っ／こ 時，MISSING + 已知 <code>dp[2][1]</code> 會成為最佳候選。</li>
+      <li>到 が／か 時，WRONG subtype 係 DAKUTEN；加上後面最佳 score，成為 <code>dp[0][0]</code>。</li>
+      <li>由左上沿 backpointer 依次得到 WRONG → MISSING → MATCH → MATCH。</li>
+    </ol>
+    <div class="note">兩套方案應該得到完全相同嘅 public output。優化後如果 alignment 改咗，除非你刻意修改 tie-break 規則，否則應當作 regression。</div>
+  </section>
+
+  <section>
+    <h2>7. 兩套方案直接比較</h2>
+    <table><thead><tr><th>比較</th><th>Memoization</th><th>Bottom-up DP</th></tr></thead><tbody>
+      <tr><td>演算法時間</td><td>O(mn)</td><td>O(mn)</td></tr>
+      <tr><td>基本 state 數（25×25）</td><td>最多 676</td><td>最多 676</td></tr>
+      <tr><td>Result 儲存</td><td>容易令每個 cache entry 都帶完整 suffix</td><td>固定大小 backpointer，最後先重建</td></tr>
+      <tr><td>改動風險</td><td>較低</td><td>中等</td></tr>
+      <tr><td>保留現有 recursion</td><td>係</td><td>否</td></tr>
+      <tr><td>長期可維護性</td><td>可接受</td><td>較好</td></tr>
+      <tr><td>推薦用途</td><td>快速修正／過渡</td><td>正式核心實作</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>8. 25 字上限應該點定位</h2>
+    <p>你喺 <a href="../../../../quiz/forms.py#L35">quiz/forms.py:35</a> 將 <code>max_length</code> 改成 25，作用係 request validation：</p>
+    <ul>
+      <li>阻止異常長 input 進入 service。</li>
+      <li>限制 DP table 上限為 <code>26 × 26 = 676</code> states（假設 correct answer 同樣受 25 字 domain rule）。</li>
+      <li>令錯誤訊息及產品規則有清晰 boundary。</li>
+    </ul>
+    <p>但仍要補兩點：</p>
+    <ol>
+      <li><strong>Correct answer boundary：</strong><code>Vocab.kana</code> model 上限仍係 255。如果 database kana 超過 25，user form 最多只能交 25，會變成永遠答唔完整。要決定係 vocab validation 限制 kana，定 compare service 對兩邊作明確 guard。</li>
+      <li><strong>Server-side service boundary：</strong>form 係目前 HTTP caller 嘅 guard，但 management command、test 或未來其他 caller 可以直接 call service。核心 function 最好仍對 input size 有明確 contract。</li>
+    </ol>
+    <div class="warn note"><strong>結論：</strong>25 字上限應保留，但定位係 defense-in-depth；真正解決速度問題仍然要做 memoization 或 DP。</div>
+  </section>
+
+  <section>
+    <h2>9. 實作次序與驗收測試</h2>
+    <h3>實作前先鎖住行為</h3>
+    <ul>
+      <li>完全相同：全部 MATCH，cost 0。</li>
+      <li>單一普通錯字：WRONG/NORMAL。</li>
+      <li>濁音、半濁音、小假名：保留各 subtype。</li>
+      <li>頭、中、尾 missing／extra。</li>
+      <li>多個 minimum-cost alignment：確認 match/subtype tie-break 同現在一致。</li>
+      <li>空 correct、空 user、兩邊都空。</li>
+    </ul>
+    <h3>Performance tests</h3>
+    <pre><code>cases = [10, 15, 25]
+for length in cases:
+    correct = "あ" * length
+    answer = "ん" * length
+    assert compare(correct, answer) completes within project time budget</code></pre>
+    <p>測試唔好只寫一個過分嚴格嘅毫秒數，因為 CI 機器速度會浮動。可以用寬鬆 budget 防止演算法退回指數級，例如 25 字 worst case 必須遠低於 1 秒；實際 threshold 要按本機及 CI 數據決定。</p>
+    <h3>建議落地順序</h3>
+    <ol>
+      <li>將現有輸出案例變成 characterization tests。</li>
+      <li>選 A 或 B 實作，保持 <code>compare_kana_answer()</code> public contract。</li>
+      <li>跑 correctness tests，比較舊版同新版短輸入結果。</li>
+      <li>跑 worst-case benchmark，確認 25 字唔會出現 request stall。</li>
+      <li>補 correct-answer/domain length validation。</li>
+      <li>再經 browser 驗證 result images、missing／extra overlay data 無 regression。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>10. 最終建議</h2>
+    <p>以呢個 project 現況，我會揀 <strong>Bottom-up DP + backpointer</strong>。原因唔係 memoization 無效，而係 answer comparison 已經係一個有 domain-specific ranking、圖片輸出同日後測試需求嘅核心功能。DP 可以將「計最佳 score」同「產生 presentation result」清楚分開，之後擴充 subtype 或 debug alignment 都比較直接。</p>
+    <p>如果你想先用最少改動解除風險，memoization 仍然係合理方案；但應將 cached result 改成 immutable tuple，並視為過渡實作。</p>
+  </section>
+</main></body></html>

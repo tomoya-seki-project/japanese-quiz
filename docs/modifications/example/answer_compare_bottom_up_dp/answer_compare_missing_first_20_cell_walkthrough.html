@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>新 Rule 20 格 DP：MISSING 優先</title>
+<style>
+:root{--bg:#f4f6fa;--paper:#fff;--ink:#172033;--muted:#627084;--line:#d9e1eb;--blue:#3158c9;--red:#a62d3b;--match:#daf4e8;--wrong:#ffe1e1;--missing:#fff0ce;--extra:#e7e1ff;--code:#111827}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,"Noto Sans TC",sans-serif}main{width:min(1180px,95vw);margin:28px auto 70px}header,section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:18px}h1{font-size:2rem;margin:0 0 8px}h2{font-size:1.35rem;margin:0 0 14px}p{margin:6px 0 11px}code{background:#edf1f6;padding:1px 5px;border-radius:4px}pre{background:var(--code);color:#edf2f7;border-radius:9px;padding:14px;overflow:auto}pre code{background:none;padding:0}nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}nav a{text-decoration:none;color:var(--blue);border:1px solid var(--line);border-radius:999px;padding:5px 11px}table{width:100%;border-collapse:collapse;margin:10px 0 18px}th,td{border:1px solid var(--line);padding:8px;vertical-align:top}th{background:#eef2f8}.scroll{overflow:auto}.matrix th,.matrix td{text-align:center;min-width:112px}.matrix small{display:block;color:var(--muted)}.path{outline:4px solid var(--red);outline-offset:-4px;font-weight:800}.match{background:var(--match)}.wrong{background:var(--wrong)}.missing{background:var(--missing)}.extra{background:var(--extra)}details{border:1px solid var(--line);border-radius:9px;margin:9px 0}summary{cursor:pointer;padding:12px 14px;font-weight:750;background:#f8faff}.body{padding:12px 15px}.group{border-left:5px solid var(--blue)}.route{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}.node{flex:1 1 145px;border:2px solid var(--line);border-radius:10px;padding:11px;text-align:center}.arrow{align-self:center;font-weight:800}.note{border-left:5px solid var(--blue);background:#f8faff;padding:12px 14px}.winner{font-weight:800;color:var(--blue)}.muted{color:var(--muted)}@media(max-width:680px){header,section{padding:16px}.matrix{font-size:.78rem}.matrix th,.matrix td{min-width:90px;padding:6px}.arrow{display:none}}
+</style></head><body><main>
+<header><h1>新 Rule：<code>がっこう</code> vs <code>かこう</code></h1>
+<p>只追求 minimum edit cost；同 cost 時按 <strong>MISSING → EXTRA → WRONG</strong> 決定。呢份文件只講新 rule 嘅 20 格計算。</p>
+<nav><a href="#rule">Rule</a><a href="#table">完整表</a><a href="#order">次序</a><a href="#r4">1–4</a><a href="#r3">5–8</a><a href="#r2">9–12</a><a href="#r1">13–16</a><a href="#r0">17–20</a><a href="#result">結果</a></nav></header>
+
+<section id="rule"><h2>新 Rule</h2>
+<pre><code>第一條件：minimum cost
+
+cost 完全相同時：
+MISSING priority = 0
+EXTRA   priority = 1
+WRONG   priority = 2
+
+key = (cost, operation_priority)</code></pre>
+<div class="note">字符相同時仍然直接 MATCH。呢個 rule 唔計 match_count 或 non_normal_wrong_count；佢代表偏向將 ambiguity 解讀成漏字／多字嘅通用 diff。</div></section>
+
+<section id="table"><h2>完整 20 格</h2><p>每格格式係 <code>minimum cost / operation → next</code>；紅框係新 rule 最終 path。</p>
+<div class="scroll"><table class="matrix"><tr><th>Correct \ User</th><th>j=0<br>かこう</th><th>j=1<br>こう</th><th>j=2<br>う</th><th>j=3<br>空</th></tr>
+<tr><th>i=0<br>がっこう</th><td class="missing path">2<small>MISSING → [1][0]</small></td><td class="missing">2<small>MISSING → [1][1]</small></td><td class="missing">3<small>MISSING → [1][2]</small></td><td class="missing">4<small>MISSING → [1][3]</small></td></tr>
+<tr><th>i=1<br>っこう</th><td class="wrong path">1<small>WRONG → [2][1]</small></td><td class="missing">1<small>MISSING → [2][1]</small></td><td class="missing">2<small>MISSING → [2][2]</small></td><td class="missing">3<small>MISSING → [2][3]</small></td></tr>
+<tr><th>i=2<br>こう</th><td class="extra">1<small>EXTRA → [2][1]</small></td><td class="match path">0<small>MATCH → [3][2]</small></td><td class="missing">1<small>MISSING → [3][2]</small></td><td class="missing">2<small>MISSING → [3][3]</small></td></tr>
+<tr><th>i=3<br>う</th><td class="extra">2<small>EXTRA → [3][1]</small></td><td class="extra">1<small>EXTRA → [3][2]</small></td><td class="match path">0<small>MATCH → [4][3]</small></td><td class="missing">1<small>MISSING → [4][3]</small></td></tr>
+<tr><th>i=4<br>空</th><td class="extra">3<small>EXTRA → [4][1]</small></td><td class="extra">2<small>EXTRA → [4][2]</small></td><td class="extra">1<small>EXTRA → [4][3]</small></td><td class="path">0<small>END</small></td></tr>
+</table></div></section>
+
+<section id="order"><h2>真正填寫次序</h2><div class="scroll"><table class="matrix">
+<tr><th></th><th>j=0</th><th>j=1</th><th>j=2</th><th>j=3</th></tr>
+<tr><th>i=0</th><td>⑳</td><td>⑲</td><td>⑱</td><td>⑰</td></tr>
+<tr><th>i=1</th><td>⑯</td><td>⑮</td><td>⑭</td><td>⑬</td></tr>
+<tr><th>i=2</th><td>⑫</td><td>⑪</td><td>⑩</td><td>⑨</td></tr>
+<tr><th>i=3</th><td>⑧</td><td>⑦</td><td>⑥</td><td>⑤</td></tr>
+<tr><th>i=4</th><td>④</td><td>③</td><td>②</td><td>①</td></tr>
+</table></div></section>
+
+<section id="r4" class="group"><h2>第 1–4 格：Correct 係空</h2>
+<details open><summary>① dp[4][3]：空 vs 空</summary><div class="body"><pre><code>cost = 0
+operation = END</code></pre></div></details>
+<details><summary>② dp[4][2]：空 vs う</summary><div class="body"><pre><code>只有 EXTRA 合法
+1 + dp[4][3] = 1</code></pre></div></details>
+<details><summary>③ dp[4][1]：空 vs こう</summary><div class="body"><pre><code>EXTRA こ
+1 + dp[4][2] = 2</code></pre></div></details>
+<details><summary>④ dp[4][0]：空 vs かこう</summary><div class="body"><pre><code>EXTRA か
+1 + dp[4][1] = 3</code></pre></div></details></section>
+
+<section id="r3" class="group"><h2>第 5–8 格：Correct 係「う」</h2>
+<details><summary>⑤ dp[3][3]：う vs 空</summary><div class="body"><pre><code>只有 MISSING 合法
+1 + dp[4][3] = 1</code></pre></div></details>
+<details open><summary>⑥ dp[3][2]：う vs う</summary><div class="body"><pre><code>字符相同，直接 MATCH
+cost = dp[4][3] = 0</code></pre></div></details>
+<details><summary>⑦ dp[3][1]：う vs こう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td>MISSING</td><td>1 + dp[4][1] = 3</td></tr><tr><td class="winner">EXTRA</td><td class="winner">1 + dp[3][2] = 1</td></tr><tr><td>WRONG</td><td>1 + dp[4][2] = 2</td></tr></table></div></details>
+<details><summary>⑧ dp[3][0]：う vs かこう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td>MISSING</td><td>1 + dp[4][0] = 4</td></tr><tr><td class="winner">EXTRA</td><td class="winner">1 + dp[3][1] = 2</td></tr><tr><td>WRONG</td><td>1 + dp[4][1] = 3</td></tr></table></div></details></section>
+
+<section id="r2" class="group"><h2>第 9–12 格：Correct 係「こう」</h2>
+<details><summary>⑨ dp[2][3]：こう vs 空</summary><div class="body"><pre><code>MISSING こ
+1 + dp[3][3] = 2</code></pre></div></details>
+<details><summary>⑩ dp[2][2]：こう vs う</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td class="winner">MISSING</td><td class="winner">1 + dp[3][2] = 1</td></tr><tr><td>EXTRA</td><td>1 + dp[2][3] = 3</td></tr><tr><td>WRONG</td><td>1 + dp[3][3] = 2</td></tr></table></div></details>
+<details open><summary>⑪ dp[2][1]：こう vs こう</summary><div class="body"><pre><code>こ == こ，直接 MATCH
+cost = dp[3][2] = 0</code></pre></div></details>
+<details><summary>⑫ dp[2][0]：こう vs かこう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td>MISSING</td><td>1 + dp[3][0] = 3</td></tr><tr><td class="winner">EXTRA</td><td class="winner">1 + dp[2][1] = 1</td></tr><tr><td>WRONG</td><td>1 + dp[3][1] = 2</td></tr></table></div></details></section>
+
+<section id="r1" class="group"><h2>第 13–16 格：Correct 係「っこう」</h2>
+<details><summary>⑬ dp[1][3]：っこう vs 空</summary><div class="body"><pre><code>MISSING っ
+1 + dp[2][3] = 3</code></pre></div></details>
+<details><summary>⑭ dp[1][2]：っこう vs う</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td class="winner">MISSING</td><td class="winner">1 + dp[2][2] = 2</td></tr><tr><td>EXTRA</td><td>1 + dp[1][3] = 4</td></tr><tr><td>WRONG</td><td>1 + dp[2][3] = 3</td></tr></table></div></details>
+<details><summary>⑮ dp[1][1]：っこう vs こう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td class="winner">MISSING</td><td class="winner">1 + dp[2][1] = 1</td></tr><tr><td>EXTRA</td><td>1 + dp[1][2] = 3</td></tr><tr><td>WRONG</td><td>1 + dp[2][2] = 2</td></tr></table></div></details>
+<details open><summary>⑯ dp[1][0]：っこう vs かこう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td>MISSING</td><td>1 + dp[2][0] = 2</td></tr><tr><td>EXTRA</td><td>1 + dp[1][1] = 2</td></tr><tr><td class="winner">WRONG</td><td class="winner">1 + dp[2][1] = 1</td></tr></table><p>WRONG 唔係因 priority，而係佢 cost 1 明顯最低。</p></div></details></section>
+
+<section id="r0" class="group"><h2>第 17–20 格：Correct 係「がっこう」</h2>
+<details><summary>⑰ dp[0][3]：がっこう vs 空</summary><div class="body"><pre><code>MISSING が
+1 + dp[1][3] = 4</code></pre></div></details>
+<details><summary>⑱ dp[0][2]：がっこう vs う</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td class="winner">MISSING</td><td class="winner">1 + dp[1][2] = 3</td></tr><tr><td>EXTRA</td><td>1 + dp[0][3] = 5</td></tr><tr><td>WRONG</td><td>1 + dp[1][3] = 4</td></tr></table></div></details>
+<details><summary>⑲ dp[0][1]：がっこう vs こう</summary><div class="body"><table><tr><th>候選</th><th>計算</th></tr><tr><td class="winner">MISSING</td><td class="winner">1 + dp[1][1] = 2</td></tr><tr><td>EXTRA</td><td>1 + dp[0][2] = 4</td></tr><tr><td>WRONG</td><td>1 + dp[1][2] = 3</td></tr></table></div></details>
+<details open><summary>⑳ dp[0][0]：がっこう vs かこう</summary><div class="body"><table><tr><th>候選</th><th>計算</th><th>Cost</th></tr><tr><td class="winner">MISSING が</td><td>1 + dp[1][0]</td><td class="winner">2</td></tr><tr><td>EXTRA か</td><td>1 + dp[0][1]</td><td>3</td></tr><tr><td>WRONG が→か</td><td>1 + dp[1][1]</td><td>2</td></tr></table><p>MISSING 同 WRONG cost 都係 2；新 priority 係 MISSING 先，所以保存 MISSING → dp[1][0]。</p></div></details></section>
+
+<section id="result"><h2>由左上重建新 rule 結果</h2>
+<div class="route"><div class="node missing">dp[0][0]<br>が→空<br>MISSING</div><div class="arrow">→</div><div class="node wrong">dp[1][0]<br>っ→か<br>WRONG / NORMAL</div><div class="arrow">→</div><div class="node match">dp[2][1]<br>こ→こ<br>MATCH</div><div class="arrow">→</div><div class="node match">dp[3][2]<br>う→う<br>MATCH</div><div class="arrow">→</div><div class="node">dp[4][3]<br>END</div></div>
+<pre><code>minimum cost = 2
+
+result:
+が → 空    MISSING
+っ → か    WRONG / NORMAL
+こ → こ    MATCH
+う → う    MATCH</code></pre>
+<div class="note">填表方法同原本一樣：右下 → 左上計晒 20 格。只有 candidate ranking 同每格保存嘅 operation 改變。</div></section>
+</main></body></html>

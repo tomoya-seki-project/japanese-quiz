@@ -1,10 +1,16 @@
 from django.db import models
+
+from django.db.models.functions import Lower
 from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
 from core.models import TimeStampedModel
 
 
 class UserManager(DjangoUserManager):
     use_in_migrations = True
+
+    @classmethod
+    def normalize_email(cls, email):
+        return super().normalize_email(email).strip().lower()
 
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
@@ -33,7 +39,7 @@ class UserManager(DjangoUserManager):
 class User(AbstractUser):
     username = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -41,6 +47,14 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    class Meta(AbstractUser.Meta):
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                name="user_email_ci_unique",
+            ),
+        ]
 
 class UserProfile(TimeStampedModel):
     last_vocab_sync_at = models.DateTimeField(blank=True, null=True)

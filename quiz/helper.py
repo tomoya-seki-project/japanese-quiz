@@ -67,12 +67,10 @@ def build_next_question_payload(*, request, is_skip=False):
     user_vocab_id = get_target_user_vocab_id(user=request.user, pool_queryset=question_pool_qs)
 
     if user_vocab_id is None:
+        #request.session.pop("quiz_session", None)
         return {
-            "main_html": render_to_string(
-                "quiz/partials/quiz_no_question_partial.html",
-                request=request,
-            ),
-            "input_panel_html": "",
+            "success": True,
+            "quiz_ended": True,
         }
 
     quiz_session = request.session["quiz_session"]
@@ -97,6 +95,31 @@ def build_next_question_payload(*, request, is_skip=False):
         "main_html": main_html,
         "input_panel_html": input_panel_html,
     }
+
+def build_quiz_summary_payload(*, request, end_reason=None, ended_early=False):
+    quiz_session = request.session.get("quiz_session",{})
+    main_html = render_to_string(
+        "quiz/partials/quiz_summary_partial.html",
+        context={
+            "current_quiz_num": quiz_session["quizzed_count"],
+            "total_quiz_num": quiz_session["aims_quiz_num"],
+            "correct_count":quiz_session["correct_count"],
+            "wrong_count":quiz_session["wrong_count"],
+            "skipped_count":quiz_session["skipped_count"],
+            "total_tips_count":quiz_session["total_tips_count"],
+            "ended_early": ended_early,
+            "end_reason": end_reason,
+        },
+        request=request,
+    )
+
+    request.session.pop("quiz_session", None)
+    return {
+        "success":True,
+        "main_html": main_html,
+        "input_panel_html": "",
+    }
+
 
 def handle_insufficient_pool(*, request, min_count, logger, operation):
     in_use_count = UserVocab.objects.filter(user=request.user, in_use=True, vocab__is_active=True).count()

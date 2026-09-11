@@ -1713,3 +1713,70 @@ Status: User-facing workflows now use consistent Japanese wording, while adminis
 
 - Localization 唔只係 template 字串替換，亦包括 Django built-in validation、model choices、notifications、HTML `lang`／`Content-Language` 同 request lifecycle。
 - 共用文字要按真正 audience 分類；檔案位於 core 或 admin 目錄，唔足以單獨判斷應使用日文定英文。
+
+## 2026-09-08 - Explicit quiz pool choice and vocab review context
+
+Commit: `012ae67`
+
+Status: Filtered quiz pool 無題時改由 user 明確決定是否使用 full pool，而 vocab request workflow 可以分開保存申請與審批理由
+
+### 主要改動
+
+- 移除自動放寬 quiz filter 嘅 fallback；無匹配題目時顯示確認頁，user 可返回 setting 或以 POST 明確選擇 full active／in-use pool。
+- 將 full-pool 決定保存到 `quiz_settings`，令初始出題、Next 同 Skip 使用一致 pool；共用 helper 會喺完整 pool 數量不足時返回 UserVocab list。
+- `VocabRequest` 加入 user optional `request_reason` 同 admin `review_note`；CREATE／UPDATE／RESTORE／DELETE 都會保存申請理由。
+- Admin review 將 request reason 設為 readonly；Reject 必須填寫 review note，審批結果 event 會將 note 傳回申請人。
+- Quiz Ajax 動態區加入 live region 同 heading focus，改善 partial replacement 後嘅 keyboard／assistive-technology feedback。
+
+### Database 改動
+
+- 新增 migration `dictionary/migrations/0031_add_reason_and_note_to_vocabrequest.py`，以兩個獨立欄位取代含義模糊嘅舊 `reason`。
+
+### 技術重點
+
+- User 指定嘅 quiz scope 唔應被系統靜默放寬；替代 pool 屬於需要明確確認嘅產品決定。
+- Request reason 同 review note 來自不同角色、發生於不同時間點，分開保存先可以維持清楚 audit semantics。
+- Action-specific required rule 可以放喺 admin form lifecycle，避免令 approve 同 reject 被迫共用相同 validation。
+
+### 理由
+
+- 自動 fallback 會令 user 明明選擇特定類型或程度，最後卻收到設定範圍外題目。
+- Review record 需要保留申請人動機同 reviewer 決定背景，先足以支援通知及事後理解。
+
+### 學到咩
+
+- Session flag 唔只係 UI state；所有後續 endpoints 都要讀取同一決定，先可以保持 workflow 一致。
+- 同一 model field 看似可以保存兩種理由，但會失去角色、時間同責任邊界。
+
+## 2026-09-09 - Account email activation
+
+Commit: `9062a2e`
+
+Status: 新 public account 必須完成 email verification 先可以登入及建立個人 vocab，並具備安全嘅 resend 與失敗處理
+
+### 主要改動
+
+- Public registration 改為建立 inactive user，寄出日文 activation email，並導向檢查 email 頁面；admin 建立 user 維持原有 active 預設。
+- 建立綁定 user id、password、email、timestamp 同 active state 嘅專用 activation token；GET 只顯示確認，POST 先執行啟用。
+- Activation 成功後 token 立即失效，並透過 resilient wrapper 補齊該 user 嘅 active `UserVocab`。
+- Resend endpoint 對不存在、已啟用同未啟用 email 使用統一回應，並以每個 user 60 秒 cache cooldown 降低濫用及重複寄送。
+- 寄信回傳 0 或拋出 exception 時保留安全 audit log；registration 保留 inactive account並引導 resend，唔會假稱已成功寄送。
+
+### Database 改動
+
+- 無新增 schema migration；功能沿用 `User.is_active` 同 Django cache／token infrastructure。
+
+### 技術重點
+
+- Token hash 包含會隨啟用改變嘅 `is_active`，令成功使用後自然失效；password 或 email 改動亦會令舊 link 無效。
+- GET／POST 分離避免 link scanner 或 email preview 單靠讀取 URL 就啟用 account。
+- Generic resend response 避免公開查詢某個 email 是否已註冊；cooldown key 喺寄送失敗時釋放，容許合理重試。
+
+### 理由
+
+- 未驗證 identity 前唔應建立完整個人學習資料，亦唔應允許登入。
+- Email delivery 屬於可能失敗嘅外部 side effect；主資料狀態、user feedback 同重試路徑需要分開設計。
+
+### 學到咩
+
+- Account activation 唔只係「寄一條 link」，而係 token lifecycle、HTTP method、enumeration resistance、cooldown、delivery failure 同 downstream initialization 嘅完整 workflow。

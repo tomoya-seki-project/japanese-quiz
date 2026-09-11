@@ -28,7 +28,8 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 7](#phase-7-extensibility-and-application-resilience) | 2026-08-24 ～ 2026-08-28 | MC sense foundation、error handling、resilient sync、logging foundation |
 | [Phase 8](#phase-8-workflow-observability-and-project-review) | 2026-08-31 | Domain logging coverage、MCSense migration、全 project review |
 | [Phase 9](#phase-9-quiz-performance-and-interface-language) | 2026-09-02 ～ 2026-09-06 | Bottom-up DP、unsupported-type isolation、日文 UI／語系分流、初步 regression tests |
-| [Phase 10](#phase-10-explicit-quiz-pool-choice-and-review-context) | 2026-09-07 ～ 開發中 | Explicit full-pool confirmation、VocabRequest reason／review note |
+| [Phase 10](#phase-10-explicit-quiz-pool-choice-and-review-context) | 2026-09-07 ～ 2026-09-08 | Explicit full-pool confirmation、VocabRequest reason／review note |
+| [Phase 11](#phase-11-account-verification-and-email-identity-integrity) | 2026-09-09 ～ 開發中 | Email activation、canonical identity、database uniqueness |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -292,7 +293,7 @@ Quiz answer comparison 嘅 request-time performance risk 已解除，未完成 M
 
 ## Phase 10: Explicit Quiz Pool Choice and Review Context
 
-**時間：2026-09-07 ～ 開發中**
+**時間：2026-09-07 ～ 2026-09-08**
 
 ### 目標
 
@@ -316,6 +317,33 @@ Quiz answer comparison 嘅 request-time performance risk 已解除，未完成 M
 ### 階段結果
 
 Quiz no-pool 行為已由隱式 fallback 改為明確選擇，VocabRequest review 亦可以保存雙方決策背景。主要剩餘工作係補足相應 integration／concurrency tests，以及繼續 multiple-choice vertical flow。
+
+## Phase 11: Account Verification and Email Identity Integrity
+
+**時間：2026-09-09 ～ 開發中**
+
+### 目標
+
+將 email login 由單純識別欄位提升成可驗證、具一致 canonical form 同 database integrity 保護嘅 account identity flow。
+
+### 主要成果
+
+- Public registration 先建立 inactive user，經 24 小時內有效嘅一次性 email link 確認後先啟用；GET 顯示確認，POST 先改動 account state。
+- Registration email、activation confirmation／success／invalid states、resend form 同 login resend 入口已建立，並使用日文 user-facing wording。
+- Resend 對 account 狀態使用統一回應，並以 per-user cache cooldown 限制重複寄送；email delivery failure 會記錄 audit context並保留可重試路徑。
+- Activation 成功後先執行 resilient vocab sync，避免未驗證帳戶預先建立完整 `UserVocab`。
+- Email canonicalization 集中到 custom manager，registration、login、resend 同 admin forms 均保存／查詢完整 lowercase email。
+- `Lower("email")` functional unique constraint 已透過 migration `0007_email_upper_lower_problem.py` 套用；現有資料無 case collision 或非 lowercase email，system check 同 migration drift check通過。
+
+### 工程決策
+
+- Activation token 綁定 password、email 同 active state，令 account 啟用或 identity 改動後舊 token 自動失效。
+- Email 作為 login identity 時採用完整 lowercase policy；form validation 提供易明錯誤，database constraint 負責最終 concurrency／bypass guard。
+- Email activation delivery 暫時使用 development console backend；真實 mail provider、shared cache、HTTPS domain 同 secrets management 留作 production gate。
+
+### 階段結果
+
+Account 已具備完整 activation happy path，同一 email 嘅大小寫變體亦唔再可以建立多個 identity。Activation／canonicalization 正式 automated tests 尚待補充；下一個 correctness 重點係進行中 quiz 遇到失效題目或空 pool 時嘅 terminal session recovery。
 
 ## Current Architecture
 
@@ -357,13 +385,13 @@ Vocab services  Quiz service   Core services
 
 ## Current State and Remaining Work
 
-目前 dictionary、VocabRequest review、UserVocab management、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
+目前 dictionary、VocabRequest review、UserVocab management、account email activation、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；email identity 已統一 lowercase 並受 database case-insensitive uniqueness 保護；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
 
-- Automated test suite 已有 10 個 UI／language regression tests，但主要 domain、concurrency、quiz correctness 同 no-pool／full-pool integration coverage 尚未建立。
+- Automated test suite 已有 10 個 UI／language regression tests，但 account activation／identity、主要 domain、concurrency、quiz correctness 同 no-pool／full-pool integration coverage 尚未建立。
 - Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
 - Application logging handler、formatter、routing、daily rotation、retention 同主要 domain coverage 已建立；log assertions、rotation／retention 同 concurrent sync 尚待自動驗證。
 - `MCSense` migration 已 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成，相關 active choices 暫時停用。
-- Quiz filtered no-pool／full-pool flow 已完成實作，仍待補 initial、Next、Skip 同 insufficient-pool integration tests。
+- Quiz initial filtered no-pool／full-pool choice 已完成；進行中 session 遇到 current question 失效或 pool 中途變空時，仍要加入 terminal cleanup／recovery，再補 initial、Next、Skip、resume 同 insufficient-pool integration tests。
 - Whole-database export／restore 尚未建立。
 - Japanese UI wording 同語系分流已完成 code-level implementation；browser visual verification、layout 同 answer overlay 仍需 polish。
 
