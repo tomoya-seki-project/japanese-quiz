@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application Logging：業務結果、故障證據與噪音邊界</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+<header class="report-header">
+<h1>Application Logging：業務結果、故障證據與噪音邊界</h1>
+</header>
+<section class="report-section" id="summary">
+<span class="status-badge">按原報告：核心改修已完成</span>
+<h2>改修概要</h2>
+<div class="summary-block">
+<p>Project 原本主要靠畫面訊息、terminal output 同開發錯誤頁追查問題，缺少可回溯嘅 application events。改修建立 logging formatter、level、handler、rotation 同 namespace 規則，並只喺重要業務結果、權限拒絕或未預期故障嘅責任邊界記錄，同時避免高頻 read、零變更、重複 traceback 同敏感內容造成噪音或風險。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>Console、exact DEBUG、INFO+ full-flow 同 ERROR+ handlers 分工，file 每日輪替並保留七份。</li><li>Log message 統一使用 operation、明確 object IDs、result／reason／count。</li><li>Vocab、Quiz、Account、Event、Feedback 同 management commands 只記重要 outcome。</li><li>真正吞掉 exception 嘅 layer 負責 logger.exception；未處理 500 交俾 django.request。</li><li>敏感資料由 logger call 源頭排除，普通 read、高頻低價值同零變更保持安靜。</li></ul></aside>
+</div>
+</section>
+<nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
+<li><a href="#summary">改修概要</a></li>
+<li><a href="#修改目的-1-建立一致而可維護嘅-logging-基礎">修改目的 1：建立一致而可維護嘅 logging 基礎</a></li>
+<li><a href="#修改目的-2-記錄重要業務結果而唔記錄每一步">修改目的 2：記錄重要業務結果而唔記錄每一步</a></li>
+<li><a href="#修改目的-3-令-traceback-同成功紀錄反映真實-transaction-結果">修改目的 3：令 traceback 同成功紀錄反映真實 transaction 結果</a></li>
+<li><a href="#修改目的-4-控制-log-噪音同敏感資料風險">修改目的 4：控制 log 噪音同敏感資料風險</a></li>
+<li><a href="#整體行為改變">整體行為改變</a></li>
+<li><a href="#測試及驗證結果">測試及驗證結果</a></li>
+<li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
+<li><a href="#官方參考資料">官方參考資料</a></li>
+<li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+</ul></nav>
+<div class="purpose-list">
+<section class="purpose-card" id="修改目的-1-建立一致而可維護嘅-logging-基礎">
+<h2>修改目的 1：建立一致而可維護嘅 logging 基礎</h2>
+<h3>修改目的／理由</h3>
+<p>如果 formatter、handler、level 同 message shape 冇共同規則，各 module 嘅紀錄難以搜尋、分流同保留。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>config/settings.py</li>
+<li>.gitignore</li>
+<li>log/.gitkeep</li>
+<li>各 app logger namespaces</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>主要依靠畫面訊息、command output、開發 exception page 同臨時 print，無統一 application log routing。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>建立 formatter、daily rotation handlers、exact-DEBUG filter、app loggers、level policy 同 operation/context naming。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>目的</h4>
+<p>今次改動係為 project 建立正式 application logging，令重要資料變更、業務結果同未預期 exception 有足夠紀錄，同時避免正常 validation、重複 submission、普通 read request同高頻操作製造大量低價值 log。</p>
+<p>整體目標：</p>
+<pre><code class="language-text">重要成功結果
+→ INFO + operation + user/object IDs + result/count
+
+預期但值得留意嘅拒絕／權限問題
+→ INFO 或 WARNING
+
+真正未預期 exception
+→ ERROR + traceback
+
+普通 validation／read flow／零資料變更
+→ 唔記，或者只記必要嘅業務結果</code></pre>
+<p>Logging唔係用嚟記低程式每一步，而係回答以下問題：</p>
+<ul>
+<li>發生咗咩重要操作？</li>
+<li>邊個 user觸發？</li>
+<li>影響咗邊個 object或幾多 records？</li>
+<li>操作成功、被拒絕、跳過定崩潰？</li>
+<li>如果係未預期錯誤，traceback喺邊？</li>
+</ul>
+<h4>問題背景</h4>
+<p>Project原本主要依靠：</p>
+<ul>
+<li>browser畫面 message；</li>
+<li>management command terminal output；</li>
+<li>Django開發環境 exception page；</li>
+<li>臨時 <code>print()</code>／人手觀察。</li>
+</ul>
+<p>呢啲方法可以俾目前操作嘅 user知道結果，但唔能夠可靠回答「之前發生過咩事」。例如：</p>
+<ul>
+<li>Admin approve咗邊個 VocabRequest？</li>
+<li>Quiz answer係正常接受，定因 stale submission被忽略？</li>
+<li>Import成功幾多 rows、失敗幾多 rows？</li>
+<li>UserVocab sync係零變更，定真係新增咗資料？</li>
+<li>真正500發生時，完整 traceback有冇保留？</li>
+</ul>
+<p>另一方面，如果每個 view entry、query、question pick同 helper call都寫 log，會出現另一個問題：</p>
+<pre><code class="language-text">log數量太多
+→ 重要事件被噪音淹沒
+→ file增長更快
+→ debug時更難搵真正原因
+→ 同一 exception可能被重複記錄</code></pre>
+<p>因此今次設計重點唔係「到處加 logger」，而係建立清楚 logging boundary。</p>
+<h4>涉及檔案</h4>
+<h4>設定</h4>
+<ul>
+<li><code>config/settings.py</code></li>
+<li>Formatter、filters、handlers同app loggers。</li>
+<li><code>.gitignore</code></li>
+<li>排除 runtime <code>.log</code> files。</li>
+<li><code>log/.gitkeep</code></li>
+<li>保留 log directory。</li>
+</ul>
+<h4>Vocab／UserVocab</h4>
+<ul>
+<li><code>dictionary/views.py</code></li>
+<li>Vocab request results。</li>
+<li>UserVocab bulk／single <code>in_use</code>變更。</li>
+<li><code>dictionary/admin.py</code></li>
+<li>VocabRequest approve／reject audit result。</li>
+<li><code>dictionary/service/user_vocab_action.py</code></li>
+<li>UserVocab sync success／failure。</li>
+<li>Vocab sync event generation failure。</li>
+</ul>
+<h4>Quiz</h4>
+<ul>
+<li><code>quiz/views.py</code></li>
+<li>Setting、resume、answer、skip同summary outcomes。</li>
+</ul>
+<h4>Account／Event／Feedback</h4>
+<ul>
+<li><code>accounts/views.py</code></li>
+<li>Registration同login success。</li>
+<li><code>core/views.py</code></li>
+<li>Event mark-read。</li>
+<li>Feedback create／duplicate／reply。</li>
+<li>Admin-only feedback permission denial。</li>
+</ul>
+<h4>Management commands</h4>
+<ul>
+<li><code>dictionary/management/commands/import_vocab.py</code></li>
+<li><code>dictionary/management/commands/setup_categories.py</code></li>
+<li><code>dictionary/management/commands/dev_clear_vocab.py</code></li>
+</ul>
+<h4>Logging基礎設定</h4>
+<h4>Formatter</h4>
+<p>目前 formatter：</p>
+<pre><code class="language-python">&quot;format&quot;: &quot;{asctime} [{levelname}] {name} : {message}&quot;</code></pre>
+<p>每條 log會包含：</p>
+<ul>
+<li>Timestamp；</li>
+<li>Level；</li>
+<li>Logger name，例如 <code>dictionary.views</code>；</li>
+<li>完整 message同 context fields。</li>
+</ul>
+<p>例子：</p>
+<pre><code class="language-text">2026-08-31 12:00:00 [INFO] dictionary.admin : Vocab request review result: operation=vocab_request_review reviewer_user_id=1 vocab_request_id=42 request_type=create result=approved</code></pre>
+<h4>Handlers</h4>
+<p>目前使用：</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Handler</th>
+<th>接收內容</th>
+<th>用途</th>
+</tr></thead><tbody>
+<tr><td>Console</td><td><code>INFO+</code></td><td>開發期間即時觀察</td></tr>
+<tr><td>Debug file</td><td>Exact <code>DEBUG</code></td><td>只保存 debug資料</td></tr>
+<tr><td>Full-flow file</td><td><code>INFO+</code></td><td>保存正常重要flow、warning同error</td></tr>
+<tr><td>Error file</td><td><code>ERROR+</code></td><td>集中保存未預期錯誤</td></tr>
+</tbody></table></div>
+<p>File handlers使用每日 rotation：</p>
+<pre><code class="language-python">&quot;when&quot;: &quot;midnight&quot;,
+&quot;interval&quot;: 1,
+&quot;backupCount&quot;: 7,</code></pre>
+<p>即係：</p>
+<ul>
+<li>每日產生新 log file；</li>
+<li>保留7份舊檔；</li>
+<li>避免單一 log file無限增長。</li>
+</ul>
+<h4>Exact-DEBUG filter</h4>
+<p>Handler嘅 <code>level=&quot;DEBUG&quot;</code>代表最低門檻，並唔係「只接收 DEBUG」。如果冇filter，DEBUG handler亦會收到 INFO、WARNING同ERROR。</p>
+<p>因此加入：</p>
+<pre><code class="language-python">&quot;debug_only&quot;: {
+    &quot;()&quot;: &quot;django.utils.log.CallbackFilter&quot;,
+    &quot;callback&quot;: lambda record: record.levelname == &quot;DEBUG&quot;,
+}</code></pre>
+<p>令 debug file只保存 exact DEBUG。</p>
+<h4>App loggers</h4>
+<p>目前為以下 namespaces設定 handlers：</p>
+<ul>
+<li><code>accounts</code></li>
+<li><code>core</code></li>
+<li><code>dictionary</code></li>
+<li><code>errorHandler</code></li>
+<li><code>quiz</code></li>
+<li><code>django.request</code></li>
+</ul>
+<p>每個 module使用：</p>
+<pre><code class="language-python">import logging
+
+logger = logging.getLogger(__name__)</code></pre>
+<p><code>__name__</code>會自動產生例如：</p>
+<pre><code class="language-text">dictionary.views
+dictionary.admin
+quiz.views
+core.views</code></pre>
+<p>方便由 log反查來源檔案。</p>
+<h4>Level使用原則</h4>
+<h4><code>DEBUG</code></h4>
+<p>只供開發期間短期診斷詳細狀態。唔應將所有正常flow長期寫成 DEBUG。</p>
+<h4><code>INFO</code></h4>
+<p>用於正常但重要嘅業務結果：</p>
+<ul>
+<li>VocabRequest created／approved／rejected／skipped；</li>
+<li>Quiz setting accepted、answer checked、question skipped、quiz completed；</li>
+<li>User registration／login completed；</li>
+<li>UserVocab實際新增；</li>
+<li>Feedback created／duplicate skipped／reply completed；</li>
+<li>Import／setup／clear command started或completed。</li>
+</ul>
+<p>預期 business validation可以使用 INFO，因為佢唔代表server壞咗。</p>
+<h4><code>WARNING</code></h4>
+<p>用於預期內但值得注意嘅情況：</p>
+<ul>
+<li>Permission denied；</li>
+<li>CSV file或required headers不存在；</li>
+<li>Import row因validation／integrity問題被拒絕；</li>
+<li>非admin嘗試進入admin-only feedback頁面。</li>
+</ul>
+<p>WARNING唔代表500，亦唔一定需要工程師立即處理。</p>
+<h4><code>ERROR</code></h4>
+<p>用於真正未預期、令操作無法完成嘅問題。</p>
+<p>一般唔直接寫：</p>
+<pre><code class="language-python">logger.error(&quot;Something failed&quot;)</code></pre>
+<p>而係喺 <code>except</code>內使用：</p>
+<pre><code class="language-python">logger.exception(&quot;Operation failed unexpectedly&quot;)</code></pre>
+<p><code>logger.exception()</code>唔係新level；佢係：</p>
+<pre><code class="language-text">ERROR level + 目前exception traceback</code></pre>
+<h4><code>CRITICAL</code></h4>
+<p>目前project未有需要。CRITICAL通常表示整個system或核心依賴已無法運作，唔應用嚟代替普通ERROR。</p>
+<h4>Log message格式</h4>
+<p>目前統一使用：</p>
+<pre><code class="language-text">Human-readable outcome: operation=... user_id=... object_id=... result=...</code></pre>
+<p>例子：</p>
+<pre><code class="language-python">logger.info(
+    &quot;Feedback created: &quot;
+    &quot;operation=%s user_id=%s feedback_id=%s feedback_type=%s&quot;,
+    &quot;feedback_create&quot;,
+    self.request.user.pk,
+    user_feedback.pk,
+    feedback_type,
+)</code></pre>
+<h4>點解用 <code>%s</code>，而唔係f-string</h4>
+<p>Logging module會延遲格式化：</p>
+<pre><code class="language-python">logger.info(&quot;user_id=%s&quot;, user.pk)</code></pre>
+<p>只有當對應level真係會輸出時，先組合完整message。</p>
+<p>相比：</p>
+<pre><code class="language-python">logger.info(f&quot;user_id={user.pk}&quot;)</code></pre>
+<p><code>%s</code> placeholders更符合Python logging慣例，亦方便logger處理原始arguments。</p>
+<h4>Operation命名</h4>
+<p>Operation統一使用snake_case：</p>
+<pre><code class="language-text">vocab_request_create
+vocab_request_review
+user_vocab_sync
+quiz_submit_answer
+feedback_reply
+dev_clear_vocab</code></pre>
+<p>Operation代表「呢件事屬於邊個flow」，human-readable message代表「今次結果係咩」。</p>
+<h4>Context field命名</h4>
+<p>ID fields明確以 <code>_id</code>結尾：</p>
+<pre><code class="language-text">user_id
+reviewer_user_id
+vocab_id
+vocab_request_id
+feedback_id
+event_id</code></pre>
+<p>避免以下含糊名稱：</p>
+<pre><code class="language-text">review_by
+user
+target
+object</code></pre>
+</details>
+<h3>新使用技術</h3><ul>
+<li>Python logging dictConfig</li>
+<li>TimedRotatingFileHandler</li>
+<li>Django CallbackFilter</li>
+<li>lazy %s logging formatting</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-2-記錄重要業務結果而唔記錄每一步">
+<h2>修改目的 2：記錄重要業務結果而唔記錄每一步</h2>
+<h3>修改目的／理由</h3>
+<p>Log 要足以重建關鍵資料變更同拒絕結果，但唔應因每個 helper、query 或普通 request 產生大量低價值紀錄。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>dictionary/views.py／admin.py／services</li>
+<li>quiz/views.py</li>
+<li>accounts/views.py</li>
+<li>core/views.py</li>
+<li>dictionary management commands</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>重要 approve、sync、quiz、feedback 同 command outcomes 缺少一致 operation 與 context evidence。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>各業務 flow 喺 orchestration boundary 記錄 created、skipped、rejected、completed、count 同必要 IDs。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>Vocab request同admin review</h4>
+<h4>User request flow</h4>
+<p>Create／restore／update／delete request記錄三類結果：</p>
+<pre><code class="language-text">created
+skipped
+rejected by business validation</code></pre>
+<p>Created例子：</p>
+<pre><code class="language-python">logger.info(
+    &quot;Vocab update request created: &quot;
+    &quot;operation=%s user_id=%s vocab_id=%s&quot;,
+    &quot;vocab_request_update&quot;,
+    self.request.user.pk,
+    self.target_vocab.pk,
+)</code></pre>
+<p>Duplicate pending request唔係server error：</p>
+<pre><code class="language-python">logger.info(
+    &quot;Vocab update request skipped: &quot;
+    &quot;operation=%s user_id=%s vocab_id=%s reason=%s&quot;,
+    &quot;vocab_request_update&quot;,
+    self.request.user.pk,
+    self.target_vocab.pk,
+    &quot;pending_request_exists&quot;,
+)</code></pre>
+<p>Business <code>ValidationError</code>亦使用 INFO，而唔係ERROR：</p>
+<pre><code class="language-python">logger.info(
+    &quot;Vocab update request rejected by business validation: &quot;
+    &quot;operation=%s user_id=%s vocab_id=%s error=%s&quot;,
+    ...,
+)</code></pre>
+<p>原因：validation已被view正常處理，user會收到form error，request唔應變成500。</p>
+<h4>Admin review flow</h4>
+<p>Approve／reject共用：</p>
+<pre><code class="language-python">def log_review_result(
+    self,
+    *,
+    request,
+    review_action,
+    vocab_request,
+    result,
+    level=logging.INFO,
+):
+    logger.log(level, ...)</code></pre>
+<p>使用 <code>logger.log(level, ...)</code>，可以由caller選擇：</p>
+<pre><code class="language-python">logging.INFO
+logging.WARNING</code></pre>
+<p>目前結果包括：</p>
+<ul>
+<li><code>approved</code></li>
+<li><code>rejected</code></li>
+<li><code>skipped</code></li>
+<li><code>validation_rejected</code></li>
+<li><code>permission_denied</code></li>
+</ul>
+<p>Permission denied使用WARNING，其餘預期review結果使用INFO。</p>
+<p>成功log由admin orchestration layer負責，而唔係在 <code>VocabActionService</code>每個CRUD method重複記錄。原因會喺「點解部分位置唔加log」再解釋。</p>
+<h4>UserVocab flow</h4>
+<h4><code>in_use</code>更新</h4>
+<p>Bulk update只喺實際有records改變時記錄：</p>
+<pre><code class="language-python">if (activated_count + deactivated_count) &gt; 0:
+    logger.info(
+        &quot;User vocab usage updated: &quot;
+        &quot;operation=%s user_id=%s &quot;
+        &quot;activated_count=%s deactivated_count=%s&quot;,
+        ...,
+    )</code></pre>
+<p>Single update亦先比較舊值同新值：</p>
+<pre><code class="language-python">if user_vocab.in_use != new_in_use:
+    ...
+    logger.info(...)</code></pre>
+<p>即係no-change submission唔會製造log。</p>
+<h4>Sync success</h4>
+<p>UserVocab sync可能喺以下位置觸發：</p>
+<ul>
+<li>Registration；</li>
+<li>Login；</li>
+<li>User detail refresh。</li>
+</ul>
+<p>如果每次sync成功都記log，即使零新增都會製造大量噪音。因此success log只喺database實際新增<code>UserVocab</code>時出現。</p>
+<p><code>sync_new_vocab()</code>使用：</p>
+<pre><code class="language-python">with transaction.atomic():
+    User.objects.select_for_update().get(pk=user.pk)</code></pre>
+<p>作用：</p>
+<ul>
+<li>同一user嘅sync串行化；</li>
+<li>避免兩個sync同時準備同一批rows；</li>
+<li>令before／after count比較更可靠。</li>
+</ul>
+<p>實際created count：</p>
+<pre><code class="language-python">before_sync_count = UserVocab.objects.filter(user=user).count()
+
+UserVocab.objects.bulk_create(
+    user_vocabs,
+    ignore_conflicts=True,
+)
+
+after_sync_count = UserVocab.objects.filter(user=user).count()
+return max(after_sync_count - before_sync_count, 0)</code></pre>
+<p>Wrapper只喺count大過0時記：</p>
+<pre><code class="language-python">if created_count &gt; 0:
+    logger.info(
+        &quot;User vocab sync completed: &quot;
+        &quot;operation=%s user_id=%s created_count=%s&quot;,
+        &quot;user_vocab_sync&quot;,
+        user.pk,
+        created_count,
+    )</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">實際新增12 rows → INFO created_count=12
+零新增          → 冇success log
+sync exception  → ERROR + traceback</code></pre>
+<h4>Sync failure boundary</h4>
+<p>Primary UserVocab sync同event generation分開處理：</p>
+<pre><code class="language-python">try:
+    created_count = UserVocabService.sync_new_vocab(user=user)
+except Exception:
+    logger.exception(&quot;User vocab sync failed: ...&quot;)
+    return
+
+try:
+    EventService.gen_vocab_sync_event(user=user)
+except Exception:
+    logger.exception(&quot;User vocab sync event generation failed: ...&quot;)</code></pre>
+<p>咁做令：</p>
+<ul>
+<li>UserVocab sync失敗會保留traceback，之後可以重試；</li>
+<li>Sync成功後event generation失敗，已sync資料唔會被回滾；</li>
+<li>兩類failure可以由operation分辨。</li>
+</ul>
+<h4>Quiz flow</h4>
+<p>Quiz logging集中記錄會影響flow理解或learning state嘅事件：</p>
+<ul>
+<li>Setting saved；</li>
+<li>Redirect去unfinished question／session；</li>
+<li>Insufficient active vocab；</li>
+<li>No question available；</li>
+<li>Stale／duplicate answer ignored；</li>
+<li>Answer checked；</li>
+<li>Question skipped；</li>
+<li>Quiz completed summary。</li>
+</ul>
+<p>Answer log例子：</p>
+<pre><code class="language-python">logger.info(
+    &quot;Quiz answer checked: &quot;
+    &quot;operation=%s user_id=%s question_user_vocab_id=%s &quot;
+    &quot;user_answer=%s is_correct=%s&quot;,
+    ...,
+)</code></pre>
+<p>Summary log會保存：</p>
+<ul>
+<li>Quiz count；</li>
+<li>Target count；</li>
+<li>Correct／wrong count；</li>
+<li>Skipped count；</li>
+<li>Tips count。</li>
+</ul>
+<p>現時summary log並無記錄 <code>use_full_pool</code>或舊fallback狀態；如果將來需要分析使用者由無題提示轉用full pool嘅比例，要另外加入明確而非敏感嘅boolean欄位。</p>
+<p>普通question pick同Next唔記，因為：</p>
+<ul>
+<li>出現頻率高；</li>
+<li>冇直接修改learning state；</li>
+<li>由answer／skip／summary logs已足夠重建主要flow。</li>
+</ul>
+<h4>Account flow</h4>
+<h4>Registration</h4>
+<p>User成功保存後記：</p>
+<pre><code class="language-python">logger.info(
+    &quot;User registration completed: &quot;
+    &quot;operation=%s user_id=%s&quot;,
+    &quot;user_registration&quot;,
+    self.object.pk,
+)</code></pre>
+<p>只記user ID，唔記email、username、password或form data。</p>
+<h4>Login</h4>
+<p>Login完成同session expiry設定後記：</p>
+<pre><code class="language-python">logger.info(
+    &quot;User login completed: &quot;
+    &quot;operation=%s user_id=%s remember_me=%s&quot;,
+    &quot;user_login&quot;,
+    self.request.user.pk,
+    remember,
+)</code></pre>
+<p>Invalid password屬於預期authentication failure，唔記成ERROR。</p>
+<p>Logout冇額外log，因為要純為logging override <code>LogoutView</code> lifecycle，收益不足。</p>
+<h4>Event同Feedback flow</h4>
+<h4>Event bulk mark-read</h4>
+<p><code>QuerySet.update()</code>會回傳實際updated row count：</p>
+<pre><code class="language-python">updated_count = get_select_qs.update(
+    is_read=True,
+    read_at=now,
+)</code></pre>
+<p>只在count大過0時記：</p>
+<pre><code class="language-python">if updated_count &gt; 0:
+    logger.info(
+        &quot;User events marked as read: &quot;
+        &quot;operation=%s user_id=%s updated_count=%s&quot;,
+        ...,
+    )</code></pre>
+<p>零變更保持安靜。</p>
+<h4>Feedback create</h4>
+<p>成功時記：</p>
+<pre><code class="language-text">operation=feedback_create
+user_id
+feedback_id
+feedback_type</code></pre>
+<p>Duplicate pending feedback使用INFO：</p>
+<pre><code class="language-text">result=skipped
+reason=duplicate_pending_feedback</code></pre>
+<p>Feedback context／message body永遠唔寫入log。</p>
+<h4>Feedback reply</h4>
+<p>Admin reply transaction成功return後記：</p>
+<pre><code class="language-text">operation=feedback_reply
+admin_user_id
+feedback_id
+event_id</code></pre>
+<p>Reply body唔寫入log。</p>
+<h4>Permission denial</h4>
+<p>非admin進入admin-only feedback list／detail／reply時使用WARNING：</p>
+<pre><code class="language-python">logger.warning(
+    &quot;Feedback admin access denied: &quot;
+    &quot;operation=%s user_id=%s view=%s&quot;,
+    &quot;feedback_admin_access&quot;,
+    self.request.user.pk,
+    self.__class__.__name__,
+)</code></pre>
+<h4>Management commands</h4>
+<h4><code>import_vocab</code></h4>
+<p>記錄：</p>
+<ul>
+<li>Import started；</li>
+<li>CSV file；</li>
+<li>執行admin user ID；</li>
+<li>Missing file／headers；</li>
+<li>Row validation／integrity rejection；</li>
+<li>Success／failed counts；</li>
+<li>Unexpected failure traceback。</li>
+</ul>
+<p>每個failed row只記row number同error，唔記完整raw row。</p>
+<h4><code>setup_categories</code></h4>
+<p>記錄：</p>
+<ul>
+<li>Setup started／completed；</li>
+<li>CSV file；</li>
+<li>Missing file／headers；</li>
+<li>Invalid row；</li>
+<li>Success／failed counts；</li>
+<li>Unexpected failure traceback。</li>
+</ul>
+<h4><code>dev_clear_vocab</code></h4>
+<p>呢個係destructive command，所以最少需要：</p>
+<pre><code class="language-text">started
+completed
+failed unexpectedly</code></pre>
+<p>核心結構：</p>
+<pre><code class="language-python">logger.info(&quot;Clear vocab started: ...&quot;)
+
+try:
+    with transaction.atomic():
+        ...
+except Exception:
+    logger.exception(&quot;Clear vocab failed unexpectedly: ...&quot;)
+    raise
+
+logger.info(&quot;Clear vocab completed: ...&quot;)</code></pre>
+<p>Completed log放喺atomic block外面，只有所有delete成功並正常離開transaction後先會出現。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>module logger：logging.getLogger(__name__)</li>
+<li>logger.log(level, ...) 動態 level</li>
+<li>QuerySet.update() row count 作實際結果</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-3-令-traceback-同成功紀錄反映真實-transaction-結果">
+<h2>修改目的 3：令 traceback 同成功紀錄反映真實 transaction 結果</h2>
+<h3>修改目的／理由</h3>
+<p>錯誤 layer 記 traceback 會重複紀錄；transaction 未完成前寫 completed 又會留下與 database 狀態矛盾嘅證據。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>dictionary/service/user_vocab_action.py</li>
+<li>dictionary admin orchestration</li>
+<li>core feedback flow</li>
+<li>dev_clear_vocab command</li>
+<li>django.request logger</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>未有清楚規則決定邊一層擁有 traceback，亦容易喺後續工作仍可能 rollback 時過早寫 success。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>處理或吞掉 exception 嘅 layer 記一次 traceback；未處理 500 交俾 Django；completed log 放喺 atomic 成功離開之後。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>Exception ownership同traceback</h4>
+<h4>預期exception</h4>
+<p>例如：</p>
+<ul>
+<li>Form validation；</li>
+<li>Business <code>ValidationError</code>；</li>
+<li>Duplicate pending request；</li>
+<li>Missing CSV header；</li>
+<li>Permission denied。</li>
+</ul>
+<p>呢啲係application知道點樣處理嘅結果，唔應全部變成ERROR或500。</p>
+<h4>未預期exception</h4>
+<p>如果application主動捕捉並繼續運作，例如safe sync：</p>
+<pre><code class="language-python">except Exception:
+    logger.exception(...)
+    return</code></pre>
+<p>必須用<code>logger.exception()</code>保存traceback，否則錯誤會被吞掉。</p>
+<p>如果exception冇被application處理，會自然向上成為HTTP 500，則交由：</p>
+<pre><code class="language-text">django.request</code></pre>
+<p>記錄traceback。</p>
+<p>唔應喺每個service layer都：</p>
+<pre><code class="language-python">except Exception:
+    logger.exception(...)
+    raise</code></pre>
+<p>然後又由view／Django再記一次。否則同一個exception會出現多份traceback。</p>
+<p>簡單原則：</p>
+<pre><code class="language-text">邊一層真正處理／吞掉exception
+→ 邊一層負責記traceback
+
+完全唔處理、讓佢成為500
+→ 交俾django.request</code></pre>
+<h4>Transaction同成功log位置</h4>
+<p>成功log必須代表資料真係完成，而唔係「準備開始」。</p>
+<p>錯誤例子：</p>
+<pre><code class="language-python">with transaction.atomic():
+    logger.info(&quot;Completed&quot;)
+    do_more_database_work()</code></pre>
+<p>如果之後database work失敗，transaction會rollback，但log已錯誤寫成completed。</p>
+<p>正確概念：</p>
+<pre><code class="language-python">with transaction.atomic():
+    do_all_database_work()
+
+logger.info(&quot;Completed&quot;)</code></pre>
+<p>Project例子：</p>
+<ul>
+<li><code>dev_clear_vocab</code> completed放喺atomic外面；</li>
+<li>Feedback reply log放喺service成功return後；</li>
+<li>Admin review log放喺approve／reject service成功return後；</li>
+<li>UserVocab sync success使用transaction完成後回傳嘅created count。</li>
+</ul>
+</details>
+<h3>新使用技術</h3><ul>
+<li>logger.exception() 保存當前 traceback</li>
+<li>transaction.atomic() completion boundary</li>
+<li>exception ownership 避免重複 error logs</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-4-控制-log-噪音同敏感資料風險">
+<h2>修改目的 4：控制 log 噪音同敏感資料風險</h2>
+<h3>修改目的／理由</h3>
+<p>過量紀錄會淹沒重要事件，而 password、token、session 或 feedback body 一旦入 log，就會擴大資料暴露範圍。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>各 app logger call sites</li>
+<li>logging handlers 與保留策略</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>缺少明確準則判斷普通 read、零變更、底層 helper 同敏感 payload 應唔應該記錄。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>高頻低價值、普通 read 同零變更保持安靜；只保留 operation、IDs、結果、counts 同非敏感 boolean。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>點解部分位置唔加log</h4>
+<h4>普通read views</h4>
+<p>例如：</p>
+<ul>
+<li>Vocab list／detail；</li>
+<li>UserVocab list／detail GET；</li>
+<li>Event list／detail；</li>
+<li>Feedback list／detail。</li>
+</ul>
+<p>正常GET唔修改資料，亦唔係重要audit event。每次page load都記INFO只會製造噪音。Request traffic應由web access log處理。</p>
+<h4><code>VocabActionService</code>每個CRUD</h4>
+<p>唔在底層每個create／update／restore／deactivate都記success，原因：</p>
+<ul>
+<li>Admin review已經有request type同result audit；</li>
+<li><code>create_vocab()</code>亦由CSV import逐row呼叫；</li>
+<li>底層加log會令import產生大量重複success logs；</li>
+<li>要分辨來源就要新增source parameter；</li>
+<li>CREATE review要準確記新vocab ID可能要改service return contract。</li>
+</ul>
+<p>呢啲logic／interface成本高過額外log價值。</p>
+<h4><code>EventService.create_event()</code>／assign helpers</h4>
+<p>底層event helper呼叫頻密，正常成功逐次記錄會太嘈，而且event message可能包含feedback reply等敏感內容。</p>
+<p>因此由外層業務flow記結果：</p>
+<ul>
+<li>Feedback reply；</li>
+<li>Admin review；</li>
+<li>UserVocab sync event failure。</li>
+</ul>
+<h4>Quiz question pick／Next</h4>
+<p>呢啲操作頻率高、價值低，而且唔一定修改learning state。主要flow已有answer、skip、rejection同summary logs。</p>
+<h4>Logout</h4>
+<p>要記logout success需要override Django <code>LogoutView</code> lifecycle。純為一條低價值log改view control flow唔值得。</p>
+<h4>零資料變更</h4>
+<p>以下情況保持安靜：</p>
+<ul>
+<li>UserVocab <code>in_use</code>提交但冇改變；</li>
+<li>UserVocab sync新增0 rows；</li>
+<li>Event mark-read更新0 rows。</li>
+</ul>
+<p>原則係：</p>
+<pre><code class="language-text">冇資料變更 + 冇重要拒絕結果
+→ 唔記success log</code></pre>
+<h4>敏感資料邊界</h4>
+<p>永遠唔應寫入log：</p>
+<ul>
+<li>Password；</li>
+<li>Password hash；</li>
+<li>Cookie；</li>
+<li>Session key；</li>
+<li>CSRF token；</li>
+<li>Access token；</li>
+<li>完整POST body；</li>
+<li>Feedback context／reply body；</li>
+<li>其他credential或secret。</li>
+</ul>
+<p>目前主要保留：</p>
+<ul>
+<li>User／object IDs；</li>
+<li>Operation；</li>
+<li>Request／vocab／feedback type；</li>
+<li>Result／reason；</li>
+<li>Counts；</li>
+<li>非敏感boolean，例如<code>remember_me</code>、<code>is_correct</code>。</li>
+</ul>
+<p>敏感資料filter只可以當最後防線。最安全做法係由logger call源頭已經唔傳敏感資料。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>資料最小化 logging</li>
+<li>外層 business boundary audit</li>
+<li>以 no-change detection 抑制噪音</li>
+</ul>
+</section>
+</div>
+<section class="report-section" id="整體行為改變">
+<h2>整體行為改變</h2>
+<pre><code class="language-text">Logging唔係施工紀錄
+Logging係重要業務結果同故障證據</code></pre>
+<p>判斷一個位置應唔應該加log，可以順序問：</p>
+<ol>
+<li>呢件事有冇修改資料或改變重要業務狀態？</li>
+<li>之後出問題時，呢條log可唔可以幫我知道發生過咩？</li>
+<li>同一資料係咪已經由外層audit log記錄？</li>
+<li>呢個操作會唔會高頻到製造噪音？</li>
+<li>有冇敏感資料可能被寫入？</li>
+<li>Success log係咪放喺真正commit／完成之後？</li>
+<li>Exception traceback應由邊一層擁有？</li>
+</ol>
+<p>最終原則：</p>
+<pre><code class="language-text">重要資料變更
+→ 記一條清楚summary
+
+預期拒絕
+→ INFO／WARNING，唔當500
+
+未預期故障而application會吞掉
+→ logger.exception()
+
+未處理故障
+→ 交俾django.request
+
+普通read／高頻低價值／零變更
+→ 唔記</code></pre>
+</section>
+<section class="report-section" id="測試及驗證結果">
+<h2>測試及驗證結果</h2>
+<p>已完成：</p>
+<ul>
+<li>Python compile；</li>
+<li>Django system check；</li>
+<li><code>git diff --check</code>；</li>
+<li>Console／DEBUG／INFO+／ERROR+ file routing手動驗證；</li>
+<li>Formatter、filter同rotation設定檢查；</li>
+<li>Code inspection確認預期validation唔記成ERROR；</li>
+<li>Code inspection確認safe sync failure保留traceback；</li>
+<li>Code inspection確認success log placement同transaction boundary。</li>
+</ul>
+<p>當次logging implementation驗證時，project test discovery結果係：</p>
+<pre><code class="language-text">Found 0 test(s).
+NO TESTS RAN</code></pre>
+<p>以上係當時嘅歷史結果。至2026-09-09重新核對，project已有10個UI／language相關Django tests，但仍然未有自動log assertions；logging本身嘅證據仍主要來自system check、compile、manual routing同code review。</p>
+</section>
+<section class="report-section" id="已知限制-未驗證事項">
+<h2>已知限制／未驗證事項</h2>
+<h3>Vocab／UserVocab</h3>
+<ul>
+<li>Created／skipped／validation rejected message同level；</li>
+<li>Admin approved／rejected／permission denied；</li>
+<li><code>in_use</code> no-change唔產生log；</li>
+<li>Sync實際新增先記created count；</li>
+<li>Concurrent sync只有實際新增嘅執行記success。</li>
+</ul>
+<h3>Quiz</h3>
+<ul>
+<li>Setting／resume／pool rejection；</li>
+<li>Answer accepted／ignored；</li>
+<li>Skip／summary counts；</li>
+<li>Message placeholders同IDs輸出正確。</li>
+</ul>
+<h3>Account／Event／Feedback</h3>
+<ul>
+<li>Registration／login success；</li>
+<li>Invalid credentials唔記ERROR；</li>
+<li>Event zero-change mark-read唔記log；</li>
+<li>Feedback duplicate同permission denied level；</li>
+<li>Feedback body唔出現喺log。</li>
+</ul>
+<h3>Management commands</h3>
+<ul>
+<li>Started／completed；</li>
+<li>Missing file／headers；</li>
+<li>Row rejection；</li>
+<li>Unexpected failure包含traceback；</li>
+<li>Destructive command completed只在transaction成功後出現。</li>
+</ul>
+<h3>Exception duplication</h3>
+<ul>
+<li>真正500只出現一次完整traceback；</li>
+<li>Application已處理嘅exception唔再由Django重複記錄；</li>
+<li>Validation／duplicate唔變成ERROR或500。</li>
+</ul>
+</section>
+<section class="report-section" id="官方參考資料">
+<h2>官方參考資料</h2>
+<div class="notice notice-warning"><strong>證據限制：</strong>原 Markdown 報告冇獨立列出官方參考資料；今次係格式轉換，冇補加未經原報告核對嘅外部來源。</div>
+</section>
+<details class="report-section" id="report-baseline">
+<summary>Report 基準／證據範圍</summary>
+<h2>Report 基準</h2><ul>
+<li>轉換時間：2026-09-12 14:53 JST</li>
+<li>原始文件：<code>application_logging.md</code>；Markdown 原件保留。</li>
+<li>轉換時 repository HEAD：<code>89d30308cf0aa55919a002d8063954d92c1dcb8b</code>。</li>
+<li>轉換時 working tree：有未提交修改。</li>
+<li>原報告冇記錄可重建嘅完整 Git before/after baseline；HTML 只重組原報告已保存嘅內容，冇將目前 working tree 當成當年修改後狀態。</li>
+<li>今次冇重新執行 application tests；測試章節保存嘅係原報告記錄嘅歷史驗證結果。</li>
+</ul>
+</details>
+</main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Event, UserEvent, FeedbackType, Feedback
+from .models import UserEvent, FeedbackType
 
 class UserEventIsReadedUpdateForm(forms.Form):
     selectable_ids = forms.ModelMultipleChoiceField(
@@ -24,4 +24,5 @@ class FeedbackCreateForm(forms.Form):
     context = forms.CharField(label="内容", max_length=255, widget=forms.Textarea)
 
 class FeedbackReplyForm(forms.Form):
+    is_close = forms.BooleanField(label="終了", required=False)
     context = forms.CharField(label="Message", max_length=255, widget=forms.Textarea)

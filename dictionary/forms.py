@@ -17,6 +17,8 @@ from .models import (
     Category,
 )
 
+from .validators import validate_category_count
+
 class BaseVocabRequestForm(forms.Form):
     # Vocab fields
     vocab_type = forms.ChoiceField(choices=VocabType.choices, label='種類')
@@ -57,7 +59,10 @@ class BaseVocabRequestForm(forms.Form):
 
     def clean_categories(self):
         categories = self.cleaned_data["categories"]
-        if categories.count() > 3:
+
+        try:
+            validate_category_count(categories, min_count=0)
+        except ValidationError:
             raise forms.ValidationError(
                 "カテゴリーは3つまで選択できます。"
             )
@@ -208,3 +213,23 @@ class UserVocabInUseUpdateForm(forms.Form):
 
 class UserVocabInUseSingleUpdateForm(forms.Form):
     in_use = forms.BooleanField(label="出題対象", required=False)
+
+class VocabRequestChangeAdminForm(forms.ModelForm):
+    class Meta:
+        model = VocabRequest
+        fields = "__all__"
+
+    def clean_proposed_categories(self):
+        categories = self.cleaned_data["proposed_categories"]
+        validate_category_count(categories, min_count=0)
+        return categories
+
+class VocabChangeAdminForm(forms.ModelForm):
+    class Meta:
+        model = Vocab
+        fields = "__all__"
+
+    def clean_categories(self):
+        categories = self.cleaned_data["categories"]
+        validate_category_count(categories, min_count=1)
+        return categories

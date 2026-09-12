@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Category Improvement：由單一分類遷移至多分類</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+<header class="report-header">
+<h1>Category Improvement：由單一分類遷移至多分類</h1>
+</header>
+<section class="report-section" id="summary">
+<span class="status-badge">按原報告：核心改修已完成</span>
+<h2>改修概要</h2>
+<div class="summary-block">
+<p>Dictionary 原本以 CharField 同 TextChoices 保存單一 category，無法表達一個詞彙同時屬於多個語義場景。改修後新增 Category master data，將 Vocab 同 VocabRequest 轉為 ManyToMany 關係，並同步更新 migration、request/approval service、admin、CSV import 同搜尋入口。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>Category 由硬編碼 enum 改成可管理嘅 database master data。</li><li>Vocab.categories 同 VocabRequest.proposed_categories 成為唯一 category 資料來源。</li><li>Create、update、restore request 都會保存 proposed category snapshot。</li><li>Form 允許 0–3 個選擇，approval 要求至少 1 個；database 未全域保證 1–3 個。</li><li>Admin、CSV import、vocab list 同 user vocab list 已改用 M2M 資料。</li></ul></aside>
+</div>
+</section>
+<nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
+<li><a href="#summary">改修概要</a></li>
+<li><a href="#修改目的-1-建立可擴展嘅多分類資料模型">修改目的 1：建立可擴展嘅多分類資料模型</a></li>
+<li><a href="#修改目的-2-令-request-同-approval-流程完整傳遞-categories">修改目的 2：令 request 同 approval 流程完整傳遞 categories</a></li>
+<li><a href="#修改目的-3-統一管理-匯入同搜尋入口">修改目的 3：統一管理、匯入同搜尋入口</a></li>
+<li><a href="#整體行為改變">整體行為改變</a></li>
+<li><a href="#測試及驗證結果">測試及驗證結果</a></li>
+<li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
+<li><a href="#官方參考資料">官方參考資料</a></li>
+<li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+</ul></nav>
+<div class="purpose-list">
+<section class="purpose-card" id="修改目的-1-建立可擴展嘅多分類資料模型">
+<h2>修改目的 1：建立可擴展嘅多分類資料模型</h2>
+<h3>修改目的／理由</h3>
+<p>單一字串 category 無法表達多重語義，固定 TextChoices 亦令 category master data 難以獨立管理。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>dictionary/models.py</li>
+<li>dictionary/migrations/0020–0022</li>
+<li>resource/categories.csv</li>
+<li>dictionary/management/commands/setup_categories.py</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>Vocab.category 同 VocabRequest.proposed_category 各自保存一個字串，選項由 VocabCategory TextChoices 寫死。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>Category 成為 master table；Vocab.categories 同 VocabRequest.proposed_categories 以 ManyToMany 保存多個關係，舊欄位及 enum 被移除。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>目的</h4>
+<p>今次改動係將 dictionary app原本單一category設計，改成一個vocab可以擁有多個categories。現時user request form容許提交0至3個categories，方便管理員補充資料；approve時則要求最少有1個。Database model本身並無全域強制最多3個。</p>
+<p>舊設計：</p>
+<ul>
+<li><code>Vocab.category</code>：單一 <code>CharField</code></li>
+<li><code>VocabRequest.proposed_category</code>：單一 proposed category</li>
+<li>choices 由 <code>VocabCategory</code> <code>TextChoices</code> 固定寫死</li>
+</ul>
+<p>新設計：</p>
+<ul>
+<li><code>Category</code> model 管理 category master data</li>
+<li><code>Vocab.categories</code> 使用 <code>ManyToManyField</code></li>
+<li><code>VocabRequest.proposed_categories</code> 使用 <code>ManyToManyField</code></li>
+<li>Vocab create / update / restore request 都保存 proposed categories snapshot</li>
+<li>Vocab list / user vocab list search 改用 M2M categories filter</li>
+</ul>
+<h4>設計原因</h4>
+<p>單一 category 太限制 vocab 分類。部分字可以同時屬於多個語義場景，例如：</p>
+<ul>
+<li><code>食事・料理</code></li>
+<li><code>日常生活</code></li>
+<li><code>文化・娯楽</code></li>
+</ul>
+<p>現時user request form以最多三個categories作產品層限制，可以保持資料彈性，同時避免一般提交包含過多category，令quiz／filter／admin review變得混亂。呢個上限唔係M2M data model本身嘅invariant，其他寫入入口需要自行執行相同validation先會得到一致規則。</p>
+<h4>Database / Model 變更</h4>
+<h4>新增 <code>Category</code></h4>
+<p>新增 <code>Category</code> model 作為 category master table。</p>
+<p>主要欄位：</p>
+<ul>
+<li><code>name</code>：系統內部使用，unique</li>
+<li><code>display</code>：畫面顯示文字</li>
+</ul>
+<p><code>__str__()</code> 使用：</p>
+<pre><code class="language-python">return self.display or self.name</code></pre>
+<p>避免 <code>display</code> 為空時 admin / form dropdown 出現問題。</p>
+<h4><code>Vocab</code> 改動</h4>
+<p>新增：</p>
+<pre><code class="language-python">categories = models.ManyToManyField(
+    Category,
+    related_name=&quot;vocabs&quot;,
+)</code></pre>
+<p>移除：</p>
+<pre><code class="language-python">category = models.CharField(...)</code></pre>
+<p>即係 <code>Vocab</code> 不再保存 legacy single category，category 資料以 M2M <code>categories</code> 作為唯一來源。</p>
+<h4><code>VocabRequest</code> 改動</h4>
+<p>新增：</p>
+<pre><code class="language-python">proposed_categories = models.ManyToManyField(
+    Category,
+    related_name=&quot;vocab_requests&quot;,
+    blank=True,
+)</code></pre>
+<p>移除：</p>
+<pre><code class="language-python">proposed_category = models.CharField(...)</code></pre>
+<p>即係 review request 亦不再保存單一 proposed category，而係保存 proposed categories snapshot。</p>
+<h4>移除 <code>VocabCategory</code></h4>
+<p>舊有 <code>VocabCategory(TextChoices)</code> 已移除。</p>
+<p>Category choices 由 database <code>Category</code> table 提供，不再硬編碼喺 model enum 入面。</p>
+<h4>Migration</h4>
+<p>相關 migration：</p>
+<ul>
+<li><code>0020_categories_prepare.py</code></li>
+<li>新增 <code>Category</code></li>
+<li>新增 <code>Vocab.categories</code></li>
+<li>新增 <code>VocabRequest.proposed_categories</code></li>
+</ul>
+<ul>
+<li><code>0021_category_change.py</code></li>
+<li>調整 <code>Category.display</code></li>
+<li>調整 <code>VocabRequest.proposed_categories</code> blank 設定</li>
+</ul>
+<ul>
+<li><code>0022_remove_vocab_category_and_more.py</code></li>
+<li>移除 <code>Vocab.category</code></li>
+<li>移除 <code>VocabRequest.proposed_category</code></li>
+</ul>
+<p><code>0022</code> 已經成功套用：</p>
+<pre><code class="language-text">Applying dictionary.0022_remove_vocab_category_and_more... OK</code></pre>
+<h4>Category Seed Data</h4>
+<p>新增：</p>
+<pre><code class="language-text">resource/categories.csv</code></pre>
+<p>用作 category master data seed source。</p>
+<p>新增 management command：</p>
+<pre><code class="language-text">dictionary/management/commands/setup_categories.py</code></pre>
+<p>用途：</p>
+<ul>
+<li>從 CSV 建立 category</li>
+<li>已存在時 update display</li>
+<li>支援重複執行</li>
+<li>會記錄成功 / 失敗 rows</li>
+</ul>
+<p>已測試成功建立 / 更新 18 筆 <code>Category</code> records。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>Django ManyToManyField 及 .set()</li>
+<li>分階段 schema migration</li>
+<li>可重複執行嘅 CSV seed command</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-2-令-request-同-approval-流程完整傳遞-categories">
+<h2>修改目的 2：令 request 同 approval 流程完整傳遞 categories</h2>
+<h3>修改目的／理由</h3>
+<p>資料模型轉成 M2M 後，create、update、restore、review 同 approve 都要保存及驗證同一組 proposed categories。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>dictionary/forms.py</li>
+<li>dictionary/views.py</li>
+<li>dictionary/service/vocab_request.py</li>
+<li>dictionary/service/vocab_action.py</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>Forms、initial data 同 services 只處理 category／proposed_category 單一值。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>ModelMultipleChoiceField 接收多選；request 保存 snapshot；approval 驗證最少一項，再由 vocab action 於主物件保存後設定 M2M。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>Form 變更</h4>
+<h4><code>BaseVocabRequestForm</code></h4>
+<p>新增：</p>
+<pre><code class="language-python">categories = forms.ModelMultipleChoiceField(
+    queryset=Category.objects.all(),
+    required=False,
+    widget=forms.CheckboxSelectMultiple,
+)</code></pre>
+<p>並加入：</p>
+<pre><code class="language-python">def clean_categories(self):
+    categories = self.cleaned_data[&quot;categories&quot;]
+    if categories.count() &gt; 3:
+        raise forms.ValidationError(&quot;Allow 3 type of category only&quot;)
+    return categories</code></pre>
+<p>作用：</p>
+<ul>
+<li>由 database <code>Category</code> records 產生選項</li>
+<li>admin / user request form 可選多個 categories</li>
+<li>限制最多三個 categories</li>
+</ul>
+<h4><code>VocabCreateRequestForm</code></h4>
+<p>Create request 仍然容許 user submit 時留空：</p>
+<ul>
+<li><code>meaning</code></li>
+<li><code>level</code></li>
+<li><code>categories</code></li>
+</ul>
+<p>原因係 admin review 時可以再補齊。</p>
+<h4><code>VocabUpdateRequestForm</code></h4>
+<p>Update request 透過 view initial 將現有 categories 帶入 form。</p>
+<h4>View 變更</h4>
+<h4><code>VocabUpdateRequestView.get_initial()</code></h4>
+<p>新增：</p>
+<pre><code class="language-python">&quot;categories&quot;: vocab.categories.all()</code></pre>
+<p>令 update form 可以 tick 返現有 categories。</p>
+<p>舊有：</p>
+<pre><code class="language-python">&quot;category&quot;: vocab.category</code></pre>
+<p>已移除。</p>
+<h4><code>VocabListView</code></h4>
+<p>Search form category 改成 <code>ModelChoiceField</code> 後，filter 改成：</p>
+<pre><code class="language-python">qs = qs.filter(categories=category)</code></pre>
+<h4><code>UserVocabListView</code></h4>
+<p>User vocab list 要經 <code>UserVocab -&gt; Vocab -&gt; categories</code> filter：</p>
+<pre><code class="language-python">qs = qs.filter(vocab__categories=category)</code></pre>
+<h4>Service 變更</h4>
+<h4><code>VocabRequestService.gen_create_vocab_request()</code></h4>
+<p>Create request 建立後：</p>
+<pre><code class="language-python">create_request.proposed_categories.set(form.cleaned_data[&quot;categories&quot;])</code></pre>
+<p>不再寫 <code>proposed_category</code>。</p>
+<h4><code>VocabRequestService.gen_update_vocab_request()</code></h4>
+<p>Update request 建立後：</p>
+<pre><code class="language-python">update_request.proposed_categories.set(form.cleaned_data[&quot;categories&quot;])</code></pre>
+<p><code>original_data</code> 入面改為保存原本 category names snapshot：</p>
+<pre><code class="language-python">&quot;categories&quot;: list(
+    form.target_vocab.categories.values_list(&quot;name&quot;, flat=True)
+)</code></pre>
+<h4><code>VocabRequestService.gen_restore_vocab_request()</code></h4>
+<p>Restore request 會保存原 vocab 嘅 categories snapshot：</p>
+<pre><code class="language-python">restore_request.proposed_categories.set(vocab.categories.all())</code></pre>
+<p>Approve restore 時仍然只做：</p>
+<pre><code class="language-python">original_vocab.is_active = True</code></pre>
+<p>即係 proposed categories 主要係 review record / snapshot，用嚟保持 request data 完整。</p>
+<h4><code>VocabRequestService.validate_for_approval()</code></h4>
+<p>舊檢查：</p>
+<pre><code class="language-python">proposed_category</code></pre>
+<p>已改成：</p>
+<pre><code class="language-python">if not vocab_request.proposed_categories.exists():
+    errors[&quot;proposed_categories&quot;] = &quot;Category is required.&quot;</code></pre>
+<p>Create / update approve 前必須有最少一個 proposed category。</p>
+<h4><code>VocabRequestService.build_vocab_data()</code></h4>
+<p>傳俾 vocab action 嘅資料改成：</p>
+<pre><code class="language-python">&quot;categories&quot;: vocab_request.proposed_categories.all()</code></pre>
+<p>不再傳 <code>&quot;category&quot;</code>。</p>
+<h4><code>VocabActionService.create_vocab()</code></h4>
+<p>建立 <code>Vocab</code> 時不再設定 single category。</p>
+<p>流程：</p>
+<ol>
+<li>建立 <code>Vocab</code> main object</li>
+<li><code>vocab.full_clean()</code></li>
+<li><code>vocab.save()</code></li>
+<li><code>vocab.categories.set(vocab_data[&quot;categories&quot;])</code></li>
+</ol>
+<p>M2M 要等 main object 有 primary key 後先可以 <code>.set()</code>。</p>
+<h4><code>VocabActionService.update_vocab()</code></h4>
+<p>Update vocab 時不再更新 single category。</p>
+<p>改成：</p>
+<pre><code class="language-python">target_vocab.categories.set(vocab_data[&quot;categories&quot;])</code></pre>
+</details>
+<h3>新使用技術</h3><ul>
+<li>ModelMultipleChoiceField 與 CheckboxSelectMultiple</li>
+<li>ManyToMany manager .set()</li>
+<li>M2M 主物件必須先取得 primary key</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-3-統一管理-匯入同搜尋入口">
+<h2>修改目的 3：統一管理、匯入同搜尋入口</h2>
+<h3>修改目的／理由</h3>
+<p>只改 model 會令 admin、CSV import 同 list filters 繼續依賴已移除嘅單一欄位，因此所有操作入口都要轉用 Category object。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>dictionary/admin.py</li>
+<li>dictionary/management/commands/import_vocab.py</li>
+<li>dictionary/forms.py</li>
+<li>dictionary/views.py</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>Admin、CSV 同 filters 使用單一 category 字串。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>Admin 提供 M2M checkbox；CSV 支援 category1–3 並驗證 master data；列表透過 M2M relationship filter。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>Admin 變更</h4>
+<h4><code>CategoryAdmin</code></h4>
+<p>新增 <code>CategoryAdmin</code>，方便管理 category master data。</p>
+<p>顯示：</p>
+<ul>
+<li><code>name</code></li>
+<li><code>display</code></li>
+<li><code>create_at</code></li>
+</ul>
+<h4><code>VocabAdmin</code></h4>
+<p><code>categories</code> 改成 checkbox widget：</p>
+<pre><code class="language-python">def formfield_for_manytomany(self, db_field, request, **kwargs):
+    if db_field.name == &quot;categories&quot;:
+        kwargs[&quot;widget&quot;] = forms.CheckboxSelectMultiple
+    return super().formfield_for_manytomany(db_field, request, **kwargs)</code></pre>
+<h4><code>VocabRequestAdmin</code></h4>
+<p>Review form 加入：</p>
+<pre><code class="language-python">proposed_categories</code></pre>
+<p>移除：</p>
+<pre><code class="language-python">proposed_category</code></pre>
+<p><code>proposed_categories</code> 同樣使用 checkbox widget。</p>
+<p>Reviewed request 會透過 <code>get_form()</code> disable M2M field：</p>
+<pre><code class="language-python">if obj is not None and obj.status != VocabRequestStatus.PENDING:
+    if &quot;proposed_categories&quot; in form.base_fields:
+        form.base_fields[&quot;proposed_categories&quot;].disabled = True</code></pre>
+<p>原因係 <code>ManyToManyField</code> 未必完全受 <code>readonly_fields</code> 控制，所以要額外喺 form 層 disable。</p>
+<h4>Import Command 變更</h4>
+<p><code>import_vocab</code> CSV header 使用：</p>
+<pre><code class="language-text">category1, category2, category3</code></pre>
+<p>流程：</p>
+<ol>
+<li>讀取 <code>category1</code>、<code>category2</code>、<code>category3</code></li>
+<li>忽略空值及 <code>---</code></li>
+<li>用 <code>Category.objects.filter(name__in=category_names)</code> 取得 categories</li>
+<li>檢查 CSV 入面嘅 category name 是否存在</li>
+<li>傳入 <code>VocabActionService.create_vocab()</code></li>
+</ol>
+<p>傳入資料：</p>
+<pre><code class="language-python">&quot;categories&quot;: categories</code></pre>
+<p>不再傳：</p>
+<pre><code class="language-python">&quot;category&quot;: data[&quot;category1&quot;]</code></pre>
+<h4>Search / Filter 變更</h4>
+<h4>Form</h4>
+<p><code>VocabSearchForm</code> / <code>UserVocabSearchForm</code> category field 改為：</p>
+<pre><code class="language-python">category = forms.ModelChoiceField(
+    queryset=Category.objects.all(),
+    required=False,
+    empty_label=&quot;-----&quot;,
+)</code></pre>
+<h4>Query</h4>
+<p>Vocab list：</p>
+<pre><code class="language-python">qs.filter(categories=category)</code></pre>
+<p>User vocab list：</p>
+<pre><code class="language-python">qs.filter(vocab__categories=category)</code></pre>
+</details>
+<h3>新使用技術</h3><ul>
+<li>ModelAdmin.formfield_for_manytomany()</li>
+<li>跨 ManyToMany relationship QuerySet filter</li>
+<li>以 name__in 批次解析 CSV category</li>
+</ul>
+</section>
+</div>
+<section class="report-section" id="整體行為改變">
+<h2>整體行為改變</h2>
+<p>目前category system已完成由single category遷移到M2M categories。正常request approval流程會得到最少1個category，而user request form限制最多3個；系統及database並未全域保證每筆資料一定係1至3個。</p>
+<p>目前唯一 category source：</p>
+<ul>
+<li><code>Vocab.categories</code></li>
+<li><code>VocabRequest.proposed_categories</code></li>
+</ul>
+<p>舊欄位已移除：</p>
+<ul>
+<li><code>Vocab.category</code></li>
+<li><code>VocabRequest.proposed_category</code></li>
+</ul>
+<p>舊 enum 已移除：</p>
+<ul>
+<li><code>VocabCategory</code></li>
+</ul>
+</section>
+<section class="report-section" id="測試及驗證結果">
+<h2>測試及驗證結果</h2>
+<p>已完成檢查：</p>
+<pre><code class="language-text">manage.py check</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">System check identified no issues (0 silenced).</code></pre>
+<p>已完成 migration 檢查：</p>
+<pre><code class="language-text">manage.py makemigrations --check --dry-run</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">No changes detected</code></pre>
+<p>已完成 syntax compile：</p>
+<pre><code class="language-text">py_compile</code></pre>
+<p>結果：通過。</p>
+<p>已完成 migration：</p>
+<pre><code class="language-text">manage.py migrate</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">Applying dictionary.0022_remove_vocab_category_and_more... OK</code></pre>
+<p>已手動測試：</p>
+<ul>
+<li>categories checkbox selection</li>
+<li>reviewed request 入面 <code>proposed_categories</code> disabled</li>
+<li>create / restore / update / delete request</li>
+<li>approve / reject flow</li>
+<li>vocab list category filter</li>
+<li>user vocab list category filter</li>
+</ul>
+</section>
+<section class="report-section" id="已知限制-未驗證事項">
+<h2>已知限制／未驗證事項</h2>
+<h3>1. Existing data migration</h3>
+<p>如果 production / long-lived database 已有舊 <code>Vocab.category</code> data，要喺 drop column 前做 data migration，將舊 category 搬去 M2M table。</p>
+<p>今次 development flow 已經直接清走舊欄位。</p>
+<h3>2. Category count rule</h3>
+<p>目前user request form嘅欄位係optional，所以提交時可以選0至3個categories；form只執行最多3個嘅限制。Review／approve service會要求最少有1個category，但無執行最多3個限制。<code>ManyToManyField</code>及database亦無內建呢個cardinality constraint。</p>
+<p>如果產品規則真係要求所有已批准vocab一律只有1至3個categories，就要喺所有寫入入口統一執行限制，例如集中喺service validation，並為admin、API同management command補相同保護。單靠一般user form不足以形成全系統invariant。</p>
+<h3>3. Query performance</h3>
+<p>M2M filter 會 join through table。</p>
+<p>目前資料量細，無問題。之後如果 vocab / user_vocab 數量大，可以再考慮：</p>
+<ul>
+<li>index</li>
+<li>prefetch</li>
+<li>query optimization</li>
+</ul>
+<h3>4. UI display</h3>
+<p>目前 list item 未必完整顯示 categories。</p>
+<p>如果之後需要，可以喺 vocab list / user vocab list 加 category badges。</p>
+</section>
+<section class="report-section" id="官方參考資料">
+<h2>官方參考資料</h2>
+<div class="notice notice-warning"><strong>證據限制：</strong>原 Markdown 報告冇獨立列出官方參考資料；今次係格式轉換，冇補加未經原報告核對嘅外部來源。</div>
+</section>
+<details class="report-section" id="report-baseline">
+<summary>Report 基準／證據範圍</summary>
+<h2>Report 基準</h2><ul>
+<li>轉換時間：2026-09-12 14:53 JST</li>
+<li>原始文件：<code>category_improvement.md</code>；Markdown 原件保留。</li>
+<li>轉換時 repository HEAD：<code>89d30308cf0aa55919a002d8063954d92c1dcb8b</code>。</li>
+<li>轉換時 working tree：有未提交修改。</li>
+<li>原報告冇記錄可重建嘅完整 Git before/after baseline；HTML 只重組原報告已保存嘅內容，冇將目前 working tree 當成當年修改後狀態。</li>
+<li>今次冇重新執行 application tests；測試章節保存嘅係原報告記錄嘅歷史驗證結果。</li>
+</ul>
+</details>
+</main>
+</body>
+</html>

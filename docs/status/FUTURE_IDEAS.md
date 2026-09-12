@@ -43,3 +43,4 @@
 
 - 之後可考慮 database import history model。
 - User message / admin inbox 如觸發 CSV import，可以用 import report 回寫處理結果。
+- `import_vocab` 目前遇到重複資料會 skip，並以 terminal message 同 log 提示；將來可考慮將所有被判定為重複嘅 rows 另外匯出成一份 CSV，方便 import 後集中檢查。

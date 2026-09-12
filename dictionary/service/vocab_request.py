@@ -22,6 +22,8 @@ from ..models import (
     VocabRequest,
 )
 
+from ..validators import validate_category_count
+
 User = get_user_model()
 
 class VocabRequestService():
@@ -40,8 +42,11 @@ class VocabRequestService():
         for field_name, error_msg in required_fields.items():
             if not getattr(vocab_request, field_name):
                 errors[field_name] = error_msg
-        if not vocab_request.proposed_categories.exists():
-            errors["proposed_categories"] = "Select at least one category."
+        try:
+            validate_category_count(vocab_request.proposed_categories.all(), min_count=1)
+        except ValidationError as error:
+            errors["proposed_categories"] = error.messages
+
         match vocab_request.proposed_vocab_type:
             case VocabType.VOCAB:
                 pass
@@ -81,12 +86,13 @@ class VocabRequestService():
 
     @staticmethod
     def create_event_for_admin(*, word, kana, request_type, request_by):
-        event = EventService.create_event(
-                    event_type=EventType.NEW_VOCAB_REQUEST,
-                    event_title=f"A new vocabulary request has been submitted: {REQUEST_TYPES_EN[request_type]}.",
-                    event_msg=f"{word} ({kana}) was requested by {request_by}."
-                )
-        EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
+        with transaction.atomic():
+            event = EventService.create_event(
+                        event_type=EventType.NEW_VOCAB_REQUEST,
+                        event_title=f"A new vocabulary request has been submitted: {REQUEST_TYPES_EN[request_type]}.",
+                        event_msg=f"{word} ({kana}) was requested by {request_by}."
+                    )
+            EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
 
     @staticmethod
     def gen_create_vocab_request(*, user, form):
@@ -130,7 +136,7 @@ class VocabRequestService():
                             request_type=VocabRequestType.CREATE,
                             request_by=user,
                         )
-                    transaction.on_commit(callback)
+                    transaction.on_commit(callback, robust=True)
             except IntegrityError:
                 raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
@@ -191,7 +197,7 @@ class VocabRequestService():
                             request_type=VocabRequestType.UPDATE,
                             request_by=user,
                         )
-                    transaction.on_commit(callback)
+                    transaction.on_commit(callback, robust=True)
             except IntegrityError:
                 raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
@@ -239,7 +245,7 @@ class VocabRequestService():
                             request_type=VocabRequestType.RESTORE,
                             request_by=user,
                         )
-                    transaction.on_commit(callback)
+                    transaction.on_commit(callback, robust=True)
             except IntegrityError:
                 raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created
@@ -283,7 +289,7 @@ class VocabRequestService():
                             request_type=VocabRequestType.DELETE,
                             request_by=user,
                         )
-                    transaction.on_commit(callback)
+                    transaction.on_commit(callback, robust=True)
             except IntegrityError:
                 raise ValidationError("この単語には、すでに審査待ちの申請があります。")
         return is_created

@@ -4,6 +4,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
+from django.core.exceptions import ValidationError
+
 from django.db import transaction
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -27,7 +29,7 @@ class UserEventListView(LoginRequiredMixin, ListView):
     model = UserEvent
     template_name = 'core/event/user_event_list.html'
     context_object_name = 'user_events'
-    ordering = ['pk']
+    ordering = ['-event__create_at']
     paginate_by = 5
 
     def post(self, request, *args, **kwargs):
@@ -67,12 +69,12 @@ class UserEventListView(LoginRequiredMixin, ListView):
         query_params.pop("page", None)
         context["query_string"] = query_params.urlencode()
         return context
-    
+
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return render(self.request, 'core/event/partials/user_event_list_partial.html', context)
         return super().render_to_response(context, **response_kwargs)
-    
+
     def get_queryset(self):
         qs = super().get_queryset().filter(user=self.request.user)
 
@@ -202,12 +204,18 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return redirect("HomePage")
 
     def form_valid(self, form):
+        is_close = form.cleaned_data["is_close"]
         context = form.cleaned_data["context"]
-        reply_event = FeedbackService.reply_feedback(
-            admin_user=self.request.user,
-            target_feedback=get_object_or_404(Feedback, pk=self.kwargs["feedback_pk"]),
-            reply_context=context
-        )
+        try:
+            reply_event = FeedbackService.reply_feedback(
+                admin_user=self.request.user,
+                target_feedback=get_object_or_404(Feedback, pk=self.kwargs["feedback_pk"]),
+                reply_context=context,
+                is_close=is_close
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
         if reply_event is not None:
             logger.info(
                 "Feedback reply completed: "
@@ -222,6 +230,6 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 f"Your reply to feedback #{self.kwargs['feedback_pk']} has been sent."
             )
         return super().form_valid(form)
-    
 
-        
+
+

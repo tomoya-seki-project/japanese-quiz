@@ -34,6 +34,8 @@ from .models import (
     Category,
 )
 
+from .forms import VocabRequestChangeAdminForm, VocabChangeAdminForm
+
 logger = logging.getLogger(__name__)
 
 @admin.register(Category)
@@ -50,6 +52,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Vocab)
 class VocabAdmin(admin.ModelAdmin):
+    form = VocabChangeAdminForm
     list_display = (
         'id',
         'word',
@@ -134,6 +137,7 @@ class UserVocabAdmin(admin.ModelAdmin):
 
 @admin.register(VocabRequest)
 class VocabRequestAdmin(admin.ModelAdmin):
+    form = VocabRequestChangeAdminForm
     change_form_template = "admin/dictionary/vocabrequest/change_form.html"
     list_display = (
         'id',

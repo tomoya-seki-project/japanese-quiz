@@ -29,7 +29,8 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 8](#phase-8-workflow-observability-and-project-review) | 2026-08-31 | Domain logging coverage、MCSense migration、全 project review |
 | [Phase 9](#phase-9-quiz-performance-and-interface-language) | 2026-09-02 ～ 2026-09-06 | Bottom-up DP、unsupported-type isolation、日文 UI／語系分流、初步 regression tests |
 | [Phase 10](#phase-10-explicit-quiz-pool-choice-and-review-context) | 2026-09-07 ～ 2026-09-08 | Explicit full-pool confirmation、VocabRequest reason／review note |
-| [Phase 11](#phase-11-account-verification-and-email-identity-integrity) | 2026-09-09 ～ 開發中 | Email activation、canonical identity、database uniqueness |
+| [Phase 11](#phase-11-account-verification-and-email-identity-integrity) | 2026-09-09 ～ 2026-09-12 | Email activation、canonical identity、database uniqueness |
+| [Phase 12](#phase-12-quiz-session-terminal-recovery) | 2026-09-12 | Current-question revalidation、empty-pool termination、shared summary lifecycle |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -320,7 +321,7 @@ Quiz no-pool 行為已由隱式 fallback 改為明確選擇，VocabRequest revie
 
 ## Phase 11: Account Verification and Email Identity Integrity
 
-**時間：2026-09-09 ～ 開發中**
+**時間：2026-09-09 ～ 2026-09-12**
 
 ### 目標
 
@@ -343,7 +344,35 @@ Quiz no-pool 行為已由隱式 fallback 改為明確選擇，VocabRequest revie
 
 ### 階段結果
 
-Account 已具備完整 activation happy path，同一 email 嘅大小寫變體亦唔再可以建立多個 identity。Activation／canonicalization 正式 automated tests 尚待補充；下一個 correctness 重點係進行中 quiz 遇到失效題目或空 pool 時嘅 terminal session recovery。
+Account 已具備完整 activation happy path，同一 email 嘅大小寫變體亦唔再可以建立多個 identity。Activation／canonicalization 正式 automated tests 尚待補充；email identity foundation 已完成並由 database constraint 保護。
+
+## Phase 12: Quiz Session Terminal Recovery
+
+**時間：2026-09-12**
+
+### 目標
+
+處理 quiz 開始後資料狀態改變嘅邊界，令目前題目失效或 question pool 中途變空時，server session、Ajax UI 同 learning state可以一致地終止，而唔係停留喺無法恢復嘅 unfinished flow。
+
+### 主要成果
+
+- Resume、正常／stale answer submit 同 skip 會重新驗證目前 `UserVocab` ownership、`in_use=True` 及相關 `Vocab.is_active=True`。
+- 目前畫面題目失效時會終止 quiz，而唔會靜默換題；無效 answer／skip亦唔會修改 weight、streak、answer count或skip count。
+- Answer／skip 後 question pool 變空時，抽題 helper 會回傳 `quiz_ended` terminal signal，由 view 建立提早結束 summary。
+- 新增共用 `build_quiz_summary_payload()`，統一正常完成與提早完成嘅統計 rendering、input-panel cleanup同 `quiz_session` 移除。
+- Summary 以 `question_unavailable`／`no_question_pool` reason code顯示相應日文說明；unfinished GET 無法恢復時會清 session、顯示 warning並返回 quiz setting。
+- Commit `89d3030` 同時完成 email identity hardening及 quiz session recovery；Django system check、migration drift check同現有10個tests通過。
+
+### 工程決策
+
+- 已經顯示俾 user 嘅 current question 如中途失效，屬於明確 session state change，應終止並解釋原因，唔應突然換成另一題。
+- 其他未顯示題目嘅 `in_use`／active變化唔需要即時終止 quiz；下一次建立 pool時自然反映最新database state。
+- 查唔到 eligible current question係可預期 domain outcome，所以用 `.filter(...).first()` 轉成 terminal flow，而唔係直接用404打斷Ajax contract。
+- `quiz_ended` 負責由 helper向view傳遞狀態，summary helper負責唯一 terminal cleanup，避免某一個endpoint漏清session。
+
+### 階段結果
+
+Review M-01 嘅核心 session recovery 已完成；專用 integration tests同抽題後重新載入object嘅短暫race window仍列作待測試／改良。下一個 correctness工作係處理 VocabRequest 已commit後 notification callback失敗所造成嘅HTTP結果矛盾；answer／skip並行idempotency則留待attempt ID同PostgreSQL方向一併設計。
 
 ## Current Architecture
 
@@ -385,13 +414,14 @@ Vocab services  Quiz service   Core services
 
 ## Current State and Remaining Work
 
-目前 dictionary、VocabRequest review、UserVocab management、account email activation、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；email identity 已統一 lowercase 並受 database case-insensitive uniqueness 保護；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
+目前 dictionary、VocabRequest review、UserVocab management、account email activation、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；進行中題目失效或pool變空時會明確結束並清理session；email identity 已統一 lowercase 並受 database case-insensitive uniqueness 保護；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
 
 - Automated test suite 已有 10 個 UI／language regression tests，但 account activation／identity、主要 domain、concurrency、quiz correctness 同 no-pool／full-pool integration coverage 尚未建立。
 - Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
 - Application logging handler、formatter、routing、daily rotation、retention 同主要 domain coverage 已建立；log assertions、rotation／retention 同 concurrent sync 尚待自動驗證。
 - `MCSense` migration 已 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成，相關 active choices 暫時停用。
-- Quiz initial filtered no-pool／full-pool choice 已完成；進行中 session 遇到 current question 失效或 pool 中途變空時，仍要加入 terminal cleanup／recovery，再補 initial、Next、Skip、resume 同 insufficient-pool integration tests。
+- Quiz initial filtered no-pool／full-pool choice 同進行中 session terminal recovery 已完成；initial、Next、Skip、Submit、resume、失效題目同 insufficient-pool integration tests仍未補齊。
+- VocabRequest 建立後嘅 staff notification 使用非 robust `transaction.on_commit()` callback；callback失敗可令主request已commit但HTTP仍報錯，下一輪會先決定best-effort或durable delivery policy再修正。
 - Whole-database export／restore 尚未建立。
 - Japanese UI wording 同語系分流已完成 code-level implementation；browser visual verification、layout 同 answer overlay 仍需 polish。
 

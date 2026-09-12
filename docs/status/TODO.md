@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（73）：核心功能已完成，或已有明確 decision
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（77）：核心功能已完成，或已有明確 decision
 -  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（11）：未開始或暫時只係計劃
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -319,24 +319,42 @@ Status badge：
 - Django system check、`git diff --check` 同現有 10 個 automated tests 已通過。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 28 點（Feedback Reply）：防止重複 reply event**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 28 點（Feedback Reply）：容許跟進回覆並以 CLOSED 作 terminal guard**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `FeedbackService.reply_feedback()` 目前未鎖定 feedback row，亦未要求 target status 仍然係 `PENDING`；重覆 POST 或 concurrent admin reply 可以建立多個 reply events。
-- 在同一 transaction 內用 `select_for_update()` 重新取得 feedback，並以 `PENDING -> REPLIED` status transition 作 idempotency guard。
-- 為已回覆重試同 concurrent reply 補 service / integration tests。
-
-
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **第 29 點（Quiz Session）：失效題目與空 pool 嘅 terminal recovery**
+- 已確認產品規則：admin 可以先回覆 user 表示開始處理，其後再發送進度／完成通知；一般重複 reply 唔視為 bug。
+- `FeedbackStatus` 已加入 `CLOSED`；reply form 可選擇回覆後結案，detail page 對 closed feedback 隱藏 Reply action。
+- `reply_feedback()` 會喺 atomic transaction 內以 `select_for_update()` 重新取得 feedback；一旦狀態為 `CLOSED`，會喺建立 event 前拒絕後續回覆。
+- View 會將 closed-state `ValidationError` 放回 reply form，避免直接 POST closed feedback 變成未處理 500；status migration 已建立。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
 
-- Quiz 已開始後，如目前設定嘅 question pool 中途變空，Next／Skip 只會顯示 no-question partial；既有 `quiz_session` 未被終止，之後返回 setting 仍可能被送去 unfinished flow。
-- `QuizUnfinishedView` 恢復 session 內舊題時只檢查 `UserVocab` ownership，未重新驗證 `in_use=True`、`vocab__is_active=True`；record 已刪除時亦會直接 404。
-- 集中定義恢復規則：先驗證 current question eligibility；失效時嘗試按原 pool 取得替代題，仍無題時清除 `quiz_session`、顯示通知並返回可重新設定嘅入口。
+- 補一般多次 reply、reply-and-close、closed direct POST 同 concurrent close／reply 嘅 service / integration tests。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 29 點（Quiz Session）：失效題目與空 pool 嘅 terminal recovery**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Resume、正常／stale answer submit 同 skip 都會重新驗證目前題目屬於該 user、`in_use=True` 及 `vocab__is_active=True`。
+- 目前畫面題目失效時會立即終止 quiz，唔會靜默換題；answer／skip learning state亦唔會被錯誤更新。
+- Answer／skip 後 question pool 變空時會以 `quiz_ended` terminal state顯示提早結束 summary，並清除 `quiz_session`。
+- 正常與提早完成共用 `build_quiz_summary_payload()`；`question_unavailable`／`no_question_pool` reason會提供相應 user feedback。
+- Commit `89d3030` 已包含修正；Django system check、migration drift check同現有10個automated tests通過。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 補 M-01 integration tests，覆蓋 current question 被關閉／停用／刪除、pool 中途變空、resume、Next、Submit 同 Skip 嘅 response、database mutation及session cleanup。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- `build_next_question_payload()` 同 initial `QuizPlayView` 抽出 ID 後重新載入 object 仍有短暫 race window；之後可統一由原 eligible queryset 載入，並補 concurrency test。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 30 點（Account Email Identity）：統一 email canonicalization 與大小寫唯一性**
@@ -348,6 +366,21 @@ Status badge：
 - Registration 同 admin forms 以 `email__iexact` 提早攔截大小寫變體 duplicate，並保留清楚 validation message。
 - `User` model 加入 `Lower("email")` database unique constraint 作最終 data-integrity guard；migration `accounts/0007_email_upper_lower_problem` 已套用。
 - 現有 database 掃描結果為 0 組 case-insensitive collision、0 筆非 lowercase email；Django system check 同 migration drift check 通過。
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 31 點（VocabRequest Notification）：`on_commit()` callback 失敗後 HTTP 結果不一致**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- Staff notification 已採用 best-effort policy；CREATE／UPDATE／RESTORE／DELETE 四個 `transaction.on_commit()` callback 均設為 `robust=True`，通知失敗唔會再令已成功建立 request 嘅 HTTP flow 報錯。
+- `create_event_for_admin()` 以獨立 atomic transaction 建立 event 及 staff assignments，避免 callback 中途失敗時留下部分通知資料。
+- Django system check 已通過；如日後要求 guaranteed delivery，再評估 outbox + retry worker。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 補 callback-failure regression test，確認通知 exception 會被記錄，而 request row、service return value及 HTTP success response維持正確。
 
 ## Vocab Planned Work
 
@@ -409,16 +442,20 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 已新增 `Category` model。
-- `Vocab` 同 `VocabRequest` 已使用 ManyToMany categories，request form、snapshot、admin review 同 approve flow 均支援最多三個 categories。
-- CSV import 已支援 `category1`～`category3`，category 基礎資料由 `resource/categories.csv` 同 `setup_categories` command 管理。
-- Vocab／UserVocab search 已配合 M2M categories，legacy single-category field 已移除。
-- Categories admin、request 同 import 主要流程已手動驗證。
+- 已新增 `Category` model；`Vocab` 同 `VocabRequest` 已改用 ManyToMany categories，legacy single-category field 已移除，相關 search亦已配合。
+- 共用 `validate_category_count()` 集中定義最多三個嘅規則，並支援按 lifecycle 指定下限。
+- User request 同 pending request admin form 容許 0～3 個 categories；approve、正式 Vocab admin form 同 `VocabActionService` create／update 強制 1～3 個。
+- `VocabActionService` 會喺 transaction／database write 前執行最終 validation；CSV import 支援 `category1`～`category3` 並經同一 service 繼承規則，基礎資料由 `resource/categories.csv` 同 `setup_categories` 管理。
+- Django system check、validator 0／3／4 邊界及 service 0／4 寫入前拒絕 probe 已通過。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 補 category count regression tests，覆蓋 request 0／3／4、正式資料 0／1／3／4、兩個 admin form wiring、approve validation 同 service create／update failure path。
 
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- `Category multiple selection` 目前主要由 request form 控制最多三個 categories；如果呢個係 project invariant，之後要喺 service / admin form 層面一併保護。
 - 將來如 category 數量增加，可以再改善 admin/search UI。
 
 
@@ -890,15 +927,20 @@ Status badge：
 - 計算 average weight 時要以每個 user 自己嘅 `UserVocab` 為範圍。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **移除 Quiz action endpoints 嘅空 Django Forms**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **移除 Quiz action endpoints 嘅空 Django Forms**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `QuizNextForm`、`QuizSkipForm`、`QuizSummaryForm` 同 `QuizFullPoolConfirmForm` 目前無 fields 或 custom validation，只係為配合 `FormView` lifecycle 而存在。
-- 將 `QuizNextView`、`QuizSkipView`、`QuizSummaryView` 同 `QuizNoPoolConfirmView` 改用普通 `View.post()`，保留原有 login、quiz setting、quiz session、Ajax response 同 domain guards。
-- 保留 templates 入面用作提交 action 嘅 HTML `<form method="post">`、CSRF token及既有 endpoint；移除無輸出嘅 `{{ form.as_p }}`。
-- 移除四個空 form classes、相關 imports，以及對呢幾個 endpoints 已無實際用途嘅 form validation plumbing；重構後驗證 Next、Skip、Summary同 full-pool confirmation flow無 regression。
+- Next、Skip 同 Summary 已改用普通 `View.post()`；full-pool confirmation 使用 `TemplateView` 處理 GET rendering，並以自訂 `post()` 執行確認 action。
+- 四個無 fields／validation 嘅 Form classes、相關 imports、action views 嘅 form plumbing 同 confirm template 內無輸出嘅 `{{ form.as_p }}` 已移除。
+- HTML forms、CSRF token、既有 endpoints、login／quiz setting／quiz session mixins、AJAX payload 同 domain guards均保留。
+- Next、Skip、Summary同 full-pool confirmation 已手動驗證可運作；Django system check、migration drift check、現有 10 個 tests同 `git diff --check` 通過。
+
+
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
+
+- 補四個 action endpoints 嘅 integration tests，確認只接受預期 method、guard redirect、session mutation、CSRF 同 AJAX response無 regression。
 
 ## Error Handling
 
@@ -910,7 +952,7 @@ Status badge：
 
 - 已建立獨立 `errorHandler` app，註冊 `400`、`403`、`404`、`500` 全域 handlers 及對應 templates；template loader 可正常找到錯誤頁，並已移除臨時 exception output。
 - 以 `DEBUG=False`同臨時URLConf實際觸發400／403／404／500，四個全域handlers均回傳正確HTTP status及HTML response；測試exception內容、traceback同filesystem path冇洩漏到頁面。
-- Quiz Submit／Next／Skip／Summary AJAX 已統一 invalid-form `400` JSON contract；前端亦會在 parsing 前檢查 `Content-Type`，將非 JSON HTTP errors、network failure 同 parsing failure 導向通用 fallback。
+- Quiz Submit AJAX 會以 `400` JSON 回傳 form validation errors；Next／Skip／Summary 已移除無實際 validation 嘅空 Form plumbing。前端亦會在 parsing 前檢查 `Content-Type`，將非 JSON HTTP errors、network failure 同 parsing failure 導向通用 fallback。
 - Login、register 同 user detail 已共用 `UserVocabService.sync_vocab_safely()`：vocab sync 失敗會記錄 exception traceback 並留待下次重試；sync 成功後 event generation 失敗會保留 sync，而 event rows、user assignment 同 sync checkpoint 由 `gen_vocab_sync_event()` 自己嘅 atomic transaction 一組 rollback。Admin approve／reject 及結果 event 則維持同一 transaction、一併成功或 rollback。
 - `500` handler 已改用獨立 template render path，不傳入 request context，避免再次執行全站 context processors；`error500.html` 亦不依賴 `base.html` 或 database data。
 - Application logging 已設定 formatter、console 及每日 rotating file handlers、exact-DEBUG filter、app loggers 同 `django.request`；並以 `.gitkeep` 保留 log directory、`.gitignore` 排除 runtime `.log` files。已用 project `.venv` 嘅 Django 6.0.5 通過 system check，並實測 console、DEBUG、INFO+ 同 ERROR+ file routing 正確。

@@ -32,9 +32,14 @@ function quizAreaHandler(){
             const errorContainer = document.getElementById("quiz-error-message");
 
             if(data.success === false){
-                console.log(data.errors);
                 renderFormErrorMessages(data.errors, errorContainer);
                 return;
+            }
+
+            if (data.success !== true) {
+                throw new Error(
+                    "Invalid quiz response: missing valid success state"
+                );
             }
 
             errorContainer.replaceChildren();

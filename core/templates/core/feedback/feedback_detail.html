@@ -4,5 +4,7 @@
     {{ feedback.user }}
     {{ feedback.get_type_display }}
     {{ feedback.context }}
-    <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
+    {% if feedback.status != "closed" %}
+        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
+    {% endif %}
 {% endblock %}

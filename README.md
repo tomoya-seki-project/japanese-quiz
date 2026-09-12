@@ -6,7 +6,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation、event notification、user feedback、Ajax quiz play、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation及identity canonicalization、event notification、user feedback、Ajax quiz play、quiz session terminal recovery、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
 
 ## Current Features
 
@@ -59,6 +59,8 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - 會避開最近 quiz 過嘅 10 個 vocab，減少短時間重複出題。
 - Filter 無題時唔會自動提供設定範圍外嘅題目；user 會先進入確認頁，選擇返回 setting 或經 POST 明確改用 full active／in-use pool。
 - Full active pool 數量不足最低出題要求時會返回 `UserVocab` list 並顯示 warning；確認使用 full pool 後，Next／Skip 會沿用同一 pool。
+- Resume、answer submit同skip會重新驗證目前題目仍屬於該user、`in_use=True`及related vocab active；題目中途失效時會終止quiz，避免繼續更新無效learning state。
+- Answer／skip後如果question pool中途變空，會顯示提早結束summary並清除`quiz_session`，避免user再次被送返無法完成嘅unfinished flow。
 - Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
 - Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
 - Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。

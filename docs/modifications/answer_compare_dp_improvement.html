@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Answer Compare：由遞迴分支搜尋改成 Bottom-up DP</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+<header class="report-header">
+<h1>Answer Compare：由遞迴分支搜尋改成 Bottom-up DP</h1>
+</header>
+<section class="report-section" id="summary">
+<span class="status-badge">按原報告：核心改修已完成</span>
+<h2>改修概要</h2>
+<div class="summary-block">
+<p>舊 answer comparison 喺字元 mismatch 時遞迴展開 WRONG、MISSING、EXTRA，重複計算相同 suffix state，最壞時間呈指數增長。改修以 bottom-up dynamic programming 將每個 (i, j) state 只計一次，再沿已保存 operation 重建結果，將時間降至 O(m × n)，同時保持原有 output、ranking 同 tie-breaking。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>以 (m+1) × (n+1) table 取代會重複展開相同 state 嘅 recursive search。</li><li>每格只保存 aggregate Score、下一個 operation 同需要時嘅 wrong subtype。</li><li>由右下向左上填表，確保右、下、右下 dependency 已完成。</li><li>Ranking 仍依次比較 cost、match_count、special wrong count 同 candidate order。</li><li>24,336 組短輸入 equivalence 為零 mismatch；25×25 worst case 約 0.0018 秒。</li></ul></aside>
+</div>
+</section>
+<nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
+<li><a href="#summary">改修概要</a></li>
+<li><a href="#修改目的-1-消除-mismatch-輸入嘅指數級分支爆炸">修改目的 1：消除 mismatch 輸入嘅指數級分支爆炸</a></li>
+<li><a href="#修改目的-2-用明確-state-邊界同-dependency-建立-dp-table">修改目的 2：用明確 state、邊界同 dependency 建立 DP table</a></li>
+<li><a href="#修改目的-3-保持教學型錯誤分類同-public-contract">修改目的 3：保持教學型錯誤分類同 public contract</a></li>
+<li><a href="#整體行為改變">整體行為改變</a></li>
+<li><a href="#測試及驗證結果">測試及驗證結果</a></li>
+<li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
+<li><a href="#官方參考資料">官方參考資料</a></li>
+<li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+</ul></nav>
+<div class="purpose-list">
+<section class="purpose-card" id="修改目的-1-消除-mismatch-輸入嘅指數級分支爆炸">
+<h2>修改目的 1：消除 mismatch 輸入嘅指數級分支爆炸</h2>
+<h3>修改目的／理由</h3>
+<p>Recursive implementation 會經不同路徑重複計算相同 (i, j) suffix state，11 字大量 mismatch 已超過五秒，而表單容許最多 25 字。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>quiz/service/quiz.py：QuizService.answer_compare_dp()／compare_kana_answer()</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>字元不同時遞迴展開 WRONG、MISSING、EXTRA，保存並反覆複製完整 result lists。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>Bottom-up DP 每個 state 只計一次，每格只保存最佳 decision；時間及空間均為 O(m × n)。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>目的</h4>
+<p>今次改動係將 quiz app 原本使用 recursive branch search 嘅逐字答案比較，改成 bottom-up dynamic programming（DP）。</p>
+<p>舊設計：</p>
+<ul>
+<li><code>QuizService.answer_compare()</code> 由目前兩個字串位置開始遞迴。</li>
+<li>字元相同時直接進入下一對字元。</li>
+<li>字元唔同時同時展開 <code>WRONG</code>、<code>MISSING</code>、<code>EXTRA</code> 三條路。</li>
+<li>每條路都會保存及組合完整 result list。</li>
+<li>大量 mismatch 時會重複計算相同 <code>(i, j)</code> state，最壞執行時間呈指數級增長。</li>
+</ul>
+<p>新設計：</p>
+<ul>
+<li><code>QuizService.answer_compare_dp()</code> 建立 <code>(m + 1) × (n + 1)</code> DP table。</li>
+<li>每個 <code>(i, j)</code> state 只計算一次。</li>
+<li>每格只保存由該位置開始嘅最佳 score、operation 同 wrong subtype。</li>
+<li>填表完成後，由 <code>dp[0][0]</code> 沿 operation 重建 result。</li>
+<li>時間複雜度變成 <code>O(m × n)</code>，空間複雜度係 <code>O(m × n)</code>。</li>
+<li>Public return format、score ranking 同原本 tie-breaking 行為保持一致。</li>
+</ul>
+<h4>原本問題</h4>
+<h4>Recursive branch search</h4>
+<p>舊版 <code>answer_compare()</code> 以兩個 cursor 表示目前比較位置：</p>
+<pre><code class="language-text">i = correct answer 目前位置
+j = user answer 目前位置</code></pre>
+<p>當兩個字唔同，會展開三條路：</p>
+<pre><code class="language-text">WRONG   -&gt; compare(i + 1, j + 1)
+MISSING -&gt; compare(i + 1, j)
+EXTRA   -&gt; compare(i, j + 1)</code></pre>
+<p>唔同遞迴路徑會多次到達同一個 <code>(i, j)</code>，但舊版無 cache，所以同一個 suffix comparison 會被重複計算。</p>
+<p>例如：</p>
+<pre><code class="language-text">compare(0, 0)
+├─ WRONG   -&gt; compare(1, 1)
+├─ MISSING -&gt; compare(1, 0)
+│             └─ EXTRA -&gt; compare(1, 1)
+└─ EXTRA   -&gt; compare(0, 1)
+              └─ MISSING -&gt; compare(1, 1)</code></pre>
+<p><code>compare(1, 1)</code> 已經重複出現；答案愈長、mismatch 愈多，重複分支會迅速增加。</p>
+<h4>實際影響</h4>
+<p>Project review 嘅 targeted benchmark 顯示，舊 recursive implementation 處理 11 字元大量 mismatch 時已超過 5 秒 timeout。</p>
+<p>Answer form 最多接受 25 字，因此唔可以再依賴「一般 kana 答案比較短」避免最壞情況。即使正常答案多數短，惡意或極端輸入仍然會佔用 request worker。</p>
+<h4>點解選擇 Bottom-up DP</h4>
+<p>曾考慮兩個方向：</p>
+<h4>方案 A：Recursive + memoization</h4>
+<p>為每個 <code>(i, j)</code> 保存第一次計算結果，下次到達相同 state 時直接重用。</p>
+<p>優點：</p>
+<ul>
+<li>改動較少。</li>
+<li>同舊 recursive mental model 接近。</li>
+<li>同樣可以將時間複雜度降到 <code>O(m × n)</code>。</li>
+</ul>
+<p>代價：</p>
+<ul>
+<li>仍然保留 recursive call stack。</li>
+<li>如果每個 cache entry 保存完整 result list，仍會產生大量 list copy。</li>
+<li>填表順序、state 同 reconstruction 較隱含。</li>
+</ul>
+<h4>方案 B：Bottom-up DP</h4>
+<p>預先建立所有 state，由已知邊界開始逐格計算，最後先重建一次 result。</p>
+<p>優點：</p>
+<ul>
+<li>每格只計算一次。</li>
+<li>無 recursive call stack。</li>
+<li>Score calculation 同 result reconstruction 清楚分開。</li>
+<li>容易檢查填表 dependency、tie-breaking 同 performance。</li>
+<li>每格唔需要保存完整 result list。</li>
+</ul>
+<p>今次採用方案 B，因為呢段係 quiz 核心比較邏輯，清晰嘅 state table 比保留 recursive shape 更容易長期維護。</p>
+<h4>複雜度改善</h4>
+<p>假設：</p>
+<pre><code class="language-text">m = len(correct_answer)
+n = len(user_answer)</code></pre>
+<h4>舊版</h4>
+<p>Mismatch 時最多展開三條 recursive branches，同一 state 反覆計算，最壞情況呈指數級增長。</p>
+<h4>新版</h4>
+<p>DP table 有：</p>
+<pre><code class="language-text">(m + 1) × (n + 1)</code></pre>
+<p>每格只做固定數量工作：</p>
+<pre><code class="language-text">Time  = O(m × n)
+Space = O(m × n)</code></pre>
+<p>25 對 25 最多只有：</p>
+<pre><code class="language-text">26 × 26 = 676 cells</code></pre>
+<p>呢個規模對目前 synchronous quiz request 足夠細。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>Dynamic programming</li>
+<li>state deduplication</li>
+<li>將 scoring 與 reconstruction 分離</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-2-用明確-state-邊界同-dependency-建立-dp-table">
+<h2>修改目的 2：用明確 state、邊界同 dependency 建立 DP table</h2>
+<h3>修改目的／理由</h3>
+<p>Bottom-up 實作需要清楚定義每格代表嘅 suffix、child dependency、base cases 同 mismatch candidates，先可以保證填表次序正確。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>quiz/service/quiz.py：Score、DPCell、answer_compare_dp()</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>State 隱藏喺 recursive call stack，每條 branch 同時組合 score 及 result list。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>dp[i][j] 明確代表兩個 suffix 嘅最佳結果，由 END／EXTRA／MISSING 邊界開始向左上填表。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>DP State 定義</h4>
+<p>定義：</p>
+<pre><code class="language-text">dp[i][j]
+= correct_answer[i:] 同 user_answer[j:] 嘅最佳比較結果</code></pre>
+<p>其中 <code>answer[index:]</code> 代表由 <code>index</code> 開始到字串結尾嘅 suffix。</p>
+<p>例如：</p>
+<pre><code class="language-text">correct_answer = がっこう
+user_answer    = かこう
+
+dp[1][1]
+= っこう 對 こう 嘅最佳結果</code></pre>
+<p>DP cell 唔係只比較 <code>correct_answer[i]</code> 同 <code>user_answer[j]</code> 一對字；佢代表「由目前位置開始，所有剩餘字元」嘅最佳總結果。</p>
+<h4>Data Structure</h4>
+<h4><code>Score</code></h4>
+<p>每個 state 使用三項數值比較候選路線：</p>
+<pre><code class="language-python">@dataclass
+class Score:
+    cost: int
+    match_count: int
+    non_normal_wrong_count: int</code></pre>
+<p>欄位用途：</p>
+<ul>
+<li><code>cost</code>：總 edit cost；<code>WRONG</code>、<code>MISSING</code>、<code>EXTRA</code> 各加 1。</li>
+<li><code>match_count</code>：完整相同字元數量。</li>
+<li><code>non_normal_wrong_count</code>：<code>DAKUTEN</code>、<code>HANDAKUTEN</code>、<code>SMALL_KANA</code> 等具教學意義 wrong subtype 數量。</li>
+</ul>
+<h4><code>DPCell</code></h4>
+<pre><code class="language-python">@dataclass
+class DPCell:
+    score: Score
+    operation: Optional[str]
+    sub_operation: str | None = None</code></pre>
+<p>每格保存：</p>
+<ul>
+<li>由該 state 開始嘅最佳 aggregate score。</li>
+<li>最佳路線第一步應執行嘅 operation。</li>
+<li>如果 operation 係 <code>WRONG</code>，保存 wrong subtype。</li>
+</ul>
+<p>無保存 <code>next_i</code>、<code>next_j</code>，因為下一格可以由 operation 唯一推算：</p>
+<pre><code class="language-text">MATCH / WRONG -&gt; (i + 1, j + 1)
+MISSING       -&gt; (i + 1, j)
+EXTRA         -&gt; (i, j + 1)
+END           -&gt; 停止</code></pre>
+<h4>建立 2D table</h4>
+<pre><code class="language-python">m = len(correct_answer)
+n = len(user_answer)
+
+dp_table: list[list[Optional[DPCell]]] = [
+    [None for _ in range(n + 1)]
+    for _ in range(m + 1)
+]</code></pre>
+<p>額外一行同一列用嚟表示其中一邊已經去到字串結尾。</p>
+<p>如果 correct 有 4 字、user 有 3 字：</p>
+<pre><code class="language-text">(4 + 1) × (3 + 1) = 5 × 4 = 20 cells</code></pre>
+<h4>填表方向</h4>
+<p>目前 state 使用 suffix 定義，每格可能依賴：</p>
+<pre><code class="language-text">dp[i + 1][j]      # 下面
+dp[i][j + 1]      # 右邊
+dp[i + 1][j + 1]  # 右下</code></pre>
+<p>因此 child cells 必須先計算，再計 parent cell。Loop 由右下向左上：</p>
+<pre><code class="language-python">for i in range(m, -1, -1):
+    for j in range(n, -1, -1):
+        ...</code></pre>
+<p>實際係由最底一行開始，每行由右至左：</p>
+<pre><code class="language-text">dp[m][n] -&gt; dp[m][n-1] -&gt; ... -&gt; dp[m][0]
+dp[m-1][n] -&gt; ...
+...
+dp[0][0]</code></pre>
+<p>由右下開始唔係所有 DP 嘅固定規則。今次由右下開始，係因為 suffix state 依賴右、下、右下；原則永遠係先計 dependency。</p>
+<h4>Boundary Conditions</h4>
+<h4>兩邊都用完：<code>END</code></h4>
+<pre><code class="language-text">i == m and j == n</code></pre>
+<p>兩邊 suffix 都係空，唔需要任何 edit：</p>
+<pre><code class="language-text">score = (0, 0, 0)
+operation = END</code></pre>
+<h4>Correct 用完：<code>EXTRA</code></h4>
+<pre><code class="language-text">i == m and j &lt; n</code></pre>
+<p>Correct 已經無字，user 剩低嘅每個字只可能係 <code>EXTRA</code>：</p>
+<pre><code class="language-text">dp[m][j] = EXTRA + dp[m][j + 1]</code></pre>
+<p>Score：</p>
+<pre><code class="language-text">cost                   = next.cost + 1
+match_count            = next.match_count
+non_normal_wrong_count = next.non_normal_wrong_count</code></pre>
+<h4>User 用完：<code>MISSING</code></h4>
+<pre><code class="language-text">j == n and i &lt; m</code></pre>
+<p>User 已經無字，correct 剩低嘅每個字只可能係 <code>MISSING</code>：</p>
+<pre><code class="language-text">dp[i][n] = MISSING + dp[i + 1][n]</code></pre>
+<p>呢兩條邊界唔係不良 hard code，而係演算法嘅通用 base cases。佢哋由輸入長度 <code>m</code>、<code>n</code> 推導，唔係針對某個固定答案或固定座標寫死。</p>
+<h4>內部 Cell 計算</h4>
+<h4>字元相同：<code>MATCH</code></h4>
+<p>如果：</p>
+<pre><code class="language-python">correct_answer[i] == user_answer[j]</code></pre>
+<p>目前 scoring rule 下可以直接選 <code>MATCH</code>：</p>
+<pre><code class="language-text">next state              = dp[i + 1][j + 1]
+cost                    = next.cost
+match_count             = next.match_count + 1
+non_normal_wrong_count  = next.non_normal_wrong_count</code></pre>
+<p><code>MATCH</code> 同時消耗 correct 同 user 一個字元。</p>
+<h4>字元不同：建立三個 candidates</h4>
+<p>唔可以直接比較三個 child cells；必須先加入目前 operation 嘅 cost／score adjustment，再比較形成嘅 candidates。</p>
+<h5><code>WRONG</code></h5>
+<pre><code class="language-text">child     = dp[i + 1][j + 1]
+cost      = child.cost + 1
+match     = child.match_count
+special   = child.non_normal_wrong_count + current subtype contribution</code></pre>
+<p>Current correct/user 字元會傳入 <code>define_wrong_sub_type()</code>：</p>
+<pre><code class="language-python">sub_operation = QuizService.define_wrong_sub_type(
+    correct_letter=correct_answer[i],
+    user_letter=user_answer[j],
+)</code></pre>
+<p>Subtype 唔係 <code>NORMAL</code> 時，<code>non_normal_wrong_count</code> 加 1。</p>
+<h5><code>MISSING</code></h5>
+<pre><code class="language-text">child   = dp[i + 1][j]
+cost    = child.cost + 1
+match   = child.match_count
+special = child.non_normal_wrong_count</code></pre>
+<p>只消耗 correct 字元。</p>
+<h5><code>EXTRA</code></h5>
+<pre><code class="language-text">child   = dp[i][j + 1]
+cost    = child.cost + 1
+match   = child.match_count
+special = child.non_normal_wrong_count</code></pre>
+<p>只消耗 user 字元。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>Python dataclass：Score／DPCell</li>
+<li>二維 DP table</li>
+<li>suffix state 與 reverse iteration</li>
+</ul>
+</section>
+<section class="purpose-card" id="修改目的-3-保持教學型錯誤分類同-public-contract">
+<h2>修改目的 3：保持教學型錯誤分類同 public contract</h2>
+<h3>修改目的／理由</h3>
+<p>性能改寫唔可以改變 quiz 顯示結果；cost、match、特殊 wrong subtype、完整同分順序同 result dictionary 都要維持相容。</p>
+<h3>受影響檔案與責任</h3><ul>
+<li>quiz/service/quiz.py：candidate ranking、reconstruction、compare_kana_answer()</li>
+<li>既有 gen_answer_image／quiz submit／result partial callers</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel"><h3>修改前狀態</h3>
+<p>Recursive branches 直接產生完整 operation sequence，caller 依賴既有 dictionary shape。</p></section>
+<section class="code-panel"><h3>修改後狀態</h3>
+<p>填表時保存最佳第一步，reconstruction 沿 operation 產生同一 result shape；candidate order 保持 WRONG → MISSING → EXTRA。</p></section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<details class="comparison-details"><summary>展開原報告嘅詳細技術內容與 code evidence</summary>
+<h4>Ranking 與 Tie-breaking</h4>
+<p>三個 candidates 使用：</p>
+<pre><code class="language-python">min(
+    wrong_result,
+    missing_result,
+    extra_result,
+    key=lambda result: (
+        result.score.cost,
+        -result.score.match_count,
+        -result.score.non_normal_wrong_count,
+    ),
+)</code></pre>
+<p>排序規則依次係：</p>
+<ol>
+<li>最少 <code>cost</code>。</li>
+<li>Cost 相同時，最多 <code>match_count</code>。</li>
+<li>Cost、match 都相同時，最多 <code>non_normal_wrong_count</code>。</li>
+<li>三項完全相同時，保留傳入 <code>min()</code> 最先出現嘅 candidate。</li>
+</ol>
+<p>因為 candidate order 係：</p>
+<pre><code class="language-text">WRONG -&gt; MISSING -&gt; EXTRA</code></pre>
+<p>所以完整同分時仍然保留舊 implementation 嘅 deterministic tie-breaking。</p>
+<p>負數只係用嚟將「愈大愈好」轉成 <code>min()</code> 可以處理嘅排序：</p>
+<pre><code class="language-text">match_count 3 -&gt; -3
+match_count 2 -&gt; -2
+
+min(-3, -2) 會揀 -3，即原本較大嘅 match_count 3</code></pre>
+<h4>例子：<code>がっこう</code> 對 <code>かこう</code></h4>
+<pre><code class="language-text">correct = が っ こ う
+user    = か   こ う</code></pre>
+<p>最佳 reconstruction path：</p>
+<pre><code class="language-text">dp[0][0] WRONG   が -&gt; か  subtype=DAKUTEN
+dp[1][1] MISSING っ
+dp[2][1] MATCH   こ -&gt; こ
+dp[3][2] MATCH   う -&gt; う
+dp[4][3] END</code></pre>
+<p>最終 score：</p>
+<pre><code class="language-text">cost                   = 2
+match_count            = 2
+non_normal_wrong_count = 1</code></pre>
+<p><code>dp[1][1]</code> 揀 <code>MISSING</code> 唔係預先寫死，而係三個 candidate 加入目前 operation cost 後，<code>MISSING</code> 得到最佳總 score。</p>
+<h4>Reconstruction</h4>
+<p>填表完成時，<code>dp[0][0].score</code> 已經係完整答案嘅最佳總分，但 public output 仲需要逐字 result list。</p>
+<p>Reconstruction 由左上角開始：</p>
+<pre><code class="language-python">result = []
+i = 0
+j = 0
+
+while dp_table[i][j].operation != &quot;END&quot;:
+    cell = dp_table[i][j]
+    ...</code></pre>
+<p>每一步做兩件事：</p>
+<ol>
+<li>按 operation 將一筆資料加入 <code>result</code>。</li>
+<li>按 operation 更新 cursor。</li>
+</ol>
+<p>Result mapping：</p>
+<pre><code class="language-text">MATCH:
+    correct = correct_answer[i]
+    answer  = user_answer[j]
+    move    = i + 1, j + 1
+
+WRONG:
+    correct = correct_answer[i]
+    answer  = user_answer[j]
+    subtype = cell.sub_operation
+    move    = i + 1, j + 1
+
+MISSING:
+    correct = correct_answer[i]
+    answer  = None
+    move    = i + 1, j
+
+EXTRA:
+    correct = None
+    answer  = user_answer[j]
+    move    = i, j + 1</code></pre>
+<p>Reconstruction 階段唔會再次比較 score。最佳 decision 已經喺填表階段寫入每個 cell；呢一步只係沿住保存嘅 operation 行到 <code>END</code>。</p>
+<p>未知 operation 會明確 raise error，避免 cursor 無移動而形成無限 loop：</p>
+<pre><code class="language-python">case _:
+    raise ValueError(f&quot;Unknown operation: {cell.operation}&quot;)</code></pre>
+<h4>Public Interface 保持不變</h4>
+<p><code>compare_kana_answer()</code> 已由舊 recursive implementation 切換到 DP：</p>
+<pre><code class="language-python">return QuizService.answer_compare_dp(
+    correct_answer=correct_answer or &quot;&quot;,
+    user_answer=user_answer or &quot;&quot;,
+)</code></pre>
+<p>DP 最後仍回傳原本 dictionary contract：</p>
+<pre><code class="language-python">{
+    &quot;cost&quot;: ...,
+    &quot;match_count&quot;: ...,
+    &quot;non_normal_wrong_count&quot;: ...,
+    &quot;result&quot;: [...],
+}</code></pre>
+<p>因此 <code>gen_answer_image()</code>、quiz submit view 同 result partial 唔需要因演算法改動而更改資料格式。</p>
+</details>
+<h3>新使用技術</h3><ul>
+<li>多欄位 lexicographic ranking</li>
+<li>deterministic tie-breaking</li>
+<li>operation-based path reconstruction</li>
+</ul>
+</section>
+</div>
+<section class="report-section" id="整體行為改變">
+<h2>整體行為改變</h2>
+<p>目前 kana answer comparison 已完成由 recursive branch search 遷移至 bottom-up DP：</p>
+<ul>
+<li>Quiz public入口已使用 <code>answer_compare_dp()</code>。</li>
+<li>Output contract 保持不變。</li>
+<li>原有 ranking、subtype preference 同 deterministic tie-breaking 保持不變。</li>
+<li>長 mismatch 輸入唔再呈指數級增長。</li>
+<li>舊 recursive function已在完成characterization comparison後移除；runtime只保留DP implementation。</li>
+</ul>
+</section>
+<section class="report-section" id="測試及驗證結果">
+<h2>測試及驗證結果</h2>
+<h3>Django checks</h3>
+<p>已執行：</p>
+<pre><code class="language-text">manage.py check</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">System check identified no issues (0 silenced).</code></pre>
+<h3>新舊 implementation equivalence</h3>
+<p>改動驗證期間曾暫時使用舊 recursive <code>answer_compare()</code>作短輸入 oracle，將相同 correct/user input分別傳入新舊implementation，再比較完整return dictionary；完成比對後，舊function已喺同一次改動中移除，現時codebase並無保留兩套runtime implementation。</p>
+<p>測試範圍：</p>
+<ul>
+<li>Alphabet：<code>あ</code>、<code>い</code>、<code>が</code>、<code>か</code>、<code>っ</code></li>
+<li>字串長度：0 至 3</li>
+<li>Correct/user 所有配對：24,336 組</li>
+<li>比較內容：cost、match count、non-normal wrong count、operation result sequence 及 subtype</li>
+</ul>
+<p>結果：</p>
+<pre><code class="language-text">24,336 pairs
+0 mismatches</code></pre>
+<h3>Worst-case targeted benchmark</h3>
+<p>測試：</p>
+<pre><code class="language-text">correct = 25 個「あ」
+user    = 25 個「い」</code></pre>
+<p>結果：</p>
+<pre><code class="language-text">cost = 25
+執行時間約 0.0018 秒</code></pre>
+<p>Benchmark 數字會因硬件、OS 負載同 Python runtime 有變化；重要結果係新版完成固定數量 DP cells，無舊版 branch explosion。</p>
+</section>
+<section class="report-section" id="已知限制-未驗證事項">
+<h2>已知限制／未驗證事項</h2>
+<h3>1. Automated regression tests</h3>
+<p>目前已完成 targeted equivalence verification，但正式 automated test suite 仍應加入：</p>
+<ul>
+<li>空字串／單邊空字串。</li>
+<li>全部 <code>MATCH</code>。</li>
+<li>全部 <code>WRONG</code>。</li>
+<li>中間 <code>MISSING</code>／<code>EXTRA</code>。</li>
+<li><code>DAKUTEN</code>、<code>HANDAKUTEN</code>、<code>SMALL_KANA</code>。</li>
+<li>完整 score 相同時嘅 candidate-order tie-break。</li>
+<li>25 字 worst-case performance guard。</li>
+</ul>
+<p>Tests 統一由 TODO「改善 D：補 tests」追蹤。</p>
+<h3>2. 舊 recursive implementation</h3>
+<p>舊 <code>answer_compare()</code>已移除。上面嘅equivalence結果來自改動期間嘅一次性比較，唔代表repository現時仍有舊implementation可直接重跑。若日後需要持續驗證相容性，應將代表性輸入及預期output固化成automated regression tests，而唔係重新保留兩套production implementation。</p>
+<h3>3. Type hints</h3>
+<p>DP table 初始化時包含 <code>None</code>，但填表順序保證讀取 child cell 前已經完成計算。Static type checker 未必能從 nested loop 證明呢項 invariant，因此可能將 <code>next_cell</code> 判斷為 <code>DPCell | None</code>。</p>
+<p>如果日後加入嚴格 type checking，可以使用清楚嘅 assertion 或 helper 封裝「取得已完成 cell」，唔應該為消除 warning 而靜默忽略真正可能嘅 <code>None</code>。</p>
+<h3>4. Ranking rule 改動</h3>
+<p>目前「字元相同直接 MATCH」係基於現有規則：MATCH 無 cost，而且增加 match count，所以一定唔會差過刻意將相同字拆成 edit operations。</p>
+<p>如果將來改變 operation cost、加入 position-dependent score，或者引入跨字元規則，就要重新確認：</p>
+<ul>
+<li>MATCH 仲可唔可以直接決定。</li>
+<li><code>Score</code> 是否需要加入新欄位。</li>
+<li>Candidate ranking key 是否仍代表完整產品規則。</li>
+<li>State 是否仍只需要 <code>(i, j)</code>。</li>
+</ul>
+<h3>5. 命名一致性</h3>
+<p><code>DPCell.sub_operation</code> 實際保存嘅係 wrong <code>sub_type</code>。目前功能無問題；將來整理 code 時可以考慮統一命名，減少 domain terminology 差異。</p>
+</section>
+<section class="report-section" id="官方參考資料">
+<h2>官方參考資料</h2>
+<div class="notice notice-warning"><strong>證據限制：</strong>原 Markdown 報告冇獨立列出官方參考資料；今次係格式轉換，冇補加未經原報告核對嘅外部來源。</div>
+</section>
+<details class="report-section" id="report-baseline">
+<summary>Report 基準／證據範圍</summary>
+<h2>Report 基準</h2><ul>
+<li>轉換時間：2026-09-12 14:53 JST</li>
+<li>原始文件：<code>answer_compare_dp_improvement.md</code>；Markdown 原件保留。</li>
+<li>轉換時 repository HEAD：<code>89d30308cf0aa55919a002d8063954d92c1dcb8b</code>。</li>
+<li>轉換時 working tree：有未提交修改。</li>
+<li>原報告冇記錄可重建嘅完整 Git before/after baseline；HTML 只重組原報告已保存嘅內容，冇將目前 working tree 當成當年修改後狀態。</li>
+<li>今次冇重新執行 application tests；測試章節保存嘅係原報告記錄嘅歷史驗證結果。</li>
+</ul>
+</details>
+</main>
+</body>
+</html>

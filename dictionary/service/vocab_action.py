@@ -16,12 +16,15 @@ from ..models import (
     Category,
 )
 
+from ..validators import validate_category_count
+
 class VocabActionService():
 
     @staticmethod
     def create_vocab(vocab_data, approved_by):
         if vocab_data["type"] != VocabType.VOCAB and vocab_data["type"] != VocabType.KATAKANA:
             return None
+        categories_list = validate_category_count(vocab_data["categories"], min_count=1)
         with transaction.atomic():
             vocab = Vocab(
                 word=vocab_data["word"],
@@ -35,7 +38,7 @@ class VocabActionService():
             )
             vocab.full_clean()
             vocab.save()
-            vocab.categories.set(vocab_data["categories"])
+            vocab.categories.set(categories_list)
             match vocab_data["type"]:
                 case VocabType.VOCAB:
                     VocabDetail.objects.create(
@@ -52,6 +55,7 @@ class VocabActionService():
     def update_vocab(vocab_data, target_vocab, approved_by):
         if vocab_data["type"] != VocabType.VOCAB and vocab_data["type"] != VocabType.KATAKANA:
             return None
+        categories_list = validate_category_count(vocab_data["categories"], min_count=1)
         update_success = False
         with transaction.atomic():
             target_vocab.word=vocab_data["word"]
@@ -63,7 +67,7 @@ class VocabActionService():
             # target_vocab.created_by=vocab_data["created_by"]
             target_vocab.full_clean()
             target_vocab.save()
-            target_vocab.categories.set(vocab_data["categories"])
+            target_vocab.categories.set(categories_list)
             match vocab_data["type"]:
                 case VocabType.VOCAB:
                     pass

@@ -1780,3 +1780,42 @@ Status: 新 public account 必須完成 email verification 先可以登入及建
 ### 學到咩
 
 - Account activation 唔只係「寄一條 link」，而係 token lifecycle、HTTP method、enumeration resistance、cooldown、delivery failure 同 downstream initialization 嘅完整 workflow。
+
+## 2026-09-12 - Email identity integrity and quiz session terminal recovery
+
+Commit: `89d3030`
+
+Status: Email login identity 已統一成 lowercase並受database case-insensitive uniqueness保護；進行中quiz遇到失效current question或空pool時亦會明確完結同清理session
+
+### 主要改動
+
+- Custom user manager 將完整 email `strip()` 後轉成 lowercase；registration、login、activation resend同admin create／change forms共用同一canonicalization規則。
+- Registration同admin forms以`email__iexact`提供易明duplicate validation，database再用`Lower("email")` unique constraint防止concurrent或bypass寫入大小寫變體帳戶。
+- Quiz resume、正常／stale answer submit同skip會重新驗證current question嘅ownership、`in_use`及related vocab active state。
+- Current question失效時停止批改／skip mutation並提早結束；下一題pool中途變空時以`quiz_ended` signal轉入summary，唔再保留無法完成嘅session。
+- 新增共用summary payload helper，集中render統計、區分`question_unavailable`／`no_question_pool`原因，以及清除`quiz_session`。
+
+### Database 改動
+
+- 新增及套用`accounts/migrations/0007_email_upper_lower_problem.py`，為`User`加入`Lower("email")` functional unique constraint `user_email_ci_unique`。
+- Migration前後檢查確認現有database有0組case-insensitive collision同0筆非lowercase email；migration graph同model state一致。
+- Quiz session recovery無新增schema變更，沿用Django session及既有`UserVocab.in_use`／`Vocab.is_active`欄位。
+
+### 技術重點
+
+- Email canonicalization需要由輸入form、manager同database constraint三層使用同一policy；只改registration form不足以保護admin、resend或直接ORM寫入。
+- Question pool只代表抽題當刻嘅eligibility；跨request session flow每次操作current question前都要重新查database state。
+- `.filter(...).first()`將「題目已失效」表達成可處理嘅domain outcome；直接404會破壞前端預期嘅JSON／summary transition。
+- 抽題helper只回報terminal state，view決定response，而summary helper集中session cleanup，令正常與提早完成使用同一lifecycle。
+
+### 理由
+
+- Email係login identity；如果大小寫變體可以建立多個帳戶，login、activation resend同日後password reset都會出現含糊對象。
+- User已經見到嘅題目如被另一個tab關閉或由admin停用，唔應當無事靜默換題；明確終止先可以令畫面、learning statistics同server session保持一致。
+- Pool中途變空後只顯示no-question partial但保留session，會令setting同unfinished flow反覆redirect，必須以terminal cleanup真正結束。
+
+### 學到咩
+
+- Canonical value同uniqueness係同一個identity問題嘅兩面：application normalization改善一致性，database constraint先係最終integrity boundary。
+- Session-driven workflow唔可以假設跨request資料永遠有效；恢復、提交同skip都要重新確認當前resource state。
+- Redirect或換HTML只係navigation／presentation；要完結workflow，必須同步更新或刪除server-side session state。

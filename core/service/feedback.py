@@ -2,6 +2,8 @@ from django.utils import timezone
 
 from django.db import transaction
 
+from django.core.exceptions import ValidationError
+
 from ..models import (
     Event,
     EventType,
@@ -36,8 +38,16 @@ class FeedbackService():
         return user_feedback, is_doubled
 
     @staticmethod
-    def reply_feedback(*, admin_user, target_feedback, reply_context):
+    def reply_feedback(*, admin_user, target_feedback, reply_context, is_close):
+
         with transaction.atomic():
+            target_feedback = Feedback.objects.select_for_update().get(pk=target_feedback.pk)
+            if target_feedback.status == FeedbackStatus.CLOSED:
+                raise ValidationError(
+                    "this feedback case already closed!"
+            )
+
+
             reply_event = EventService.create_event(
                 event_type=EventType.FEEDBACK_REPLY,
                 event_title="フィードバックをお寄せいただき、ありがとうございます。",
@@ -46,8 +56,11 @@ class FeedbackService():
             EventService.assign_event_to_user(
                 user=target_feedback.user,
                 event=reply_event,
-            )    
-            target_feedback.status = FeedbackStatus.REPLIED
+            )
+            if is_close:
+                target_feedback.status = FeedbackStatus.CLOSED
+            else:
+                target_feedback.status = FeedbackStatus.REPLIED
             target_feedback.reply_by = admin_user
             target_feedback.reply_at = timezone.now()
             target_feedback.update_at = timezone.now()

@@ -19,6 +19,7 @@ class FeedbackType(models.TextChoices):
 class FeedbackStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     REPLIED = "replied", "Replied"
+    CLOSED = "closed", "Closed"
 
 class TimeStampedModel(models.Model):
     create_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email activation：註冊、確認啟用與重寄流程</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+<header class="report-header">
+<h1>Email activation：註冊、確認啟用與重寄流程</h1>
+</header>
+<section class="report-section" id="summary">
+<span class="status-badge">核心改修已完成</span>
+<h2>改修概要</h2>
+<div class="summary-block">
+<p>Public registration 原本會立即建立可登入帳戶並同步個人字庫，未能證明使用者真正控制該 email。改修後先保存 inactive user，再以有時限、會隨帳戶狀態失效嘅 activation token 完成 GET 確認及 POST 啟用；成功後先同步字庫，寄信失敗或連結過期亦有重寄同 cooldown 復原流程。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>Public registration 只建立 inactive user，成功 activation 後先開放登入及同步字庫。</li><li>Activation link 以 uid 定位帳戶、以 timestamped HMAC token 驗證有效性。</li><li>GET 只顯示確認頁，真正改變 is_active 嘅操作留俾重新驗證 token 嘅 POST。</li><li>寄信失敗會保留帳戶並導向 resend；cache cooldown 減少短時間重複寄送。</li><li>Development flow 已接通，但真實 mail backend、共享 cache、併發及專用 tests 仍未驗證。</li></ul></aside>
+</div>
+</section>
+<nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
+<li><a href="#summary">改修概要</a></li>
+<li><a href="#修改目的-1-將-建立帳戶-與-容許登入-分開">修改目的 1：將「建立帳戶」與「容許登入」分開</a></li>
+<li><a href="#修改目的-2-用可過期-隨帳戶狀態失效嘅-token-證明-link-有效">修改目的 2：用可過期、隨帳戶狀態失效嘅 token 證明 link 有效</a></li>
+<li><a href="#修改目的-3-讀取確認頁同真正啟用分成-get-post">修改目的 3：讀取確認頁同真正啟用分成 GET／POST</a></li>
+<li><a href="#修改目的-4-建立可重試嘅寄信流程">修改目的 4：建立可重試嘅寄信流程</a></li>
+<li><a href="#修改目的-5-容許重寄-同時減少重複寄送及帳戶狀態洩漏">修改目的 5：容許重寄，同時減少重複寄送及帳戶狀態洩漏</a></li>
+<li><a href="#整體行為改變">整體行為改變</a></li>
+<li><a href="#測試及驗證結果">測試及驗證結果</a></li>
+<li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
+<li><a href="#官方參考資料">官方參考資料</a></li>
+<li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+</ul></nav>
+<div class="purpose-list">
+<section class="purpose-card" id="修改目的-1-將-建立帳戶-與-容許登入-分開">
+<h2>修改目的 1：將「建立帳戶」與「容許登入」分開</h2>
+<h3>修改目的／理由</h3>
+<p>之前提交有效 registration form 就建立可用帳戶，亦立即同步個人字庫。新流程要求先證明 user 可以取得寄去該 email 嘅 link，先容許登入及初始化字庫。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>accounts/forms.py</code>：<code>RegistForm.save()</code> 決定 public registration 儲存嘅 active state。</li>
+<li><code>accounts/views.py</code>：<code>RegistUserView</code> 保存帳戶後安排寄信；<code>ActivateUserView.post()</code> 啟用後先安排 vocab sync。</li>
+<li><code>accounts/admin.py</code>／<code>UserCreationAdminForm</code>：既有獨立 admin creation path，唔套用 public form 嘅 inactive policy。</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>accounts/forms.py</code>，<code>RegistForm.save()</code>：</p>
+<pre><code class="language-python">user = super().save(commit=False)
+user.set_password(self.cleaned_data[&#x27;password&#x27;])
+if commit:
+    user.save()
+return user</code></pre>
+<p><code>accounts/views.py</code>，<code>RegistUserView.form_valid()</code> 原本註冊後執行：</p>
+<pre><code class="language-python">UserVocabService.sync_vocab_safely(user=self.object)
+return result</code></pre>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>accounts/forms.py:55</code>，<code>RegistForm.save()</code>：</p>
+<pre><code class="language-python">user = super().save(commit=False)
+user.set_password(self.cleaned_data[&#x27;password&#x27;])
+user.is_active = False
+if commit:
+    user.save()
+return user</code></pre>
+<p><code>accounts/views.py:225</code>，<code>ActivateUserView.post()</code> 通過驗證後：</p>
+<pre><code class="language-python">user.is_active = True
+user.save(update_fields=[&quot;is_active&quot;])
+
+UserVocabService.sync_vocab_safely(user=user)</code></pre>
+</section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<p><code>super().save(commit=False)</code> 先取得尚未保存嘅 model object，令 form 可以先 hash password 同設定 inactive，最後先寫 database。<code>commit=False</code> 唔代表 rollback transaction，亦唔係將 password 明文保存落 database。</p>
+<p><code>CreateView.form_valid()</code> 會呼叫 form save 並設定 <code>self.object</code>。所以新 registration view 先 call <code>super().form_valid(form)</code>，之後就有真正 user ID 可以產生 link。呢個 call 只係產生 response object；自己嘅 method 未 return 前仍可寄信或改為另一個 redirect。</p>
+<p>Activation 成功先 sync 字庫。既有 <code>UserProfile</code> post-save signal 仍然會喺建立 user 時執行；「延後 UserVocab」唔等於延後所有 related records。Admin 使用獨立 form，仍保留原有 active 預設。</p>
+<h3>新使用技術</h3>
+<p>呢次新用到 <code>is_active</code> 作 public onboarding gate；Django 預設 authentication backend 會拒絕 inactive user，唔需要自行喺每個登入 view 重寫 permission check。呢個行為依賴所用 backend，唔係所有自訂 backend 必然遵守。<a href="https://docs.djangoproject.com/en/6.0/ref/contrib/auth/#django.contrib.auth.models.User.is_active" target="_blank" rel="noreferrer">Django User.is_active</a></p>
+<p><code>ModelForm.save(commit=False)</code>、<code>set_password()</code>、CreateView 同 resilient service wrapper 都係 project 已有手法；重點係今次改咗狀態設定同 sync 時機。</p>
+</section>
+<section class="purpose-card" id="修改目的-2-用可過期-隨帳戶狀態失效嘅-token-證明-link-有效">
+<h2>修改目的 2：用可過期、隨帳戶狀態失效嘅 token 證明 link 有效</h2>
+<h3>修改目的／理由</h3>
+<p>URL 有 user ID 唔足以授權啟用。User ID 可以猜測，亦可以由 URL encoding 還原；需要額外可驗證嘅 token，並限制使用時間。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>accounts/tokens.py:1</code>：新增 <code>AccountActivationTokenGenerator</code> 同共用 instance。</li>
+<li><code>accounts/views.py:48</code>：建立 uid、token 同完整 URL；<code>:185</code> 解碼 uid 後取得 user。</li>
+<li><code>accounts/urls.py</code>：將 uid／token 傳入 activation view。</li>
+<li><code>config/settings.py:137</code>：設定 token timeout。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p>無對應 before-code：baseline 冇 <code>accounts/tokens.py</code> 或 activation route，registration 唔需要驗證 link。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>accounts/tokens.py:3</code>，新 subclass：</p>
+<pre><code class="language-python">class AccountActivationTokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        return (
+            f&quot;{user.pk}&quot;
+            f&quot;{user.password}&quot;
+            f&quot;{timestamp}&quot;
+            f&quot;{user.email}&quot;
+            f&quot;{user.is_active}&quot;
+        )
+
+account_activation_token = AccountActivationTokenGenerator()</code></pre>
+<p><code>accounts/views.py:48</code>，<code>send_activation_email()</code>：</p>
+<pre><code class="language-python">uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+
+token = account_activation_token.make_token(user)
+
+activation_path = reverse(
+    &quot;accounts:user_activate&quot;,
+    kwargs={
+        &quot;uidb64&quot;: uidb64,
+        &quot;token&quot;: token,
+    },
+)
+
+activation_url = request.build_absolute_uri(activation_path)</code></pre>
+<p><code>config/settings.py:137</code>：</p>
+<pre><code class="language-python">PASSWORD_RESET_TIMEOUT = 60 * 60 * 24</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<p>呢個 class 沿用父類 <code>make_token()</code>／<code>check_token()</code>，只 override「用邊啲帳戶資料參與 hash」。父類使用 server secret 同 HMAC 產生驗證值，再附帶 timestamp；唔係將密碼或 secret 放入 URL。<code>user.password</code> 係 database 已 hash 嘅 password field。</p>
+<p>驗證時會用 URL timestamp 同當前 user state 重算，再比對 token，同時檢查 timeout。<code>False → True</code> 改變 <code>is_active</code> 後，重算值不同，之前 token 就唔再通過；email 或 password 改變亦一樣。呢個係根據狀態失效，冇額外 token table 或 used-token record。</p>
+<p>要分清楚三件事：</p>
+<ul>
+<li><code>uidb64</code> 只係 URL-safe encoding，用嚟定位 user，唔係加密或權限證明。</li>
+<li>Token 才係驗證依據；持有有效 link 嘅人可以進入確認流程。</li>
+<li>Resend 只重新產生 token，冇保存「最新 token」或撤銷版本，所以唔保證舊 link 即時失效。同一 user state、同一秒內亦可能產生相同 token。</li>
+</ul>
+<p>當前 subclass 唔包含 <code>last_login</code>，亦冇另設 <code>key_salt</code>。唔應誤寫成完整照搬預設 password-reset hash fields，或者聲稱已建立獨立 token 儲存系統。</p>
+<h3>新使用技術</h3>
+<p><code>PasswordResetTokenGenerator</code> 係 Django Auth 既有 generator；今次將其 timestamp、HMAC 同 timeout 機制重用於 activation。<code>_make_hash_value()</code> 係 framework 內部方法，升級 Django 時應重新核對。本次已直接讀取安裝版本 <code>django/contrib/auth/tokens.py</code>；官方 source 入口本次載入失敗，因此細節以本機 6.0.5 源碼為證據。</p>
+<p><code>PASSWORD_RESET_TIMEOUT</code> 以秒計；呢個 subclass 沿用同一設定，所以將來若加入 password reset，兩個用途會共用 timeout。<a href="https://docs.djangoproject.com/en/6.0/ref/settings/#password-reset-timeout" target="_blank" rel="noreferrer">Django timeout 設定</a></p>
+<p><code>force_bytes()</code>／URL-safe Base64 配對處理 uid；反方向用 <code>urlsafe_base64_decode()</code> 同 <code>force_str()</code>。<code>reverse()</code> 依 named route 建立 path，而 <code>build_absolute_uri()</code> 補上 request 嘅 scheme 同 host，令 email 裏面條 link 可以獨立開啟。<a href="https://docs.djangoproject.com/en/6.0/ref/request-response/#django.http.HttpRequest.build_absolute_uri" target="_blank" rel="noreferrer">Django build_absolute_uri</a></p>
+</section>
+<section class="purpose-card" id="修改目的-3-讀取確認頁同真正啟用分成-get-post">
+<h2>修改目的 3：讀取確認頁同真正啟用分成 GET／POST</h2>
+<h3>修改目的／理由</h3>
+<p>Email preview 或 link scanner 可以自動 GET URL。單純讀取 link 唔應立即改變 account state；user 確認提交後先啟用。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>accounts/views.py:182</code>：<code>ActivateUserView</code> 提供 user lookup、GET 同 POST。</li>
+<li><code>accounts/templates/accounts/user_activate.html:6</code>：按 <code>activation_status</code> 顯示確認、成功、已啟用或無效狀態。</li>
+<li><code>accounts/urls.py</code>：activation route 交畀 <code>View.as_view()</code> 分派 HTTP method。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p>無 activation view 或確認表單；原 registration 儲存後直接走 account 頁面，冇第二階段啟用操作。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>accounts/views.py:192</code>，GET 通過 user／active／token guards 後：</p>
+<pre><code class="language-python">return render(
+    request,
+    self.template_name,
+    context={
+        &quot;activation_status&quot;:&quot;confirm&quot;
+    },
+)</code></pre>
+<p><code>accounts/templates/accounts/user_activate.html:9</code>：</p>
+<pre><code class="language-html">&lt;form method=&quot;post&quot;&gt;
+    {% csrf_token %}
+    &lt;button type=&quot;submit&quot;&gt;アカウントを有効にする&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+<p><code>accounts/views.py:225</code>，POST 再次檢查 token 嘅分支：</p>
+<pre><code class="language-python">if not account_activation_token.check_token(user, token):
+    return render(
+        request,
+        self.template_name,
+        context={
+            &quot;activation_status&quot;: &quot;invalid&quot;
+        },
+        status=400,
+    )</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<p>Form 冇寫 <code>action</code>，會 POST 回當前 activation URL，因此仍帶住 uid 同 token。POST 必須重新查 user 同驗 token：user 開住確認頁期間，token 可能過期或 account 已由另一個 request 啟用。唔可以將之前 GET 通過當作永久授權。</p>
+<div class="table-scroll"><table><thead><tr>
+<th>條件</th>
+<th>GET</th>
+<th>POST</th>
+</tr></thead><tbody>
+<tr><td>無法取得 user</td><td>404</td><td>404</td></tr>
+<tr><td>user 已 active</td><td>顯示 already_active</td><td>顯示 already_active，唔再 sync</td></tr>
+<tr><td>inactive 但 token 無效／過期</td><td>400 invalid</td><td>400 invalid，唔啟用</td></tr>
+<tr><td>inactive 且 token 有效</td><td>顯示 confirm</td><td>保存 active、sync、顯示 success</td></tr>
+</tbody></table></div>
+<p>兩條 method 都先判斷 already-active，再驗 token。因此啟用後重開 link 係見 already-active 頁，唔係一定見 invalid token。成功 POST 冇自動 login；template 提供登入入口。</p>
+<h3>新使用技術</h3>
+<p><code>View.get()</code>／<code>View.post()</code> 分派同 <code>render()</code> 係既有 Django 手法；今次新責任係將讀取同狀態更新分開。CSRF token 保護瀏覽器 POST，activation token 證明該 link 有效，兩者用途唔同。既有 resilient sync 失敗會記 log，唔會將已保存嘅 activation rollback。</p>
+</section>
+<section class="purpose-card" id="修改目的-4-建立可重試嘅寄信流程">
+<h2>修改目的 4：建立可重試嘅寄信流程</h2>
+<h3>修改目的／理由</h3>
+<p>帳戶保存成功唔代表寄信成功。需要保留 inactive account，通知 user 重試，避免未收信就被當成可登入。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>accounts/views.py:48</code>：<code>send_activation_email()</code> 建立信件並回傳 boolean。</li>
+<li><code>accounts/views.py:118</code>：registration 根據寄信結果選擇 response。</li>
+<li><code>accounts/templates/accounts/email/</code>：新增 subject 同 body，將信件文案同 Python 分開。</li>
+<li><code>config/settings.py:139</code>：指定 development backend。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>accounts/views.py</code>，registration 原本嘅目的地：</p>
+<pre><code class="language-python">success_url = reverse_lazy(&#x27;accounts:user_home&#x27;)</code></pre>
+<p>Baseline 冇 email helper、mail templates 或 delivery result handling。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>accounts/views.py:113</code>，新目的地及寄信結果分支：</p>
+<pre><code class="language-python">success_url = reverse_lazy(&#x27;accounts:activation_email_sent&#x27;)</code></pre>
+<pre><code class="language-python">email_sent = send_activation_email(request=self.request, user=self.object)
+
+if not email_sent:
+    messages.error(
+        self.request,
+        &quot;認証メールを送信できませんでした。しばらくしてから再送してください。&quot;,
+    )
+    return redirect(&quot;accounts:resend_activation_email&quot;)</code></pre>
+<p><code>accounts/views.py:48</code>，helper 內嘅寄信呼叫：</p>
+<pre><code class="language-python">sent_count = send_mail(
+    subject=subject,
+    message=message,
+    from_email=settings.DEFAULT_FROM_EMAIL,
+    recipient_list=[user.email],
+    fail_silently=False,
+)</code></pre>
+<p><code>config/settings.py:139</code>：</p>
+<pre><code class="language-python">EMAIL_BACKEND = &quot;django.core.mail.backends.console.EmailBackend&quot;</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<p>Helper 用 <code>render_to_string()</code> 產生 subject 同 body；subject 會 <code>.strip()</code> 去掉外圍換行。<code>send_mail()</code> exception 會被記錄並回傳 <code>False</code>；即使冇 exception，<code>sent_count != 1</code> 亦當失敗。Registration 已保存 inactive user，所以此時唔會刪除 user，而係導向 resend。</p>
+<p>要留意 try/except 只包住 <code>send_mail()</code>：URL construction 同 template rendering 發生喺 try 之前，唔係所有 helper exception 都會轉成 <code>False</code>。呢啲 components 已存在，但後續重構時唔好誤解 exception boundary。</p>
+<p>正常寄出後先設 registration cooldown。DEBUG 時會輸出 activation URL；URL 帶有啟用能力，唔應複製到公開 log 或報告。</p>
+<h3>新使用技術</h3>
+<p><code>django.core.mail.send_mail()</code> 透過設定嘅 backend 送出純文字信件，回傳處理成功數量。Console backend 只將信件輸出到 terminal，唔會寄到 mailbox；即使 SMTP backend 回報成功，亦唔等於 user 已收到或已閱讀。<code>fail_silently=False</code> 令 caller 可以處理寄送 exception。<a href="https://docs.djangoproject.com/en/6.0/topics/email/" target="_blank" rel="noreferrer">Django email API 與 backend</a></p>
+<p><code>render_to_string()</code> 同 logging 係 project 既有技術，今次新增嘅係 email templates 同 delivery result 判斷。冇新增第三方 mail SDK 或 background queue。</p>
+</section>
+<section class="purpose-card" id="修改目的-5-容許重寄-同時減少重複寄送及帳戶狀態洩漏">
+<h2>修改目的 5：容許重寄，同時減少重複寄送及帳戶狀態洩漏</h2>
+<h3>修改目的／理由</h3>
+<p>User 可能冇收到首封信，或者 link 已過期。Resend 要提供恢復入口，亦唔應直接回覆某 email 是否存在、active 或 inactive。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>accounts/forms.py:121</code>：<code>ResendActivationEmailForm</code> 驗證 email 格式。</li>
+<li><code>accounts/views.py:269</code>：尋找 inactive user、取得 cooldown、安排寄信、統一回應。</li>
+<li><code>accounts/templates/accounts/resend_activation_email.html</code> 同 <code>activation_email_sent.html</code>：輸入及統一通知。</li>
+<li><code>accounts/forms.py:63</code> 同 login template：登入錯誤提示同 resend 入口。</li>
+<li><code>config/settings.py</code>：60 秒 cooldown。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p>無 resend form／view／cache gate。<code>UserLoginForm</code> 冇本次加入嘅 <code>error_messages</code> override，login template 亦冇 resend link。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>accounts/views.py:274</code>，<code>ResendActivationEmailView.form_valid()</code> 查詢及 cache gate：</p>
+<pre><code class="language-python">user = User.objects.filter(
+    email__iexact=email,
+    is_active=False,
+).first()
+
+if user is not None:
+    cache_key = f&quot;activation-email-resend:{user.pk}&quot;
+
+    can_send = cache.add(
+        cache_key,
+        True,
+        timeout=settings.ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS,
+    )</code></pre>
+<p>同一 method 嘅寄信分支：</p>
+<pre><code class="language-python">if can_send:
+    email_sent = send_activation_email(
+        request=self.request,
+        user=user,
+    )
+    if not email_sent:
+        cache.delete(cache_key)</code></pre>
+<p><code>accounts/forms.py:63</code>，<code>UserLoginForm</code> 新增錯誤文字：</p>
+<pre><code class="language-python">error_messages = {
+    &quot;invalid_login&quot;: (
+        &quot;メールアドレスまたはパスワードが正しくありません。&quot;
+        &quot;メール認証が完了しているかもご確認ください。&quot;
+    ),
+    &quot;inactive&quot;: (
+        &quot;このアカウントは現在利用できません。&quot;
+    ),
+}</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<p>Resend FormView 只喺 form valid 後查 user；唔存在或已 active 嘅 email 唔寄信，但仍走同一 success URL。Inactive user 若 cooldown 未滿亦唔寄；寄送失敗會釋放 key，方便下一次重試，同樣唔喺 response 洩漏 account state。</p>
+<p><code>cache.add()</code> 只喺 key 未存在先保存並回報成功，適合搶一次寄信機會。首封 registration 信用 <code>cache.set()</code> 建立同名 key，令立即 resend 亦受 cooldown 限制。兩個 API 唔同：set 會覆蓋；add 唔會覆蓋現有 key。</p>
+<p>例如首封信成功後 10 秒就 resend：key 仲存在，唔再寄。TTL 到期後 resend：add 成功，才寄信。寄送失敗：delete key；user 可重試。呢個係暫時節流，唔係永久寄送紀錄。</p>
+<p>登入仍交畀 Django authentication flow；預設 backend 對 inactive user 會拒絕 authentication，通常落入 generic invalid_login。唔應聲稱 inactive 一定會顯示自訂 <code>inactive</code> message。</p>
+<h3>新使用技術</h3>
+<p>Django cache API 係本次 cooldown 嘅新用途：<code>add()</code>、<code>set()</code>、<code>delete()</code> 同 TTL 配合控制重試。當前未設定共享 backend，預設 LocMem 係 process-local；多 worker 唔會共享同一份節流狀態，亦唔構成 IP／全域 rate limit。<a href="https://docs.djangoproject.com/en/6.0/topics/cache/" target="_blank" rel="noreferrer">Django cache API</a></p>
+<p><code>forms.EmailField</code>、FormView 同 named redirects 係既有手法。Email 格式驗證只檢查輸入形狀；mailbox 控制權仍由有效 activation link 證明。</p>
+</section>
+</div>
+<section class="report-section" id="整體行為改變">
+<h2>整體行為改變</h2>
+<p>以前係註冊後即建立可用 user 同同步字庫。依家係註冊後保存 inactive user，再由 email link 嘅 GET 確認頁同 POST 啟用完成第二階段。成功啟用後先 sync，user 再自行登入。</p>
+<div class="table-scroll"><table><thead><tr>
+<th>事件</th>
+<th>帳戶狀態</th>
+<th>字庫／回應</th>
+</tr></thead><tbody>
+<tr><td>註冊有效、首封信處理成功</td><td>inactive</td><td>檢查 email 頁，暫不 sync UserVocab</td></tr>
+<tr><td>首封信處理失敗</td><td>inactive 保留</td><td>引導 resend</td></tr>
+<tr><td>GET 有效 link</td><td>inactive 不變</td><td>confirm</td></tr>
+<tr><td>POST 有效 link</td><td>active</td><td>resilient sync，success</td></tr>
+<tr><td>無效／過期 link、user 存在且 inactive</td><td>inactive 不變</td><td>400 invalid</td></tr>
+<tr><td>user 已 active 後重開 link</td><td>active</td><td>already_active</td></tr>
+<tr><td>Resend 冇符合條件 user／仍在 cooldown</td><td>不變</td><td>統一通知，唔寄信</td></tr>
+</tbody></table></div>
+</section>
+<section class="report-section" id="測試及驗證結果">
+<h2>測試及驗證結果</h2>
+<p>本次實際執行：</p>
+<ul>
+<li><code>git diff --check 012ae67 9062a2e</code>：通過。</li>
+<li><code>git diff --check</code>：當前 working tree 通過。</li>
+<li><code>.venv/bin/python manage.py check</code>：0 issues。</li>
+<li><code>.venv/bin/python manage.py test accounts core</code>：10 tests 通過，使用 test database，執行後銷毀。</li>
+</ul>
+<p>重要範圍限制：Django commands 係喺當前 working tree 執行，當中包含未提交 accounts 同 quiz 修改；唔係喺 isolated <code>9062a2e</code> checkout 執行。因此唔可以聲稱已獨立重跑指定 commit 嘅全部行為。</p>
+<p>本次只檢視而未新增嘅 tests：<code>9062a2e:accounts/tests.py</code> 係 placeholder；<code>core/tests.py</code> 主要覆蓋 templates／語系等既有 regression。10 tests 全綠唔代表已驗證 token expiry、cooldown、mail failure、POST activation 或併發啟用。</p>
+<p>Code inspection 已核對 registration → helper → URL → activation view → token → sync，同 resend → cache → helper → generic response；冇執行真實郵件寄送或 production data 修改。</p>
+</section>
+<section class="report-section" id="已知限制-未驗證事項">
+<h2>已知限制／未驗證事項</h2>
+<ul>
+<li><code>9062a2e</code> 尚未包含完整 email lowercase policy 或 case-insensitive unique constraint；resend 嘅 <code>iexact(...).first()</code> 喺有大小寫變體帳戶時存在歧義。之後 working-tree M02 修正唔屬於本報告 after state。</li>
+<li>Console backend 只適合 development。真實 mail provider、HTTPS host／proxy configuration、共享 cache 同寄送監控仍待部署時完成。</li>
+<li>Resend 統一 response 減少直接透露 account state，但唔代表已消除 timing difference；registration duplicate validation 同 already-active activation response 亦唔係同一保密邊界。</li>
+<li>Activation 嘅「使用後失效」係狀態變化帶來嘅循序行為；POST 冇鎖定 user row 或條件式狀態更新，唔保證併發請求下 side effects exactly once。</li>
+<li><code>is_active</code> 同時承擔「未驗證」及「停用」語意。若 admin 用 False 封禁已驗證帳戶，現有 resend 亦會選中該帳戶；需要另定停權政策，唔應將本機 onboarding 實作當成完整封禁管理。</li>
+<li>冇獨立驗證 timestamp 過期、tampered uid／token、email exception／0 return、重寄節流、sync failure 同多 worker 行為。本報告唔新增 tests。</li>
+<li><code>sync_vocab_safely()</code> 為既有 best-effort wrapper；sync 失敗唔撤銷 active state，之後 login／profile flow仍有重試同步入口。</li>
+</ul>
+</section>
+<section class="report-section" id="官方參考資料">
+<h2>官方參考資料</h2>
+<ul>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/contrib/auth/#django.contrib.auth.models.User.is_active" target="_blank" rel="noreferrer">Django 6.0：User.is_active 與 backend 行為</a></li>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#password-reset-timeout" target="_blank" rel="noreferrer">Django 6.0：PASSWORD_RESET_TIMEOUT</a></li>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/request-response/#django.http.HttpRequest.build_absolute_uri" target="_blank" rel="noreferrer">Django 6.0：build_absolute_uri</a></li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/email/" target="_blank" rel="noreferrer">Django 6.0：Sending email</a></li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/cache/" target="_blank" rel="noreferrer">Django 6.0：Cache framework</a></li>
+</ul>
+<p>Token 實作補充證據：本機 Django 6.0.5 嘅 <code>django/contrib/auth/tokens.py</code>；官方 source 頁本次未能成功載入，冇將其他版本源碼當成 6.0.5 證據。</p>
+</section>
+<details class="report-section" id="report-baseline">
+<summary>Report 基準／證據範圍</summary>
+<h2>Report 基準</h2>
+<ul>
+<li>產生時間：2026-09-10 22:30 JST。</li>
+<li>主題：已提交嘅 account email activation 修改。</li>
+<li>修改前：<code>012ae6701b925c4509e36e8f52e122f0ae0a3baf</code>。</li>
+<li>修改後：<code>9062a2ea41e4e46f5f3b27fcaedf303be0e4f0d4</code>，亦係報告建立時嘅 <code>HEAD</code>。</li>
+<li>按 user 指定比較 <code>012ae67 → 9062a2e</code>；下文行號全部指修改後 commit，唔係 editor 當前行號。程式片段係該版本嘅局部原文，唔代表完整 function。</li>
+<li>直接證據：<code>accounts/forms.py</code>、<code>accounts/views.py</code>、<code>accounts/tokens.py</code>、<code>accounts/urls.py</code>、accounts activation／login／email templates，同 <code>config/settings.py</code> 嘅相關 diff。</li>
+<li>周邊核對：custom user、admin form、profile signal、<code>sync_vocab_safely()</code>、requirements 同現有 tests。</li>
+<li>Working tree 有未提交嘅 email lowercase／unique constraint 修改、quiz M01 修改、四份 status docs 修改，另有未追蹤 accounts migration；全部排除於本報告嘅 before／after 範圍。</li>
+<li>同一 commit 內其他 modification notes、status docs、dictionary URL 同 ignore 規則唔屬於今次 activation 實作解釋。現有 <code>docs/modification/email_activation.md</code> 保留；本文件係新報告。</li>
+<li>Repository 固定 <code>Django==6.0.5</code>；框架說明參考 Django 6.0 官方文件，token 細節亦核對本機安裝版本源碼。</li>
+</ul>
+<h3>完成度判定證據</h3>
+<p>以 development console-email workflow 為範圍，核心接線完整：public registration 保存 inactive user、建立 activation link、GET 顯示確認、POST 驗證後啟用、同步 UserVocab，亦有重寄入口同寄信失敗處理。所需 forms、URLs、templates 同 token object 均存在；沿用既有 <code>is_active</code>，毋須為本修改新增 migration。</p>
+<p>呢個判斷唔代表已驗證真實收信或全部安全邊界。<code>accounts/tests.py</code> 仍然只有 placeholder；本次現有 suite 通過只提供有限 regression 證據，詳見末段。</p>
+</details>
+</main>
+</body>
+</html>

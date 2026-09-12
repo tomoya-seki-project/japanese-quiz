@@ -17,10 +17,6 @@ from django.views.generic import (
 from .forms import (
     QuizSettingForm,
     QuizForm,
-    QuizNextForm,
-    QuizSkipForm,
-    QuizSummaryForm,
-    QuizFullPoolConfirmForm,
 )
 
 from dictionary.models import (
@@ -140,11 +136,10 @@ class QuizSettingView(LoginRequiredMixin, FormView):
         )
         return redirect("quiz:quiz_play")
 
-class QuizNoPoolConfirmView(LoginRequiredMixin, QuizSettingRequiredMixin, FormView):
+class QuizNoPoolConfirmView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
     template_name = "quiz/quiz_no_pool_confirm.html"
-    form_class = QuizFullPoolConfirmForm
 
-    def form_valid(self, form):
+    def post(self, request, *args, **kwargs):
         quiz_settings = self.request.session.get("quiz_settings")
         quiz_settings["use_full_pool"] = True
         self.request.session["quiz_settings"] = quiz_settings
@@ -331,10 +326,8 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                         "input_panel_html": "",
                     })
 
-class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
-    form_class = QuizNextForm
-
-    def form_valid(self, form):
+class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
         payload = build_next_question_payload(request=self.request)
         if payload.get("quiz_ended"):
             summary_payload = build_quiz_summary_payload(
@@ -345,10 +338,8 @@ class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequ
             return JsonResponse(summary_payload)
         return JsonResponse(payload)
 
-class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
-    form_class = QuizSkipForm
-
-    def form_valid(self, form):
+class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
         quiz_session = self.request.session.get("quiz_session")
         skipped_question_vocab_id  = quiz_session["question_user_vocab_id"]
         if skipped_question_vocab_id  is not None:
@@ -455,9 +446,8 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
         context["mc_rows"] = mc_rows
         return context
 
-class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
-    form_class = QuizSummaryForm
-    def form_valid(self, form):
+class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
         quiz_session = self.request.session.get("quiz_session",{})
         payload = build_quiz_summary_payload(request=self.request)
         logger.info(

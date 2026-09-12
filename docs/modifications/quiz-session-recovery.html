@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M-01：Quiz 失效 Session 終止及復原</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+<header class="report-header">
+<h1>M-01：Quiz 失效 Session 終止及復原</h1>
+</header>
+<section class="report-section" id="summary">
+<span class="status-badge">核心改修已完成</span>
+<h2>改修概要</h2>
+<div class="summary-block">
+<p>進行中嘅 Quiz 原本可能因題目被停用、刪除或題庫中途變空，留下無法正常完成嘅 session。今次改修將呢啲情況定義成可處理嘅終止狀態：操作前重新驗證題目資格、統一建立提早完成 summary，並清除失效 session，令畫面同 server state 一齊完成復原。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>空題庫由顯示「無題目」改成明確 terminal state，避免 unfinished redirect loop。</li><li>Submit、skip 同 resume 都會重新驗證 UserVocab、in_use 及 Vocab.is_active。</li><li>失效 skip 唔會修改 weight、streak、last_quiz_at 或 skipped_count。</li><li>正常完成與提早完成共用同一個 summary builder 及 session cleanup。</li><li>核心流程已接通，但仍欠 M-01 專用 integration tests。</li></ul></aside>
+</div>
+</section>
+<nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
+<li><a href="#summary">改修概要</a></li>
+<li><a href="#修改目的-1-將-下一題已不存在-變成明確終止狀態">修改目的 1：將「下一題已不存在」變成明確終止狀態</a></li>
+<li><a href="#修改目的-2-每次操作目前題目之前重新驗證-eligibility">修改目的 2：每次操作目前題目之前重新驗證 eligibility</a></li>
+<li><a href="#修改目的-3-安全恢復-unfinished-quiz-無法恢復就清理-session">修改目的 3：安全恢復 unfinished quiz，無法恢復就清理 session</a></li>
+<li><a href="#修改目的-4-統一正常完成與提早完成嘅-summary-lifecycle">修改目的 4：統一正常完成與提早完成嘅 summary lifecycle</a></li>
+<li><a href="#整體行為改變">整體行為改變</a></li>
+<li><a href="#測試及驗證結果">測試及驗證結果</a></li>
+<li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
+<li><a href="#官方參考資料">官方參考資料</a></li>
+<li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+</ul></nav>
+<div class="purpose-list">
+<section class="purpose-card" id="修改目的-1-將-下一題已不存在-變成明確終止狀態">
+<h2>修改目的 1：將「下一題已不存在」變成明確終止狀態</h2>
+<h3>修改目的／理由</h3>
+<p>修改前，<code>build_next_question_payload()</code> 遇到空 pool，只係回傳「無題目」HTML。佢無清除 <code>quiz_session</code>，亦無明確話俾 caller 知 quiz 已經結束。</p>
+<p>因此 browser 畫面雖然顯示無題，但 server session 仍然保留「未達目標題數、目前無題目」嘅狀態。User 再返 setting 時，<code>QuizSettingView</code> 會將呢個 session 當成 unfinished quiz，再 redirect 去 <code>QuizUnfinishedView</code>，形成無法正常完結嘅循環。</p>
+<p>修改後將責任分開：</p>
+<ul>
+<li><code>build_next_question_payload()</code> 負責抽題；抽唔到就回傳 <code>quiz_ended=True</code> 呢個狀態訊號。</li>
+<li><code>QuizNextView</code>／<code>QuizSkipView</code> 負責理解訊號，決定提早完結。</li>
+<li><code>build_quiz_summary_payload()</code> 負責建立 summary payload 同清除 session。</li>
+</ul>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>quiz/helper.py</code>：由抽題 helper 回報 terminal state；新增共用 summary builder。</li>
+<li><code>quiz/views.py</code>：<code>QuizNextView</code>、<code>QuizSkipView</code> 將 <code>quiz_ended</code> 轉成提早完結 response。</li>
+<li><code>quiz/templates/quiz/partials/quiz_summary_partial.html</code>：向 user 解釋點解 quiz 提早完結。</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>quiz/helper.py</code> — <code>build_next_question_payload()</code>（<code>HEAD</code>）</p>
+<pre><code class="language-python">if user_vocab_id is None:
+    return {
+        &quot;main_html&quot;: render_to_string(
+            &quot;quiz/partials/quiz_no_question_partial.html&quot;,
+            request=request,
+        ),
+        &quot;input_panel_html&quot;: &quot;&quot;,
+    }</code></pre>
+<p><code>quiz/views.py</code> — <code>QuizNextView.form_valid()</code>（<code>HEAD</code>）</p>
+<pre><code class="language-python">def form_valid(self, form):
+    payload = build_next_question_payload(request=self.request)
+    return JsonResponse(payload)</code></pre>
+<p>修改前嘅 helper 直接選擇畫面內容，但無改變 session lifecycle；view 亦只係原樣送出 payload，無 terminal transition。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>quiz/helper.py:64</code> — <code>build_next_question_payload()</code></p>
+<pre><code class="language-python">if user_vocab_id is None:
+    #request.session.pop(&quot;quiz_session&quot;, None)
+    return {
+        &quot;success&quot;: True,
+        &quot;quiz_ended&quot;: True,
+    }</code></pre>
+<p><code>quiz/views.py:334</code> — <code>QuizNextView.form_valid()</code></p>
+<pre><code class="language-python">payload = build_next_question_payload(request=self.request)
+if payload.get(&quot;quiz_ended&quot;):
+    summary_payload = build_quiz_summary_payload(
+        request=self.request,
+        end_reason=&quot;no_question_pool&quot;,
+        ended_early=True,
+    )
+    return JsonResponse(summary_payload)
+return JsonResponse(payload)</code></pre>
+<p><code>quiz/views.py:374</code> — <code>QuizSkipView.form_valid()</code> 抽取下一題嘅同類分支</p>
+<pre><code class="language-python">payload = build_next_question_payload(request=self.request, is_skip=True)
+if payload.get(&quot;quiz_ended&quot;):
+    summary_payload = build_quiz_summary_payload(
+        request=self.request,
+        end_reason=&quot;no_question_pool&quot;,
+        ended_early=True,
+    )
+    return JsonResponse(summary_payload)
+return JsonResponse(payload)</code></pre>
+</section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<p>正常 Next 流程變成：</p>
+<ol>
+<li><code>QuizNextView</code> 呼叫 <code>build_next_question_payload()</code>。</li>
+<li>Helper 重新按目前 quiz settings 建立 eligible pool。</li>
+<li>Pool 有題：照常寫入新 <code>question_user_vocab_id</code>，增加 <code>quizzed_count</code>，回傳題目 HTML。</li>
+<li>Pool 無題：helper 唔再自行決定 UI，而係回傳 <code>quiz_ended=True</code>。</li>
+<li>View 收到 terminal signal，呼叫 <code>build_quiz_summary_payload()</code>。</li>
+<li>Summary builder 先用現有統計 render 結果，再 <code>pop()</code> 掉 <code>quiz_session</code>。</li>
+<li>Frontend 沿用原本 AJAX contract，將 <code>main_html</code> 換成 summary，並清空 input panel。</li>
+</ol>
+<p>Skip 流程同樣會處理「成功 skip 當前題後，已經再無下一題」嘅情況。<code>is_skip=True</code> 保留原有題數語意：skip 已經計入 <code>skipped_count</code>，抽下一題時唔額外增加 <code>quizzed_count</code>。</p>
+<p><code>quiz_ended</code> 只係 helper 同 view 之間嘅內部控制訊號，最終送到 browser 嘅仍然係既有格式：</p>
+<pre><code class="language-python">{
+    &quot;success&quot;: True,
+    &quot;main_html&quot;: &quot;...&quot;,
+    &quot;input_panel_html&quot;: &quot;&quot;,
+}</code></pre>
+<p>所以 <code>static/js/quiz/quiz_play.js</code> 唔需要為 M-01 加新分支。</p>
+<h3>新使用技術</h3>
+<h4 id="明確狀態訊號-established-project-technique">明確狀態訊號（established project technique）</h4>
+<p><code>quiz_ended=True</code> 將「抽唔到題」由一段指定 HTML 提升成 domain state。Helper 唔再假設 caller 一定要顯示某個 partial；由 view 決定係終止、redirect，定採用其他產品流程。呢個唔係新 library，而係將 control flow 同 presentation responsibility 分開。</p>
+<h4 id="django-jsonresponse">Django <code>JsonResponse</code></h4>
+<p>Project 使用 Django <code>6.0.5</code>。<code>JsonResponse</code> 係 <code>HttpResponse</code> subclass，會將 dict 編碼成 JSON，預設 <code>Content-Type</code> 為 <code>application/json</code>。M-01 沿用現有 AJAX response contract，所以前端仍可用同一段 <code>fetch(...).then(res =&gt; res.json())</code> 處理正常題目同 terminal summary。</p>
+</section>
+<section class="purpose-card" id="修改目的-2-每次操作目前題目之前重新驗證-eligibility">
+<h2>修改目的 2：每次操作目前題目之前重新驗證 eligibility</h2>
+<h3>修改目的／理由</h3>
+<p>Question pool 只代表「抽題嗰一刻」嘅資料狀態，唔保證 user 作答／skip 嗰一刻仍然有效。例如：</p>
+<ul>
+<li>User 喺另一個 browser tab 將目前 <code>UserVocab.in_use</code> 關閉。</li>
+<li>Admin 將相關 <code>Vocab.is_active</code> 關閉。</li>
+<li>Session 保存嘅 <code>UserVocab</code> 已被刪除。</li>
+</ul>
+<p>修改前嘅 submit、stale form recovery 同 skip 只按 primary key 及 user 查 object。只要 row 仲存在，即使已經不應出題，仍會顯示、批改或施加 skip punishment。</p>
+<p>修改後將以下條件視為「目前題目有效」嘅完整判斷：</p>
+<pre><code class="language-text">UserVocab.pk == session／form 題目 ID
+AND UserVocab.user == request.user
+AND UserVocab.in_use == True
+AND UserVocab.vocab.is_active == True</code></pre>
+<p>任何條件失敗，都會提早終止 quiz，而唔係靜靜抽另一題。呢個符合今次產品決定：目前畫面上嗰題失效係 session 狀態改變，user 應該收到明確通知；其他未顯示題目嘅變動，就由下一次建立 pool 時自然反映。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>quiz/views.py</code>：submit answer 前檢查 session／posted question；失效時建立 terminal summary。</li>
+<li><code>quiz/service/quiz.py</code>：skip punishment 前做同一套 eligibility 檢查，並以 Boolean 回報有冇成功修改資料。</li>
+<li><code>dictionary/models.py</code>：既有 <code>UserVocab.in_use</code> 與 <code>Vocab.is_active</code> 欄位係 eligibility 判斷來源；M-01 無修改 model 或 schema。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>quiz/views.py</code> — stale／duplicate submit 分支（<code>HEAD</code>）</p>
+<pre><code class="language-python">target_vocab = get_object_or_404(
+    UserVocab,
+    pk=session_question_user_vocab_id,
+    user=self.request.user,
+)</code></pre>
+<p><code>quiz/views.py</code> — 正常 submit 分支（<code>HEAD</code>）</p>
+<pre><code class="language-python">question_vocab = get_object_or_404(
+    UserVocab,
+    pk=form.cleaned_data.get(&quot;user_vocab_id&quot;),
+    user=self.request.user
+)</code></pre>
+<p><code>quiz/service/quiz.py</code> — <code>QuizService.skip_question_punish()</code>（<code>HEAD</code>）</p>
+<pre><code class="language-python">skipped_user_vocab = UserVocab.objects.filter(pk=user_vocab_id, user=user).first()
+if skipped_user_vocab is not None:
+    skipped_user_vocab.weight += QUIZ_CONFIG[&quot;weight&quot;][&quot;skip&quot;]
+    if skipped_user_vocab.streak &gt; 0:
+        skipped_user_vocab.streak = 0
+    else:
+        skipped_user_vocab.streak -= 1
+    skipped_user_vocab.last_quiz_at = timezone.now()
+    skipped_user_vocab.save(
+        update_fields=[&quot;weight&quot;,&quot;streak&quot;,&quot;last_quiz_at&quot;]
+    )</code></pre>
+<p>呢三個查詢都無檢查 <code>in_use</code> 或相關 vocabulary 嘅 <code>is_active</code>。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>quiz/views.py:233</code> — stale／duplicate submit 嘅目前題目查詢</p>
+<pre><code class="language-python">target_vocab = (
+    UserVocab.objects
+    .filter(
+        pk=session_question_user_vocab_id,
+        user=self.request.user,
+        in_use=True,
+        vocab__is_active=True,
+    ).select_related(&quot;vocab&quot;).first()
+)
+if target_vocab is None:
+    payload = build_quiz_summary_payload(
+        request=self.request,
+        end_reason=&quot;question_unavailable&quot;,
+        ended_early=True,
+    )
+    return JsonResponse(payload)</code></pre>
+<p><code>quiz/views.py:261</code> — 正常 submit 嘅題目查詢</p>
+<pre><code class="language-python">question_vocab = (
+    UserVocab.objects
+    .filter(
+        pk=form.cleaned_data.get(&quot;user_vocab_id&quot;),
+        user=self.request.user,
+        in_use=True,
+        vocab__is_active=True,
+    ).select_related(&quot;vocab&quot;).first()
+)
+if question_vocab is None:
+    payload = build_quiz_summary_payload(
+        request=self.request,
+        end_reason=&quot;question_unavailable&quot;,
+        ended_early=True
+    )
+    return JsonResponse(payload)</code></pre>
+<p><code>quiz/service/quiz.py:88</code> — <code>QuizService.skip_question_punish()</code></p>
+<pre><code class="language-python">skipped_user_vocab = UserVocab.objects.filter(
+    pk=user_vocab_id,
+    user=user,
+    in_use=True,
+    vocab__is_active=True,
+).first()
+if skipped_user_vocab is None:
+    return False
+
+skipped_user_vocab.weight += QUIZ_CONFIG[&quot;weight&quot;][&quot;skip&quot;]
+if skipped_user_vocab.streak &gt; 0:
+    skipped_user_vocab.streak = 0
+else:
+    skipped_user_vocab.streak -= 1
+skipped_user_vocab.last_quiz_at = timezone.now()
+skipped_user_vocab.save(
+    update_fields=[&quot;weight&quot;,&quot;streak&quot;,&quot;last_quiz_at&quot;]
+)
+return True</code></pre>
+<p><code>quiz/views.py:351</code> — <code>QuizSkipView.form_valid()</code></p>
+<pre><code class="language-python">skip_succeeded = QuizService.skip_question_punish(user=self.request.user, user_vocab_id=skipped_question_vocab_id)
+if not skip_succeeded:
+    summary_payload = build_quiz_summary_payload(
+        request=self.request,
+        end_reason=&quot;question_unavailable&quot;,
+        ended_early=True,
+    )
+    return JsonResponse(summary_payload)</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<h4 id="點解由-get_object_or_404-改做-filter-first">點解由 <code>get_object_or_404()</code> 改做 <code>.filter(...).first()</code></h4>
+<p>喺普通 detail page，object 唔存在通常代表 URL 指向無效 resource，回傳 HTTP 404 合理。但 M-01 呢度嘅「object 搵唔到」亦可能代表題目剛剛被停用；呢個係預期嘅 domain transition，唔係整個 AJAX endpoint 消失。</p>
+<p><code>.first()</code> 搵唔到會回傳 <code>None</code>，view 因而可以：</p>
+<ol>
+<li>保留目前 quiz 統計；</li>
+<li>render 一個有原因嘅 summary；</li>
+<li>清除失效 session；</li>
+<li>以正常 JSON response 完成 UI transition。</li>
+</ol>
+<p>如果繼續用 <code>get_object_or_404()</code>，frontend 會收到 HTML 404 response，而 <code>quiz_play.js</code> 預期 JSON，結果只會落入 generic error handling，user 唔會得到正確嘅「題目已失效」說明。</p>
+<h4 id="點解-skip-service-要回傳-true-false">點解 skip service 要回傳 <code>True</code>／<code>False</code></h4>
+<p>修改前，service 搵唔到 object 時只係乜都唔做，caller 無法分辨：</p>
+<ul>
+<li>punishment 成功；或</li>
+<li>題目已不存在／已失效。</li>
+</ul>
+<p>修改後嘅 Boolean 係 service outcome contract：</p>
+<ul>
+<li><code>True</code>：已驗證 eligibility，亦已更新 weight、streak、last quiz time。</li>
+<li><code>False</code>：無符合條件嘅 object，任何 punishment 同 skip count 都唔應該寫入。</li>
+</ul>
+<p>View 只會喺 <code>True</code> 後清空目前題目同增加 <code>skipped_count</code>，避免將一次無效操作記成真實 skip。</p>
+<h3>新使用技術</h3>
+<h4 id="django-relationship-lookup-vocab__is_active-true">Django relationship lookup：<code>vocab__is_active=True</code></h4>
+<p>Double underscore lookup 俾 QuerySet 沿 model relationship 過濾欄位。呢度由 <code>UserVocab.vocab</code> 呢個 <code>ForeignKey</code> 跨到 <code>Vocab.is_active</code>，由 database query 一次判斷 row 同相關 vocabulary 嘅狀態。</p>
+<h4 id="django-select_related-vocab">Django <code>select_related(&quot;vocab&quot;)</code></h4>
+<p><code>select_related()</code> 會用 SQL join 預先載入指定嘅 <code>ForeignKey</code>／<code>OneToOneField</code> object。要留意：<code>vocab__is_active=True</code> 本身已經可以跨 relationship 過濾，唔需要靠 <code>select_related()</code> 先「拎到」欄位；今次加 <code>select_related(&quot;vocab&quot;)</code> 嘅用途係查詢成功後，render／批改會再讀 <code>question_vocab.vocab</code>，預先載入可避免額外一次 lazy-load query。</p>
+<h4 id="queryset-first-作為可處理失敗結果">QuerySet <code>.first()</code> 作為可處理失敗結果</h4>
+<p><code>.first()</code> 將「無符合資料」表達成 <code>None</code>。今次唔係忽略錯誤，而係刻意將資料失效納入 application flow，再由 view 決定 terminal response。</p>
+</section>
+<section class="purpose-card" id="修改目的-3-安全恢復-unfinished-quiz-無法恢復就清理-session">
+<h2>修改目的 3：安全恢復 unfinished quiz，無法恢復就清理 session</h2>
+<h3>修改目的／理由</h3>
+<p>User 重開 quiz setting 時，如果 session 仍有 <code>question_user_vocab_id</code>，會進入 <code>QuizUnfinishedView</code>。修改前只要該 ID 屬於 user，就會重新顯示題目；即使 <code>in_use=False</code> 或 vocabulary 已經 inactive，仍會 HTTP 200 開返題目。</p>
+<p>另外，如果 session 目前無題，而重新建立 pool 又抽唔到題，修改前只 redirect 去 user vocabulary list，但保留 <code>quiz_session</code>。User 再返 setting，就會再次被判定為 unfinished session。</p>
+<p>修改後將 resume 分成三個明確結果：</p>
+<ol>
+<li>Session 有 current question，而且仍 eligible：繼續顯示同一題。</li>
+<li>Session 有 current question，但已失效／刪除：清除 session，通知 user，返 quiz setting。</li>
+<li>Session 無 current question：由最新 pool 抽題；如果 pool 已空，清除 session，通知 user，返 quiz setting。</li>
+</ol>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>quiz/views.py</code>：<code>QuizUnfinishedView.get()</code> 驗證保存咗嘅題目 ID，處理 invalid ID 同 empty pool，並建立新題目時先更新 session。</li>
+<li><code>quiz/helper.py</code>／<code>quiz/service/quiz.py</code>：沿用最新 quiz settings 建立符合 <code>in_use</code>／active 規則嘅 pool。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>quiz/views.py</code> — <code>QuizUnfinishedView.get()</code>（<code>HEAD</code>）</p>
+<pre><code class="language-python">if unfinished_question_user_vocab_id:
+    user_vocab_id = unfinished_question_user_vocab_id
+    messages.warning(
+        request,
+        &quot;まだ回答していない問題があります。&quot;
+    )
+else:
+    question_pool_qs = get_question_pool(request=self.request)
+    user_vocab_id = get_target_user_vocab_id(user=self.request.user, pool_queryset=question_pool_qs)
+    quiz_session[&quot;quizzed_count&quot;] += 1
+
+if user_vocab_id is None:
+    messages.warning(
+        request,
+        &quot;出題できる単語がありません。マイ単語帳で単語を出題対象に設定してください。&quot;
+    )
+    return redirect(&quot;dictionary:user_vocab_list&quot;)
+
+quiz_session[&quot;question_user_vocab_id&quot;] = user_vocab_id
+request.session[&quot;quiz_session&quot;] = quiz_session
+self.question_vocab = get_object_or_404(UserVocab, pk=user_vocab_id, user=self.request.user)</code></pre>
+<p>問題有兩個：existing ID 無 eligibility check；而 pool 空嗰條 return path 無移除 session。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>quiz/views.py:387</code> — <code>QuizUnfinishedView.get()</code> existing question 分支</p>
+<pre><code class="language-python">if unfinished_question_user_vocab_id is not None:
+    unfinished_question_user_vocab = (
+        UserVocab.objects
+        .filter(
+            user=request.user,
+            pk=unfinished_question_user_vocab_id,
+            in_use=True,
+            vocab__is_active=True,
+        ).select_related(&quot;vocab&quot;).first()
+    )
+    if unfinished_question_user_vocab is None:
+        request.session.pop(&quot;quiz_session&quot;, None)
+        messages.warning(
+            request,
+            &quot;現在の問題が出題対象から外れたため、クイズを終了しました。&quot;
+        )
+        return redirect(&quot;quiz:quiz_setting&quot;)
+
+    self.question_vocab = unfinished_question_user_vocab</code></pre>
+<p><code>quiz/views.py:415</code> — 無 current question、重新抽題分支</p>
+<pre><code class="language-python">question_pool_qs = get_question_pool(request=self.request)
+user_vocab_id = get_target_user_vocab_id(
+    user=self.request.user,
+    pool_queryset=question_pool_qs
+)
+
+if user_vocab_id is None:
+    self.request.session.pop(&quot;quiz_session&quot;, None)
+    messages.warning(
+        request,
+        &quot;出題できる問題がないため、クイズを終了しました。&quot;
+    )
+    return redirect(&quot;quiz:quiz_setting&quot;)
+
+self.question_vocab = get_object_or_404(question_pool_qs, pk=user_vocab_id, user=self.request.user)
+quiz_session[&quot;quizzed_count&quot;] += 1</code></pre>
+<p>最後只會將已驗證／已由 eligible pool 抽出嘅 object 寫返 session：</p>
+<pre><code class="language-python">quiz_session[&quot;question_user_vocab_id&quot;] = self.question_vocab.pk
+request.session[&quot;quiz_session&quot;] = quiz_session</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<h4 id="用-is-not-none-唔用-truthiness">用 <code>is not None</code>，唔用 truthiness</h4>
+<p>Session 欄位嘅語意係：</p>
+<ul>
+<li><code>None</code>：目前未有題目，應抽下一題。</li>
+<li>Integer ID：應嘗試恢復該題。</li>
+</ul>
+<p><code>is not None</code> 直接表達呢個 state boundary，唔會將其他 falsy value 誤當「無題目」。正常 database primary key 唔會係 <code>0</code>，所以原本 truthiness 多數時間都 work，但新寫法更貼近資料語意。</p>
+<h4 id="點解失效後返-quiz-setting-而唔係靜靜換題">點解失效後返 quiz setting，而唔係靜靜換題</h4>
+<p>目前題目已經顯示俾 user；另一個 tab 或 admin 改變咗佢嘅 eligibility，代表 quiz 嘅可見狀態同 server 真實狀態已分歧。直接換另一題會令 user 唔知道發生過乜，亦可能覺得題數突然改變。</p>
+<p>因此 M-01 將目前題目失效視為 terminal event：清 session、顯示原因、返 setting。至於其他未顯示題目被停用，下一次 <code>get_question_pool()</code> 自然排除即可，唔需要中止當前有效題目。</p>
+<h4 id="點解要先-pop-session-再-redirect">點解要先 <code>pop()</code> session 再 redirect</h4>
+<p>只 redirect 唔會改變 server state。若 <code>quiz_session</code> 仍保存，而且 <code>aims_quiz_num &gt; quizzed_count</code>，<code>QuizSettingView</code> 下一次仍會當佢係 unfinished，重新 redirect 去 unfinished route。<code>pop(&quot;quiz_session&quot;, None)</code> 先真正完成 state transition，redirect 只係之後嘅 navigation。</p>
+<h3>新使用技術</h3>
+<h4 id="django-session-dictionary-api-pop">Django session dictionary API：<code>pop()</code></h4>
+<p>Project 使用 Django <code>6.0.5</code>。<code>request.session</code> 係 dictionary-like object；<code>pop(&quot;quiz_session&quot;, None)</code> 會安全移除 key，就算 key 已經不存在亦唔會拋 <code>KeyError</code>。刪除 session key 會令 session 被標記為已修改，response 完成時由 session middleware 儲存新狀態。</p>
+<h4 id="queryset-作為-get_object_or_404-第一個參數">QuerySet 作為 <code>get_object_or_404()</code> 第一個參數</h4>
+<p>新題先由 <code>question_pool_qs</code> 抽出 ID，再用同一個 eligible QuerySet 取 object：</p>
+<pre><code class="language-python">get_object_or_404(question_pool_qs, pk=user_vocab_id, user=self.request.user)</code></pre>
+<p>相對於直接由 <code>UserVocab</code> manager 查詢，呢種寫法保留 QuerySet 已有嘅 pool eligibility 條件，令「抽中」同「實際載入」使用同一套範圍。</p>
+</section>
+<section class="purpose-card" id="修改目的-4-統一正常完成與提早完成嘅-summary-lifecycle">
+<h2>修改目的 4：統一正常完成與提早完成嘅 summary lifecycle</h2>
+<h3>修改目的／理由</h3>
+<p>正常完成、pool 中途變空、目前題目失效，三者最後都要做相同基本工作：</p>
+<ol>
+<li>用 session 統計 render summary；</li>
+<li>清空 input panel；</li>
+<li>移除 <code>quiz_session</code>。</li>
+</ol>
+<p>如果每個 view 各自複製呢段程式，任何一條分支漏咗 session cleanup，就會重現 M-01。修改後集中到 <code>build_quiz_summary_payload()</code>，再用 <code>ended_early</code> 同 <code>end_reason</code> 表達 UI 差異。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>quiz/helper.py</code>：建立共用 summary response payload，並成為 session terminal cleanup 嘅單一位置。</li>
+<li><code>quiz/views.py</code>：正常 <code>QuizSummaryView</code> 同各個 recovery branch 共用 helper。</li>
+<li><code>quiz/templates/quiz/partials/quiz_summary_partial.html</code>：只喺提早完結時顯示相應原因。</li>
+</ul>
+<details class="comparison-details"><summary>查看修改前後程式碼</summary>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>quiz/views.py</code> — <code>QuizSummaryView.form_valid()</code>（<code>HEAD</code>）</p>
+<pre><code class="language-python">main_html = render_to_string(
+    &quot;quiz/partials/quiz_summary_partial.html&quot;,
+    context={
+        &quot;current_quiz_num&quot;: quiz_session[&quot;quizzed_count&quot;],
+        &quot;total_quiz_num&quot;: quiz_session[&quot;aims_quiz_num&quot;],
+        &quot;correct_count&quot;:quiz_session[&quot;correct_count&quot;],
+        &quot;wrong_count&quot;:quiz_session[&quot;wrong_count&quot;],
+        &quot;skipped_count&quot;:quiz_session[&quot;skipped_count&quot;],
+        &quot;total_tips_count&quot;:quiz_session[&quot;total_tips_count&quot;],
+    },
+    request=self.request,
+)
+self.request.session.pop(&quot;quiz_session&quot;, None)
+return JsonResponse({
+            &quot;success&quot;: True,
+            &quot;main_html&quot;: main_html,
+            &quot;input_panel_html&quot;: &quot;&quot;,
+        })</code></pre>
+<p>只有正常 summary view 擁有完整 render + cleanup 流程，其他提早結束路徑無可重用入口。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>quiz/helper.py:99</code> — <code>build_quiz_summary_payload()</code></p>
+<pre><code class="language-python">def build_quiz_summary_payload(*, request, end_reason=None, ended_early=False):
+    quiz_session = request.session.get(&quot;quiz_session&quot;,{})
+    main_html = render_to_string(
+        &quot;quiz/partials/quiz_summary_partial.html&quot;,
+        context={
+            &quot;current_quiz_num&quot;: quiz_session[&quot;quizzed_count&quot;],
+            &quot;total_quiz_num&quot;: quiz_session[&quot;aims_quiz_num&quot;],
+            &quot;correct_count&quot;:quiz_session[&quot;correct_count&quot;],
+            &quot;wrong_count&quot;:quiz_session[&quot;wrong_count&quot;],
+            &quot;skipped_count&quot;:quiz_session[&quot;skipped_count&quot;],
+            &quot;total_tips_count&quot;:quiz_session[&quot;total_tips_count&quot;],
+            &quot;ended_early&quot;: ended_early,
+            &quot;end_reason&quot;: end_reason,
+        },
+        request=request,
+    )
+
+    request.session.pop(&quot;quiz_session&quot;, None)
+    return {
+        &quot;success&quot;:True,
+        &quot;main_html&quot;: main_html,
+        &quot;input_panel_html&quot;: &quot;&quot;,
+    }</code></pre>
+<p><code>quiz/templates/quiz/partials/quiz_summary_partial.html:1</code></p>
+<pre><code class="language-django">&lt;h2 class=&quot;quiz-content-heading&quot; tabindex=&quot;-1&quot;&gt;クイズ結果&lt;/h2&gt;
+{% if ended_early %}
+    {% if end_reason == &quot;question_unavailable&quot; %}
+        &lt;p&gt;現在の問題が出題対象から外れたため、クイズを終了しました。&lt;/p&gt;
+    {% elif end_reason == &quot;no_question_pool&quot; %}
+        &lt;p&gt;出題できる問題がなくなったため、クイズを終了しました。&lt;/p&gt;
+    {% endif %}
+{% endif %}</code></pre>
+<p><code>quiz/views.py:458</code> — 正常完成亦改用同一 helper</p>
+<pre><code class="language-python">quiz_session = self.request.session.get(&quot;quiz_session&quot;,{})
+payload = build_quiz_summary_payload(request=self.request)
+logger.info(
+    &quot;Quiz completed: &quot;
+    &quot;operation=%s user_id=%s quiz_count=%s target_count=%s correct_count=%s wrong_count=%s skipped_count=%s total_tips_count=%s&quot;,
+    &quot;quiz_complete&quot;,
+    self.request.user.pk,
+    quiz_session[&quot;quizzed_count&quot;],
+    quiz_session[&quot;aims_quiz_num&quot;],
+    quiz_session[&quot;correct_count&quot;],
+    quiz_session[&quot;wrong_count&quot;],
+    quiz_session[&quot;skipped_count&quot;],
+    quiz_session[&quot;total_tips_count&quot;],
+)
+return JsonResponse(payload)</code></pre>
+</section>
+</div>
+</details>
+<h3>前後差異與運作解釋</h3>
+<p><code>build_quiz_summary_payload()</code> 嘅操作次序特別重要：</p>
+<ol>
+<li>先用 <code>quiz_session</code> render HTML；</li>
+<li>再移除 session；</li>
+<li>最後回傳 payload。</li>
+</ol>
+<p>如果先 <code>pop()</code> 再 render，就無法取得統計數字。正常 <code>QuizSummaryView</code> 要寫 completion log，所以佢喺呼叫 helper 前先將 session dict 保存到 local variable；helper 清除 request session 後，local variable 仍可用嚟記錄數字。</p>
+<p><code>ended_early=False</code> 係預設值，正常完成唔會顯示警告。提早完結 caller 會同時傳：</p>
+<ul>
+<li><code>ended_early=True</code></li>
+<li><code>end_reason=&quot;question_unavailable&quot;</code> 或 <code>&quot;no_question_pool&quot;</code></li>
+</ul>
+<p>Template 唔需要理解 database object，只需要將穩定 reason code 轉成 user-facing 日文。</p>
+<h3>新使用技術</h3>
+<h4 id="render_to_string-共用-partial-rendering"><code>render_to_string()</code> 共用 partial rendering</h4>
+<p><code>render_to_string()</code> 用指定 template 同 context 產生 HTML string。今次唔係首次在 project 使用，但 M-01 將佢包入共用 terminal helper，令多個 AJAX endpoint 可以返回同一種 summary UI 同 cleanup 行為。</p>
+<h4 id="reason-code-與-presentation-mapping">Reason code 與 presentation mapping</h4>
+<p><code>question_unavailable</code>、<code>no_question_pool</code> 係 server-side reason code；日文文字留喺 template。呢個做法避免 view 到處複製完整 UI 句子，亦容許日後改 wording 而唔改 control flow。</p>
+</section>
+</div>
+<section class="report-section" id="整體行為改變">
+<h2>整體行為改變</h2>
+<h3 id="修改前">修改前</h3>
+<pre><code class="language-text">進行中 quiz
+  ├─ 下一題 pool 空
+  │    └─ 顯示「無題」partial，但 quiz_session 保留
+  │          └─ 再返 setting → 又被送去 unfinished
+  ├─ current UserVocab 被關閉／Vocab inactive
+  │    ├─ submit：仍可批改
+  │    ├─ skip：仍可修改 weight／streak
+  │    └─ resume：仍可重新顯示
+  └─ session current ID 已刪除
+       └─ 404／無法以正常 quiz UI 解釋</code></pre>
+<h3 id="修改後">修改後</h3>
+<pre><code class="language-text">進行中 quiz
+  ├─ 操作目前題目
+  │    ├─ eligible → 正常 submit／skip／resume
+  │    └─ unavailable → reason=question_unavailable
+  │                         → summary／message
+  │                         → 清除 quiz_session
+  └─ 抽下一題
+       ├─ pool 有題 → 寫入新 question ID，繼續
+       └─ pool 空 → reason=no_question_pool
+                     → summary／redirect message
+                     → 清除 quiz_session</code></pre>
+<p>最重要嘅語意改變係：失效資料唔再當成普通「搵唔到 object」，而係 quiz session 嘅 terminal state。畫面 navigation 同 server session state 會一齊完成 transition。</p>
+</section>
+<section class="report-section" id="測試及驗證結果">
+<h2>測試及驗證結果</h2>
+<h3 id="實際執行">實際執行</h3>
+<ol>
+<li><code>git diff --check</code></li>
+</ol>
+<ul>
+<li>結果：通過；無 whitespace error。</li>
+</ul>
+<ol>
+<li><code>.venv/bin/python manage.py check</code></li>
+</ol>
+<ul>
+<li>Django：<code>6.0.5</code></li>
+<li>結果：<code>System check identified no issues (0 silenced).</code></li>
+</ul>
+<ol>
+<li><code>.venv/bin/python manage.py test</code></li>
+</ol>
+<ul>
+<li>結果：10 個 tests 全部通過。</li>
+<li>執行時間：1.102 秒。</li>
+<li>使用 Django 自動建立及銷毀 test database，無操作開發用 <code>db.sqlite3</code>。</li>
+</ul>
+<h3 id="只作檢查-未有自動測試證據">只作檢查、未有自動測試證據</h3>
+<ul>
+<li><code>quiz/tests.py</code> 只有 Django placeholder，無 M-01 專用 tests。</li>
+<li><code>rg</code> 搜尋現有 test files，無發現覆蓋以下 reason／symbol 嘅測試：</li>
+<li><code>question_unavailable</code></li>
+<li><code>no_question_pool</code></li>
+<li><code>quiz_ended</code></li>
+<li><code>QuizUnfinishedView</code></li>
+<li><code>QuizNextView</code></li>
+<li><code>QuizSkipView</code></li>
+<li><code>skip_question_punish</code></li>
+<li>現有 10 個 tests 位於 <code>core/tests.py</code>，主要驗證 template、語言切換、通知文字同 vocabulary label；全綠只能證明 M-01 無破壞呢批既有行為，唔能夠證明 recovery 分支本身正確。</li>
+</ul>
+<h3 id="code-inspection-覆蓋嘅分支">Code inspection 覆蓋嘅分支</h3>
+<ul>
+<li>stale／duplicate answer，而 session current question 仍有效：重新顯示正確 current question。</li>
+<li>stale／duplicate answer，而 session current question 已失效：提早 summary + 清 session。</li>
+<li>正常 answer，但 posted／current question 已失效：唔批改，提早 summary + 清 session。</li>
+<li>skip current question 已失效：唔更新 UserVocab，唔增加 skip count，提早 summary + 清 session。</li>
+<li>answer／skip 後下一題 pool 空：提早 summary + 清 session。</li>
+<li>unfinished session current question 有效：恢復同一題。</li>
+<li>unfinished session current question 已失效／刪除：清 session + warning + redirect setting。</li>
+<li>unfinished session 無 current question，而且 pool 空：清 session + warning + redirect setting。</li>
+</ul>
+</section>
+<section class="report-section" id="已知限制-未驗證事項">
+<h2>已知限制／未驗證事項</h2>
+<ol>
+<li><strong>未有 M-01 integration tests。</strong> 呢個係目前最大嘅驗證缺口。應以 Django test client 建立 session，再模擬另一個 tab／admin 改 <code>in_use</code>、改 <code>is_active</code> 或刪除 <code>UserVocab</code>，逐一驗證 response、統計數字、database mutation 同 session cleanup。</li>
+<li><strong>抽出 ID 同重新載入 object 之間仍有短暫 race window。</strong> <code>build_next_question_payload()</code> 先由 eligible QuerySet 抽 ID，再由 <code>UserVocab</code> manager 取 object；如果資料啱啱喺兩次 query 之間被刪除或停用，仍可能出現 404 或載入剛失效 object。<code>QuizUnfinishedView</code> 新抽題分支已用原本 <code>question_pool_qs</code> 重新載入，<code>build_next_question_payload()</code> 同 <code>QuizPlayView</code> 尚未完全統一呢個做法。</li>
+<li><strong>Terminal summary helper 依賴完整 session schema。</strong> <code>build_quiz_summary_payload()</code> 用 <code>quiz_session[&quot;...&quot;]</code> 讀必需統計欄位；如果 session 本身損壞或由舊版本留下缺欄位，會拋 <code>KeyError</code>。M-01 處理嘅係題目 eligibility／empty pool，唔包括任意 session corruption recovery。</li>
+<li><strong>Stale／duplicate submit 而 <code>question_user_vocab_id is None</code> 仍屬另一個行為。</strong> 呢條既有分支會回傳 no-question partial，唔會經 M-01 summary helper；佢較接近 duplicate request／idempotency 問題，應同 review M-03 一併處理，而唔應誤稱已由 M-01 解決。</li>
+<li><strong>有非功能性 cleanup 可後補。</strong> <code>quiz/helper.py</code> 有已註解嘅 <code>request.session.pop(...)</code>；<code>QuizUnfinishedView</code> 有未再使用嘅 local <code>user_vocab_id</code>，以及位於 <code>else</code> 內但仍重複檢查 <code>unfinished_question_user_vocab_id is None</code>。佢哋唔阻止核心功能，但會增加閱讀成本。</li>
+</ol>
+</section>
+<section class="report-section" id="官方參考資料">
+<h2>官方參考資料</h2>
+<p>以下文件版本同 project 安裝嘅 Django <code>6.0.5</code> 相符：</p>
+<ul>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/models/querysets/" target="_blank" rel="noreferrer">Django 6.0 — QuerySet API reference</a>：<code>filter()</code>、<code>first()</code>、<code>select_related()</code> 嘅行為。</li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/db/queries/#lookups-that-span-relationships" target="_blank" rel="noreferrer">Django 6.0 — Making queries</a>：以 double underscore 跨 model relationship 查詢，例如 <code>vocab__is_active=True</code>。</li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/http/sessions/#using-sessions-in-views" target="_blank" rel="noreferrer">Django 6.0 — How to use sessions</a>：<code>request.session</code> dictionary API、<code>pop()</code> 同 session 儲存時機。</li>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/request-response/#jsonresponse-objects" target="_blank" rel="noreferrer">Django 6.0 — <code>JsonResponse</code> objects</a>：dict 到 JSON response 嘅轉換及預設 content type。</li>
+<li><a href="https://docs.djangoproject.com/en/6.0/ref/templates/api/#django.template.loader.render_to_string" target="_blank" rel="noreferrer">Django 6.0 — The Django template language: Python API</a>：<code>render_to_string()</code> 將 template 同 context render 成字串。</li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/class-based-views/generic-editing/" target="_blank" rel="noreferrer">Django 6.0 — Form handling with class-based views</a>：<code>FormView.form_valid()</code> 喺有效 POST 後處理資料並回傳 <code>HttpResponse</code>；本 project 喺呢個位置回傳 AJAX <code>JsonResponse</code>。</li>
+</ul>
+</section>
+<details class="report-section" id="report-baseline">
+<summary>Report 基準／證據範圍</summary>
+<h2>Report 基準</h2>
+<ul>
+<li>產生時間：2026-09-12 00:40:39 JST</li>
+<li>Git branch：<code>main</code></li>
+<li>修改前基準：<code>HEAD</code> commit <code>9062a2ea41e4e46f5f3b27fcaedf303be0e4f0d4</code>（<code>feat: add email verification for new user accounts</code>）</li>
+<li>修改後狀態：目前 working tree；本報告記錄嘅 M-01 修改尚未 commit</li>
+<li>使用者指定主題：上一份 project review 嘅 M-01——失效 quiz session 缺少 terminal recovery，而且 unfinished flow 可以重新開啟已不符合出題資格嘅題目</li>
+<li>主要檢查範圍：</li>
+<li><code>quiz/helper.py</code></li>
+<li><code>quiz/service/quiz.py</code></li>
+<li><code>quiz/views.py</code></li>
+<li><code>quiz/templates/quiz/partials/quiz_summary_partial.html</code></li>
+<li><code>quiz/tests.py</code>、<code>core/tests.py</code></li>
+<li><code>dictionary/models.py</code> 中 <code>Vocab.is_active</code>、<code>UserVocab.in_use</code> 與兩者關係</li>
+<li>背景 commit：</li>
+<li><code>9062a2e</code>：Email activation；無修改上述 quiz recovery 檔案</li>
+<li><code>012ae67</code>：加入 full-pool 確認流程，取消無匹配時自動 fallback，亦集中處理開始 quiz 前嘅不足 pool 情況；M-01 係呢個設計之後嘅「進行中 session 失效」邊界</li>
+<li>排除嘅無關 working-tree 修改：Email canonicalization、accounts migration、README、status docs、文件目錄搬遷，以及其他唔屬於 M-01 嘅學習文件</li>
+</ul>
+<h3>完成度判定證據</h3>
+<p>M-01 嘅核心行為已經接通，可以建立本報告：</p>
+<ol>
+<li>Resume unfinished quiz 時，會重新檢查目前題目係咪仍屬於該 user、<code>UserVocab.in_use=True</code>，以及相關 <code>Vocab.is_active=True</code>。</li>
+<li>Submit answer 時，無論正常提交定 stale／duplicate form 分支，都會重新檢查 session 目前題目嘅出題資格。</li>
+<li>Skip 時，service 會先檢查出題資格；題目已失效就唔會再修改 weight、streak 或 last quiz time。</li>
+<li>Answer／skip 後再抽下一題，如果 pool 已經變空，會顯示提早結束 summary，而唔係停留喺無法完成嘅 session。</li>
+<li>結束 summary 或 resume 失敗時，會移除 <code>quiz_session</code>，避免設定頁再次將 user 送返失效 unfinished flow。</li>
+</ol>
+<p>完成度結論只代表控制流程經 code inspection 已齊全，唔代表所有邊界已有自動化驗證。<code>quiz/tests.py</code> 仍然係 placeholder，未有 M-01 integration tests；呢點記錄於「已知限制／未驗證事項」。</p>
+</details>
+</main>
+</body>
+</html>
