@@ -1,0 +1,419 @@
+<table>
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>目的</th>
+      <th>Command / 設定</th>
+      <th>確認結果</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>1</td>
+      <td>更新 Ubuntu package list</td>
+      <td>
+        <pre><code>sudo apt update</code></pre>
+      </td>
+      <td>
+        Package list 正常更新，沒有 error。
+      </td>
+    </tr>
+
+    <tr>
+      <td>2</td>
+      <td>安裝 PostgreSQL</td>
+      <td>
+        <pre><code>sudo apt install postgresql postgresql-contrib</code></pre>
+      </td>
+      <td>
+        PostgreSQL server 及相關工具安裝完成。
+      </td>
+    </tr>
+
+    <tr>
+      <td>3</td>
+      <td>確認 PostgreSQL service</td>
+      <td>
+        <pre><code>sudo systemctl status postgresql</code></pre>
+      </td>
+      <td>
+        正常情況會見到：
+        <pre><code>Active: active (exited)</code></pre>
+
+        PostgreSQL 的總管理 service 顯示
+        <code>active (exited)</code> 可以是正常狀態。
+      </td>
+    </tr>
+
+    <tr>
+      <td>4</td>
+      <td>確認 PostgreSQL cluster 正在運行</td>
+      <td>
+        <pre><code>pg_lsclusters</code></pre>
+      </td>
+      <td>
+        例如：
+        <pre><code>Ver Cluster Port Status Owner
+16  main    5432 online postgres</code></pre>
+
+        重點：
+        <code>Status = online</code>
+      </td>
+    </tr>
+
+    <tr>
+      <td>5</td>
+      <td>以 PostgreSQL administrator 進入 psql</td>
+      <td>
+        <pre><code>sudo -u postgres psql</code></pre>
+      </td>
+      <td>
+        成功後會見到：
+        <pre><code>postgres=#</code></pre>
+
+        <code>#</code> 表示目前是 PostgreSQL superuser。
+      </td>
+    </tr>
+
+    <tr>
+      <td>6</td>
+      <td>查看現有 database</td>
+      <td>
+        <pre><code>\l</code></pre>
+      </td>
+      <td>
+        顯示 PostgreSQL 目前所有 database。
+      </td>
+    </tr>
+
+    <tr>
+      <td>7</td>
+      <td>查看現有 PostgreSQL roles / users</td>
+      <td>
+        <pre><code>\du</code></pre>
+      </td>
+      <td>
+        可以看到例如：
+        <code>postgres</code>
+      </td>
+    </tr>
+
+    <tr>
+      <td>8</td>
+      <td>建立 Django 專用 PostgreSQL user</td>
+      <td>
+        <pre><code>CREATE USER japanese_quiz_app
+WITH PASSWORD '你的密碼';</code></pre>
+      </td>
+      <td>
+        成功會顯示：
+        <pre><code>CREATE ROLE</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>9</td>
+      <td>建立 Japanese Quiz database</td>
+      <td>
+        <pre><code>CREATE DATABASE japanese_quiz
+OWNER japanese_quiz_app;</code></pre>
+      </td>
+      <td>
+        成功會顯示：
+        <pre><code>CREATE DATABASE</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>10</td>
+      <td>確認 database owner</td>
+      <td>
+        <pre><code>\l</code></pre>
+      </td>
+      <td>
+        應該見到：
+        <pre><code>japanese_quiz | japanese_quiz_app</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>11</td>
+      <td>退出 PostgreSQL administrator</td>
+      <td>
+        <pre><code>\q</code></pre>
+      </td>
+      <td>
+        返回普通 Linux terminal。
+      </td>
+    </tr>
+
+    <tr>
+      <td>12</td>
+      <td>測試 Django 專用 PostgreSQL user 是否可以登入</td>
+      <td>
+        <pre><code>psql -h localhost \
+-U japanese_quiz_app \
+-d japanese_quiz</code></pre>
+      </td>
+      <td>
+        輸入 password 後，成功會見到：
+        <pre><code>japanese_quiz=&gt;</code></pre>
+
+        <code>&gt;</code> 表示是普通 PostgreSQL user，
+        不是 superuser。
+      </td>
+    </tr>
+
+    <tr>
+      <td>13</td>
+      <td>確認目前 PostgreSQL connection</td>
+      <td>
+        <pre><code>\conninfo</code></pre>
+      </td>
+      <td>
+        應該會見到類似：
+        <pre><code>You are connected to database "japanese_quiz"
+as user "japanese_quiz_app"
+on host "localhost"
+at port "5432".</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>14</td>
+      <td>在 Django venv 安裝 PostgreSQL driver</td>
+      <td>
+        <pre><code>pip install "psycopg[binary]"</code></pre>
+      </td>
+      <td>
+        安裝：
+        <pre><code>psycopg
+psycopg-binary</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>15</td>
+      <td>確認 psycopg 安裝</td>
+      <td>
+        <pre><code>pip show psycopg</code></pre>
+
+        或：
+
+        <pre><code>pip freeze | grep psycopg</code></pre>
+      </td>
+      <td>
+        例如：
+        <pre><code>psycopg==3.3.5
+psycopg-binary==3.3.5</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>16</td>
+      <td>更新 requirements.txt</td>
+      <td>
+        如果使用 pip freeze：
+        <pre><code>pip freeze &gt; requirements.txt</code></pre>
+      </td>
+      <td>
+        requirements 內應該包含：
+        <pre><code>psycopg==3.3.5
+psycopg-binary==3.3.5</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>17</td>
+      <td>安裝 .env reader</td>
+      <td>
+        <pre><code>pip install python-dotenv</code></pre>
+      </td>
+      <td>
+        Django 可以從 local
+        <code>.env</code> file 讀取 DB credentials。
+      </td>
+    </tr>
+
+    <tr>
+      <td>18</td>
+      <td>建立 .env</td>
+      <td>
+        <pre><code>DB_NAME=japanese_quiz
+DB_USER=japanese_quiz_app
+DB_PASSWORD=你的密碼
+DB_HOST=localhost
+DB_PORT=5432</code></pre>
+      </td>
+      <td>
+        Database password 不需要直接寫在
+        <code>settings.py</code>。
+      </td>
+    </tr>
+
+    <tr>
+      <td>19</td>
+      <td>防止 .env 被 commit</td>
+      <td>
+        在 <code>.gitignore</code> 加：
+        <pre><code>.env</code></pre>
+      </td>
+      <td>
+        執行：
+        <pre><code>git status</code></pre>
+
+        不應該看到
+        <code>.env</code> 被 Git track。
+      </td>
+    </tr>
+
+    <tr>
+      <td>20</td>
+      <td>讓 Django 載入 .env</td>
+      <td>
+        在 <code>settings.py</code>：
+        <pre><code>from pathlib import Path
+import os
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / ".env")</code></pre>
+      </td>
+      <td>
+        Django 啟動時會讀取
+        <code>.env</code>。
+      </td>
+    </tr>
+
+    <tr>
+      <td>21</td>
+      <td>將 Django DATABASES 改成 PostgreSQL</td>
+      <td>
+        <pre><code>DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ["DB_PORT"],
+    }
+}</code></pre>
+      </td>
+      <td>
+        Django 不再使用：
+        <pre><code>django.db.backends.sqlite3</code></pre>
+
+        改為：
+        <pre><code>django.db.backends.postgresql</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>22</td>
+      <td>建立 PostgreSQL database schema</td>
+      <td>
+        <pre><code>python manage.py migrate</code></pre>
+      </td>
+      <td>
+        因為 PostgreSQL database 是全新的，
+        Django 會重新 apply 所有歷史 migration。
+
+        例如：
+        <pre><code>Applying contenttypes.0001_initial... OK
+Applying auth.0001_initial... OK
+Applying admin.0001_initial... OK
+...</code></pre>
+
+        這只是重建 schema，
+        不代表搬了 SQLite 舊 data。
+      </td>
+    </tr>
+
+    <tr>
+      <td>23</td>
+      <td>確認 migration 狀態</td>
+      <td>
+        <pre><code>python manage.py showmigrations</code></pre>
+      </td>
+      <td>
+        已 apply 的 migration 會顯示：
+        <pre><code>[X]</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>24</td>
+      <td>確認 Django 真正使用 PostgreSQL</td>
+      <td>
+        <pre><code>python manage.py shell -c \
+"from django.db import connection; print(connection.vendor)"</code></pre>
+      </td>
+      <td>
+        應該輸出：
+        <pre><code>postgresql</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>25</td>
+      <td>確認 PostgreSQL 已建立 Django tables</td>
+      <td>
+        <pre><code>psql -h localhost \
+-U japanese_quiz_app \
+-d japanese_quiz</code></pre>
+
+        然後：
+        <pre><code>\dt</code></pre>
+      </td>
+      <td>
+        應該會看到：
+        <pre><code>django_migrations
+django_session
+auth_...
+以及自己 app 的 tables</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>26</td>
+      <td>啟動 Django 作最終測試</td>
+      <td>
+        <pre><code>python manage.py runserver</code></pre>
+      </td>
+      <td>
+        網站正常啟動，
+        沒有 PostgreSQL connection error。
+      </td>
+    </tr>
+
+    <tr>
+      <td>27</td>
+      <td>重新建立 admin account</td>
+      <td>
+        <pre><code>python manage.py createsuperuser</code></pre>
+      </td>
+      <td>
+        因為沒有搬 SQLite data，
+        PostgreSQL 裡需要重新建立 user / superuser。
+      </td>
+    </tr>
+
+    <tr>
+      <td>28</td>
+      <td>重新加入 application 基礎資料</td>
+      <td>
+        使用 project 本身的 import command，例如：
+        <pre><code>python manage.py import_vocab ...</code></pre>
+      </td>
+      <td>
+        重新建立 vocab、category 等需要的資料。
+      </td>
+    </tr>
+
+  </tbody>
+</table>

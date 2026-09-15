@@ -1,12 +1,16 @@
-# Japanese Quiz
+# 言葉の輪（WordLoop）
 
-一個用 Django 開發嘅 Japanese vocabulary learning project。
+「言葉の輪（WordLoop）」係一個用 Django 開發嘅日文詞彙學習 project。
 
 Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data、event notification、user feedback flow、Ajax quiz flow、application error handling 同 logging foundation。
 
 > **Project status：開發中**
 >
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation及identity canonicalization、event notification、user feedback、Ajax quiz play、quiz session terminal recovery、bottom-up DP answer comparison、日文 user interface、HTTP error pages 同 rotating-file logging foundation 已經建立，但 multiple-choice flow、quiz scoring balance、完整 import/export、完整 automated regression coverage 同 production settings 仍然未完成。
+> **Current version：v0.7.0**
+>
+> **Milestone：Core workflows complete; UI/UX redesign and production hardening pending.**
+>
+> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation及identity canonicalization、event notification、user feedback、Ajax quiz play、quiz session terminal recovery、QuizAttempt idempotency、bottom-up DP answer comparison、PostgreSQL development backend、日文 user interface、HTTP error pages同rotating-file logging foundation已經建立，但multiple-choice flow、quiz scoring balance、完整automated regression coverage同production settings仍然未完成。
 
 ## Current Features
 
@@ -62,6 +66,8 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Resume、answer submit同skip會重新驗證目前題目仍屬於該user、`in_use=True`及related vocab active；題目中途失效時會終止quiz，避免繼續更新無效learning state。
 - Answer／skip後如果question pool中途變空，會顯示提早結束summary並清除`quiz_session`，避免user再次被送返無法完成嘅unfinished flow。
 - Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
+- 每次出題會建立帶唯一 UUID token 嘅 `QuizAttempt`；Answer／Skip喺同一 transaction內鎖定attempt同`UserVocab`，只容許`PENDING`狀態處理一次，避免duplicate request重複更新learning state。
+- Session同hidden form field會一併保存／提交attempt token；stale、question mismatch同already-processed request會被分流處理，而frontend in-flight guard會先減少一般double click。
 - Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
 - Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。
 - Skip question flow 已建立，會增加 skipped vocab weight、更新 streak 同 `last_quiz_at`。
@@ -98,11 +104,11 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - Application logging 已有 console、DEBUG-only、INFO+ 同 ERROR+ handlers，file logs 每日 rotate 並保留七日。
 - Vocab request／admin review、UserVocab sync／in-use、quiz、accounts、events、feedback 同 vocab management commands 已加入 outcome-oriented logging，並避免記錄 credentials、feedback body或完整 POST payload。
 
-## Planned Features
+## Current Priorities
 
-- 根據 `last_quiz_at` 提升太耐冇出現嘅 vocab weight。
-- `MCSense` CSV import、admin/request integration 同 multiple-choice quiz answer flow。
-- Whole database CSV export / restore。
+- 補 account、domain、QuizAttempt concurrency同quiz integration automated tests。
+- 完成production settings、secrets、deployment同database operation hardening。
+- 完成v1.0.0前嘅UI／UX polish；`MCSense` vertical flow等延伸功能留待之後版本。
 
 完整規劃可以睇 [docs/status/TODO.md](docs/status/TODO.md)。
 
@@ -112,7 +118,7 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 | --- | --- |
 | Backend | Django |
 | Language | Python |
-| Database | SQLite |
+| Database | PostgreSQL 16（Django PostgreSQL backend + Psycopg 3） |
 | Frontend | Django Templates |
 | Authentication | Django Auth + custom `User` model |
 | Time zone | Asia/Tokyo |
@@ -141,6 +147,10 @@ Project 目前集中處理 user account、vocab dictionary、`VocabRequest` revi
 - `Event`：系統事件 master record。
 - `UserEvent`：連接 user 同 event，保存 read status。
 - `Feedback`：保存 user feedback、suggestion、bug report、reply status 同 admin reply metadata。
+
+### Quiz
+
+- `QuizAttempt`：以唯一token、owner、題目、一次性status同處理時間保存每次Answer／Skip嘅權威處理狀態。
 
 ## Project Structure
 
@@ -206,13 +216,23 @@ Development / asset-generation dependencies：
 python -m pip install -r requirements-dev.txt
 ```
 
-### 4. Apply Migrations
+### 4. Configure PostgreSQL
+
+先建立本機PostgreSQL role同database，再由example建立未追蹤嘅本機設定：
+
+```bash
+cp .env.example .env
+```
+
+填寫`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`DB_HOST`同`DB_PORT`。`.env`包含本機credential，唔應提交到Git。
+
+### 5. Apply Migrations
 
 ```bash
 python manage.py migrate
 ```
 
-### 5. Create Admin User
+### 6. Create Admin User
 
 ```bash
 python manage.py createsuperuser
@@ -220,7 +240,7 @@ python manage.py createsuperuser
 
 Custom user model 會要求 email、username 同 password。
 
-### 6. Start Development Server
+### 7. Start Development Server
 
 ```bash
 python manage.py runserver
@@ -344,7 +364,7 @@ The generator has its own notes in [devtools/image_generator/README.md](devtools
 
 > **初步建立，尚未完整**
 
-目前已有 10 個 UI／language regression tests，覆蓋 templates compile、public/admin language boundary、built-in validation language、共用 choices、假名 keyboard event values、answer escaping、notification language 同主要 detail labels。
+目前已有10個UI／language regression tests，覆蓋templates compile、public/admin language boundary、built-in validation language、共用choices、假名keyboard event values、answer escaping、notification language同主要detail labels。獨立`japanese_quiz_test` PostgreSQL role可以建立及刪除隔離test database；目前10個tests已喺PostgreSQL完整通過。
 
 之後預計加入：
 
@@ -357,10 +377,10 @@ The generator has its own notes in [devtools/image_generator/README.md](devtools
 - Quiz answer comparison correctness／performance tests。
 - Quiz filtered no-pool confirmation、full-pool initial／Next／Skip integration tests。
 
-預計 test command：
+Test role credential應由shell environment或獨立local／CI secret提供，唔應提交到Git。例如：
 
 ```bash
-python manage.py test
+DB_USER=japanese_quiz_test DB_PASSWORD="<test-role-password>" python manage.py test
 ```
 
 ## Current Limitations
@@ -381,10 +401,9 @@ python manage.py test
 
 目前 settings 只適合 local development：
 
-- `SECRET_KEY` 仍然直接寫喺 settings。
+- `SECRET_KEY` 仍然直接寫喺settings；database connection values已使用environment variables，但其他production secrets尚未搬移。
 - `DEBUG=True`。
 - `ALLOWED_HOSTS` 未設定。
-- 未使用 environment variables。
 - 未完成 production static files、HTTPS、database 同 deployment configuration。
 
 正式 deployment 前必須處理以上項目。

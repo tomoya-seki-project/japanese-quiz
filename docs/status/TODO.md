@@ -6,9 +6,9 @@
 
 Status badge：
 
--  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（77）：核心功能已完成，或已有明確 decision
--  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（2）：已開始處理，但仍有必要項目未完成
--  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（8）：未開始或暫時只係計劃
+-  <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span>（81）：核心功能已完成，或已有明確 decision
+-  <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span>（1）：已開始處理，但仍有必要項目未完成
+-  <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span>（2）：未開始或暫時只係計劃
 
 ## 目錄
 
@@ -382,59 +382,37 @@ Status badge：
 
 - 補 callback-failure regression test，確認通知 exception 會被記錄，而 request row、service return value及 HTTP success response維持正確。
 
-## Vocab Planned Work
 
-
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Additional vocab types：adverb / mimetic / conjunction / colloquial**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **第 32 點（Quiz Answer／Skip）：防止並行重複處理同一題**
 
 
 <p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- `adverb`、`mimetic`、`conjunction` 同 `colloquial` choice definitions 已保留喺 `VocabType` 內，但暫時 comment out，等 MC flow 完成後恢復。
-- 已決定 `adverb`、`mimetic`、`conjunction` 同 `colloquial` 使用 multiple-choice 答題，而唔使用 50 音 keyboard。
-- 新 type 係 project-specific quiz / learning 分類，唔係純語言學詞性；例如 `ズレ` 會歸入 `colloquial`，避免要求 user 用 kana keyboard 重複輸入同一寫法。
-- 已決定四種 MC type 嘅 CSV mapping：`word` 保存原字，`kana` 保存平假名讀音。
-- 已決定 monthly new-word CSV 喺 `native_japanese` 後加入 `question1`、`question2`、`mc_answer1`、`mc_answer2`、`mc_answer3`；`vocab`／`katakana` 呢五欄使用 `---`。
-- 已定義 `question1`／`question2` 內容：各自生成一條簡短自然用例，可按需要使用單句或 `Q：...\nA：...` 對答；只有對答先保存字面 `\n` 分行標記。
-- 題目以四個半形 underscore `____` 隱藏目標詞；需要活用時緊接 ASCII 括號提示，例如 `____(て)`、`____(ない)`、`____(され)`、`____(られ)`、`____(させ)`。
-- 每個 question 以 Unicode characters 獨立計長度，生成目標為最多 50 字；只有為保持自然度或消除多答案歧義先可放寬至 100 字，任何情況都唔可以超過 100 字。字面 `\n`、`____`、標點同活用提示全部計入。
-- MC 正確選項維持 `word` 保存嘅基本形；即使句子實際需要 `ググって`，選項仍使用 `ググる`，括號負責提示活用。
-- 已定義三個 distractor：`mc_answer1` 用近義／易混淆但兩題皆不適用嘅字；`mc_answer2` 用同一 project type 但兩題皆明確錯嘅字；`mc_answer3` 可來自四種 MC type 其中之一，但兩題皆明確錯。
-- `word` 同三個 distractor 全部保存基本形、互不重複；任何 distractor 如能自然完成其中一題，就要改題目或換選項，唔可以保留多個合理答案。
-- `mc_answer1`～`mc_answer3` 唔需要已存在於目前 DB／resource CSV；可以由外部日文詞彙生成，但必須係已查證嘅真實自然用語，欄位設計亦唔應強制依賴 `Vocab` ForeignKey。
-- `native_japanese` 只供 `katakana` 使用，其他 type 統一保存 `---`。
-- `type=adverb`、`mimetic`、`conjunction` 時，`category1` 必須使用同名 category；`colloquial` 暫時按內容主題選現有 category。
-- 已決定 MC type 重疊時嘅優先順序：固有擬聲／擬態先用 `mimetic`，主要連接句子用 `conjunction`，主要修飾功能用 `adverb`，其餘符合 project 口語／辨認式學習定義先用 `colloquial`；仍然不確定就進 ambiguity queue。
-- 四個 MC 選項會喺 view `get_context_data()` 階段 randomize，CSV 繼續保存正確答案同三種 distractor 嘅固定角色。
-- 多義／type 不確定嘅字會排入 ambiguity queue：先完成同批清楚嘅字，再為每個 unresolved word 顯示最多三個常見詞義、建議 type 同來源，等 user 選一個、多個或唔收錄。
-- 常見詞義選項唔需要湊足三個；只有一至兩個常見義就只顯示一至兩個，唔可以加入罕見、過時、專門或證據薄弱嘅意思湊數。
-- 已決定同一個 `(word, kana)` 只保存一個 `Vocab`，各個 MC 語意改用 `MCSense` one-to-many rows 保存；每個 sense 有獨立 meaning、questions 同 distractors，但共用同一個 `UserVocab` learning progress。
-- 已接受任何一個 sense 出題後，同一個 `Vocab` 其他 senses 都要等該 `UserVocab` 離開 recent-question exclusion 後先再出；`weight`、`streak`、correct / incorrect count 同 `last_quiz_at` 亦按整個 `UserVocab` 共用。
-- 保留 `VocabDetail` one-to-one relationship，繼續專門保存 `vocab` type 將來可能加入嘅額外資料；MC 題資料另外使用 `MCSense`。
-- CSV import 判斷同一個 vocab 時使用 `(word, kana)`，唔可以只比較 `word`；第一個 MC row 建立 `Vocab` 同第一個 `MCSense`，之後相同 `(word, kana)` 嘅 MC rows 只新增指向同一 `Vocab` 嘅 `MCSense`。
-- `MCSense` model foundation 已加入 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、`__str__()` 同明確 `mc_sense` table name；`(vocab, sense_no)` database constraint 已定義。
-- 已建立及在目前 local database 套用 `dictionary/migrations/0027_add_mc_sense.py`；`manage.py check`、migration graph 同 `makemigrations --check --dry-run` 均通過。Migration 目前仍未 commit，其他 clone 尚未能重建呢個 schema。
-- 已決定暫時隔離 MC 功能，先完成 UI 同正式第一版；`MCSense` schema foundation 繼續保留，四種 MC choices 待正式恢復 vertical flow 時重新啟用。
-- 目前 local database 已確認冇四種 MC type 嘅 `Vocab` 或 `VocabRequest`。新 request 會由 form validation 阻止，admin approve 會拒絕 unsupported type，CSV import 會將 MC row 計入失敗並顯示原因，`VocabActionService` create / update 亦唔會寫入 MC vocab。
-- 已建立及套用 `dictionary/migrations/0028_vocabtype_cut_out_mc.py`，將 `Vocab.type` 同 `VocabRequest.proposed_vocab_type` choices 限制為 `vocab`／`katakana`；quiz setting form 會沿用同一 choices，因此未完成 MC 類型唔再向 user 開放。
-- 暫時隔離完成後，`manage.py check` 同 `makemigrations --check --dry-run` 均通過。
+- 每次出題會建立帶唯一UUID token嘅`QuizAttempt(PENDING)`，session同Answer／Skip forms會保存同提交同一token；attempt同owner、`UserVocab`、status及`processed_at`均有持久化紀錄。
+- Answer同Skip共用一次性狀態規則：service喺`transaction.atomic()`內先`select_for_update()`鎖attempt並重新檢查`PENDING`，再以固定`QuizAttempt → UserVocab`次序鎖learning row；`of=("self",)`收窄`UserVocab`鎖定範圍。
+- Attempt決定真正`user_vocab_id`，server唔會直接信任browser指定更新目標；duplicate request排隊後會得到`already_processed`，唔會再次計分、改weight或執行skip punishment。
+- View保留session token／question-ID consistency guard同結構化409 errors；stale request唔會清走較新題目嘅session。Frontend另有共用in-flight guard減少一般double click。
+- PostgreSQL 16.15基準已確認migration套用、locking features及`FOR UPDATE OF self`可用；rollback smoke check覆蓋Answer／Skip首次成功及第二次`already_processed`，browser亦實際走過Answer path。
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>待測試</strong></p>
 
-- 完成四種新 type 嘅 multiple-choice input panel、選項生成同 submit flow，之後先恢復相應 `VocabType` choices，重新向 user 開放 A–E panel。
-- 確認 `sense_no` 是否由 1 開始並加入相應 minimum validation，並決定 `sense_key` 生成規則。
-- 實作 `question1`／`question2` 嘅 blank、字面 `\n` 同活用提示 validation。
-- 實作三個 distractor 對兩條題目嘅語義、句法、活用同 type validation，以及 view `get_context_data()` 選項 randomization。
-- 更新 CSV import、service、admin / request flow 同測試，真正建立及使用 `MCSense`；同一 CSV 或現有 DB 內重複 `(word, kana)` 嘅 MC rows 要指向同一個 `Vocab`，非 MC duplicate 或 MC type 衝突要 skip 並列入 conflict report，唔可以當成功或靜默略過。
-- 保留 `Vocab` 目前 `(word, kana)` unique rule；用 `MCSense.sense_key` 做 stable identity，並用 `(vocab, sense_no)` 做同一 vocab 內嘅 duplicate validation。
-- 決定 CSV 點樣提供或穩定生成 `sense_key`，令重跑同一份 CSV 時可以辨認已有 sense，唔會重複新增；現有 monthly CSV 尚未有 `sense_key` 欄。
-- 決定同一 `Vocab` 各個 senses 嘅 `type`、level 同 categories 必須一致、合併到 base `Vocab`，定係部分資料要搬入 `MCSense`；目前測試 CSV 已有同字各 sense categories 不同嘅例子。
-- 現有 `NewWord_YYYY_MM.csv` 只係測試品，由 user 喺正式啟用前自行刪除；skill 唔可以刪除、覆蓋或升級同名測試檔。舊 `resource/kanji*.csv` 暫時亦唔批量升級。
-- 擴充 answer result comparison；目前只為 `vocab` 同 `katakana` 產生逐字比較結果。
-- 驗證 create / update / restore / delete request、CSV import、detail view 同 admin flow 對四種新 type 嘅完整支援。
-- 將四種 MC type 接上 `MCSense` creation / update flow；目前 `VocabActionService` 仍只處理 `vocab`／`katakana` detail row，未保存 MC-specific data。
-- 加入各 type 嘅 end-to-end 測試後，先視為可正式匯入及出題。
+- 補真正兩個database connections同時競爭同一attempt嘅`TransactionTestCase`或等效concurrency test，以及Answer／Skip完整integration tests；獨立test role及隔離database lifecycle已可運作，限制只剩測試案例尚未撰寫。
+- Skip path已有service rollback smoke check，仍待補browser end-to-end regression coverage。
+
+## Vocab Planned Work
+
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **MC schema foundation 與未完成功能隔離**
+
+
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
+
+- 已確立 `adverb`、`mimetic`、`conjunction` 同 `colloquial` 採用 multiple-choice 答題，以及共用一個 `Vocab`／`UserVocab` progress、用多個 `MCSense` rows 保存各語意嘅基礎設計。
+- `MCSense` schema foundation 已包含 `Vocab` ForeignKey、`sense_no`、`sense_key`、meaning、兩條 questions、三個 distractors、明確 table name，以及 `(vocab, sense_no)` database constraint；migration `0027_add_mc_sense` 已納入版本紀錄。
+- `VocabDetail` 繼續保存一般 `vocab` type 嘅額外資料，MC-specific 題目資料由 `MCSense` 獨立承擔，避免兩種資料用途混合。
+- 未完成嘅 MC flow 已從 v1.0.0 scope 隔離：migration `0028_vocabtype_cut_out_mc` 將正式 choices 限制為 `vocab`／`katakana`，request form、admin approve、CSV import 同 service亦會阻止未支援嘅 MC type 寫入。
+- 隔離完成時，local database 已確認冇 MC type `Vocab`／`VocabRequest`；`manage.py check` 同 `makemigrations --check --dry-run` 均通過。完整 MC content contract、import／request／quiz flow 同測試已移到 `FUTURE_IDEAS.md`，留待 v1.0.0 後重新啟動。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Category multiple selection**
@@ -458,17 +436,6 @@ Status badge：
 
 - 將來如 category 數量增加，可以再改善 admin/search UI。
 
-
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Word slug generation**
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 實作 `Vocab.word_slug` 產生規則。
-- 決定 slug 由 `word`、`kana` 定其他資料產生。
-- 處理 duplicate slug。
-- 決定 word / kana 更新時 slug 是否同步更新。
-- 為舊資料 backfill slug。
 
 ## VocabRequest Result / UserVocab Flow
 
@@ -670,15 +637,21 @@ Status badge：
 ## Data Import / Export / Database Migration
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **由 SQLite 轉用 PostgreSQL**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **由 SQLite 轉用 PostgreSQL**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 加入 PostgreSQL driver，將 database connection settings 改為由 environment variables 提供，並保留清楚嘅 local development setup。
-- 規劃及執行現有 SQLite data migration，驗證 primary key、foreign key、Many-to-Many relationship、timestamp 同 sequence 均正確保留。
-- 在 PostgreSQL 重新執行 migrations、Django system checks 同主要 workflow tests，特別驗證 conditional unique constraints、transactions、row locks 同 concurrent request behavior。
-- 更新 setup／deployment 文件及 backup／restore 操作，確認切換後唔再意外連接舊 SQLite database。
+- Django database backend已切換到PostgreSQL，加入Psycopg 3同`python-dotenv`；五項database connection values由未追蹤`.env`提供，`.env.example`保存無secret設定格式。
+- 今次採用fresh-database策略：用既有migrations重建schema，再重新建立admin user及匯入category／vocab基礎資料；並非將舊SQLite records自動搬移到PostgreSQL。
+- 2026-09-15 runtime驗證確認PostgreSQL 16.15、Django vendor為`postgresql`、24張tables、全部migrations已套用，users／categories／vocabs均已有資料，row-lock features可用。
+- README已改為PostgreSQL local setup；完整轉換步驟、role權限、驗證同限制另有development report記錄。舊SQLite file唔再係目前Django runtime backend。
+- 已建立獨立`japanese_quiz_test` role並授予`CREATEDB`；Django成功建立／刪除`test_japanese_quiz`、重播全部migrations並完成現有10個tests。正常application role繼續保持`NOCREATEDB`。
+
+
+<p style="margin-left:1.5em;"><strong>改良</strong></p>
+
+- Production secrets、backup／restore、service provisioning同deployment automation仍屬production hardening；唔將今次local development backend轉換誤當成production database rollout。
 
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **CSV vocab import command**
@@ -707,28 +680,6 @@ Status badge：
 - 用於 development/testing 時快速清理 vocab 相關資料。
 - 已手動測試 command 正常運作。
 
-
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Whole database export command**
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 實作 `python manage.py export_whole <output_folder>`。
-- 將主要 models / tables 分開 export 成 CSV。
-- 保留 primary key、foreign key 同必要 relationship。
-- 決定 sensitive data 是否 export / mask。
-- Export folder 可附帶 manifest file。
-
-
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Whole database restore / import command**
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 配合 `export_whole` 產生嘅 CSV files restore 去新 database。
-- 按 model dependency 決定 import order。
-- Restore 前做 schema / version check。
-- 提供 dry-run mode 預先檢查 errors。
 
 ## User Message to Admin
 
@@ -916,17 +867,6 @@ Status badge：
 - Summary page wording / layout 之後可再整理；目前先以 logic flow 可測試為主。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Overdue weight boost**
-
-
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
-
-- 用 `last_quiz_at` 幫太耐冇出現嘅 vocab 做 weight boost。
-- 決定各階段等待時間、每次加幾多、high value 幾多。
-- 研究 management command + cron、Celery Beat 或其他 scheduler。
-- 計算 average weight 時要以每個 user 自己嘅 `UserVocab` 為範圍。
-
-
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **移除 Quiz action endpoints 嘅空 Django Forms**
 
 
@@ -1034,13 +974,14 @@ Status badge：
 - 已將 `vocabRequestService` rename 做 `VocabRequestService`。
 
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **改善 C：清理未用 import / commented code**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **改善 C：清理 obsolete commented code**
 
 
-<p style="margin-left:1.5em;"><strong>未完成</strong></p>
+<p style="margin-left:1.5em;"><strong>已完成</strong></p>
 
-- 清走未用 imports。
-- 清走舊 commented query / obsolete code。
+- 舊 `similar_word`、feedback constraint、UserVocab sync、Vocab update同舊 view flow等 obsolete commented code已清走。
+- MC vocab types、MC request fields同對應 view branch係 v1.0.0後重新啟用功能嘅刻意 placeholders，因此保留；一般解釋 comments同 Django starter comments亦不屬於 obsolete code。
+- Repository掃描確認冇殘留舊 `similar_word` references；Django system check同 `git diff --check`通過。
 
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **改善 D：補 tests**

@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 
 from django.views.generic import (
     TemplateView,
@@ -17,13 +18,14 @@ from django.views.generic import (
 from .forms import (
     QuizSettingForm,
     QuizForm,
+    QuizAttemptForm,
 )
 
 from dictionary.models import (
     UserVocab,
     VocabType,
 )
-
+from .models import QuizAttempt
 from .service.quiz import QuizService
 from .helper import (
     get_question_pool,
@@ -176,6 +178,22 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
             )
             return redirect("dictionary:user_vocab_list")
 
+        try:
+            quiz_attempt = QuizService.create_quiz_attempt(user=self.request.user, user_vocab_id=user_vocab_id)
+        except ValidationError:
+            logger.info(
+                "Quiz start rejected becuase selected question "
+                "become unavailable: operation=%s user_id=%s user_vocab_id=%s",
+                "quiz_attempt_create",
+                self.request.user.pk,
+                user_vocab_id
+            )
+            messages.warning(
+                request,
+                "出題予定の単語が利用できなくなりました。"
+            )
+            return redirect("HomePage")
+
         self.request.session["quiz_session"] = {
             "aims_quiz_num": self.request.session["quiz_settings"].get("quiz_num", -1),
             "quizzed_count":1,
@@ -184,8 +202,9 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
             "skipped_count":0,
             "total_tips_count":0,
             "question_user_vocab_id": user_vocab_id,
+            "question_attempt_token": str(quiz_attempt.token),
         }
-        self.question_vocab = get_object_or_404(UserVocab, pk=user_vocab_id, user=self.request.user)
+        self.question_vocab = quiz_attempt.user_vocab
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -194,6 +213,7 @@ class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
         context["current_quiz_num"] = self.request.session["quiz_session"].get("quizzed_count", 1)
         context["total_quiz_num"] = self.request.session["quiz_session"].get("aims_quiz_num", -1)
         context["question_vocab"] = self.question_vocab
+        context["question_attempt_token"] = self.request.session["quiz_session"].get("question_attempt_token")
         context["keyboard_rows"] = keyboard_rows
         context["mc_rows"] = mc_rows
         return context
@@ -205,7 +225,43 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
         quiz_session = self.request.session.get("quiz_session",{})
         posted_quiz_user_vocab_id = form.cleaned_data.get("user_vocab_id")
         session_question_user_vocab_id = quiz_session.get("question_user_vocab_id")
-        if posted_quiz_user_vocab_id != session_question_user_vocab_id:
+        posted_attempt_token = str(form.cleaned_data["attempt_token"])
+        session_attempt_token = quiz_session.get("question_attempt_token")
+        if session_question_user_vocab_id is None:
+            logger.info(
+                "Quiz answer ignored: "
+                "operation=%s user_id=%s reason=%s",
+                "quiz_submit_answer",
+                self.request.user.pk,
+                "no_current_question",
+            )
+            main_html = render_to_string(
+                "quiz/partials/quiz_no_question_partial.html",
+                request=self.request,
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "main_html": main_html,
+                    "input_panel_html": "",
+                }
+            )
+
+        if session_attempt_token is None:
+            return JsonResponse(
+                build_quiz_summary_payload(
+                    request=self.request,
+                    end_reason="invalid_quiz_session",
+                    ended_early=True,
+                )
+            )
+
+        is_stale_submission = (
+            posted_quiz_user_vocab_id != session_question_user_vocab_id
+            or
+            posted_attempt_token != session_attempt_token
+        )
+        if is_stale_submission:
             logger.info(
                 "Quiz answer ignored: "
                 "operation=%s user_id=%s posted_quiz_user_vocab_id=%s session_question_user_vocab_id=%s reason=%s",
@@ -215,16 +271,6 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 session_question_user_vocab_id,
                 "stale_or_duplicate_submission",
             )
-            if session_question_user_vocab_id is None:
-                main_html = render_to_string(
-                    "quiz/partials/quiz_no_question_partial.html",
-                    request=self.request,
-                )
-                return JsonResponse({
-                    "success": True,
-                    "main_html": main_html,
-                    "input_panel_html": "",
-                })
             target_vocab = (
                 UserVocab.objects
                 .filter(
@@ -253,78 +299,85 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
                 "input_panel_html": input_panel_html,
             })
 
-        question_vocab = (
-            UserVocab.objects
-            .filter(
-                pk=form.cleaned_data.get("user_vocab_id"),
-                user=self.request.user,
-                in_use=True,
-                vocab__is_active=True,
-            ).select_related("vocab").first()
+        check_answer_succeeded, failure_reason, is_correct, question_vocab = QuizService.process_answer_attempt(
+            user=self.request.user,
+            attempt_token=form.cleaned_data["attempt_token"],
+            answer=form.cleaned_data.get("answer"),
+            tips_count=form.cleaned_data.get("tips_count"),
         )
-        if question_vocab is None:
-            payload = build_quiz_summary_payload(
-                request=self.request,
-                end_reason="question_unavailable",
-                ended_early=True
-            )
-            logger.info(
-                "Quiz resume stopped: "
-                "operation=%s user_id=%s reason=%s",
-                "quiz_submit_answer",
-                self.request.user.pk,
-                "no_matching_question",
-            )
-            return JsonResponse(payload)
-        else:
-            is_correct = False
-            if True: # question_vocab.vocab.type == VocabType.VOCAB:
-                is_correct = QuizService.check_kana_answer(
-                    question_vocab=question_vocab,
-                    answer=form.cleaned_data.get("answer"),
-                    tips_count=form.cleaned_data.get("tips_count"),
+        if not check_answer_succeeded:
+            if failure_reason == "already_processed":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "errors": {
+                            "__all__": [
+                                {
+                                    "message": "この問題はすでに処理されています。",
+                                    "code": "already_processed",
+                                }
+                            ]
+                        },
+                    },
+                    status=409,
                 )
-            logger.info(
-                "Quiz answer checked: "
-                "operation=%s user_id=%s question_user_vocab_id=%s user_answer=%s is_correct=%s",
-                "quiz_submit_answer",
-                self.request.user.pk,
-                question_vocab.pk,
-                form.cleaned_data.get("answer"),
-                is_correct,
+
+            end_reason = (
+                "question_unavailable"
+                if failure_reason == "question_unavailable"
+                else "invalid_quiz_session"
             )
 
-            if question_vocab.vocab.type == VocabType.VOCAB or question_vocab.vocab.type == VocabType.KATAKANA:
-                compared_data = QuizService.compare_kana_answer(
-                                    correct_answer=question_vocab.vocab.kana,
-                                    user_answer=form.cleaned_data.get("answer")
-                                )
-                compared_result = QuizService.gen_answer_image(compared_result=compared_data)
-            else:
-                compared_result = None
-            main_html = render_to_string(
-                "quiz/partials/quiz_result_partial.html",
-                context={
-                    "current_quiz_num": quiz_session["quizzed_count"],
-                    "total_quiz_num": quiz_session["aims_quiz_num"],
-                    "question_vocab": question_vocab,
-                    "is_correct": is_correct,
-                    "compared_result": compared_result,
-                },
-                request=self.request,
+            return JsonResponse(
+                build_quiz_summary_payload(
+                    request=self.request,
+                    end_reason=end_reason,
+                    ended_early=True,
+                )
             )
-            quiz_session["question_user_vocab_id"] = None
-            quiz_session["total_tips_count"] += form.cleaned_data.get("tips_count")
-            if is_correct:
-                quiz_session["correct_count"] += 1
-            else:
-                quiz_session["wrong_count"] += 1
-            self.request.session["quiz_session"] = quiz_session
-            return JsonResponse({
-                        "success": True,
-                        "main_html": main_html,
-                        "input_panel_html": "",
-                    })
+
+        logger.info(
+            "Quiz answer checked: "
+            "operation=%s user_id=%s question_user_vocab_id=%s user_answer=%s is_correct=%s",
+            "quiz_submit_answer",
+            self.request.user.pk,
+            question_vocab.pk,
+            form.cleaned_data.get("answer"),
+            is_correct,
+        )
+
+        if question_vocab.vocab.type == VocabType.VOCAB or question_vocab.vocab.type == VocabType.KATAKANA:
+            compared_data = QuizService.compare_kana_answer(
+                                correct_answer=question_vocab.vocab.kana,
+                                user_answer=form.cleaned_data.get("answer")
+                            )
+            compared_result = QuizService.gen_answer_image(compared_result=compared_data)
+        else:
+            compared_result = None
+        main_html = render_to_string(
+            "quiz/partials/quiz_result_partial.html",
+            context={
+                "current_quiz_num": quiz_session["quizzed_count"],
+                "total_quiz_num": quiz_session["aims_quiz_num"],
+                "question_vocab": question_vocab,
+                "is_correct": is_correct,
+                "compared_result": compared_result,
+            },
+            request=self.request,
+        )
+        quiz_session["question_user_vocab_id"] = None
+        quiz_session["question_attempt_token"] = None
+        quiz_session["total_tips_count"] += form.cleaned_data.get("tips_count")
+        if is_correct:
+            quiz_session["correct_count"] += 1
+        else:
+            quiz_session["wrong_count"] += 1
+        self.request.session["quiz_session"] = quiz_session
+        return JsonResponse({
+                    "success": True,
+                    "main_html": main_html,
+                    "input_panel_html": "",
+                })
 
 class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
     def post(self, request, *args, **kwargs):
@@ -338,29 +391,107 @@ class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequ
             return JsonResponse(summary_payload)
         return JsonResponse(payload)
 
-class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
-    def post(self, request, *args, **kwargs):
+class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, QuizAjaxFormMixin, FormView):
+    form_class = QuizAttemptForm
+    def form_valid(self, form):
         quiz_session = self.request.session.get("quiz_session")
         skipped_question_vocab_id  = quiz_session["question_user_vocab_id"]
-        if skipped_question_vocab_id  is not None:
-            skip_succeeded = QuizService.skip_question_punish(user=self.request.user, user_vocab_id=skipped_question_vocab_id)
-            if not skip_succeeded:
-                summary_payload = build_quiz_summary_payload(
-                    request=self.request,
-                    end_reason="question_unavailable",
-                    ended_early=True,
-                )
-                return JsonResponse(summary_payload)
-            quiz_session["question_user_vocab_id"] = None
-            quiz_session["skipped_count"] += 1
-            self.request.session["quiz_session"] = quiz_session
+        posted_attempt_token = str(form.cleaned_data["attempt_token"])
+        session_attempt_token = quiz_session.get("question_attempt_token")
+        if skipped_question_vocab_id is None:
             logger.info(
-                "Quiz question skipped: "
-                "operation=%s user_id=%s skipped_user_vocab_id=%s",
+                "Quiz skip ignored: "
+                "operation=%s user_id=%s reason=%s",
                 "quiz_skip",
                 self.request.user.pk,
-                skipped_question_vocab_id ,
+                "no_current_question",
             )
+            main_html = render_to_string(
+                "quiz/partials/quiz_no_question_partial.html",
+                request=self.request,
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "main_html": main_html,
+                    "input_panel_html": "",
+                }
+            )
+
+        if session_attempt_token is None:
+            return JsonResponse(
+                build_quiz_summary_payload(
+                    request=self.request,
+                    end_reason="invalid_quiz_session",
+                    ended_early=True,
+                )
+            )
+
+        if posted_attempt_token != session_attempt_token:
+            logger.info(
+                "Quiz skip ignored: "
+                "operation=%s user_id=%s reason=%s",
+                "quiz_skip",
+                self.request.user.pk,
+                "stale_attempt_token",
+            )
+            return JsonResponse(
+                {
+                    "success": False,
+                    "errors": {
+                        "__all__": [
+                            {
+                                "message": "この問題は現在の問題ではありません。",
+                                "code": "stale_attempt_token",
+                            }
+                        ]
+                    },
+                },
+                status=409,
+            )
+
+        skip_succeeded, failure_reason  = QuizService.process_skip_attempt(user=self.request.user, attempt_token=form.cleaned_data["attempt_token"])
+        if not skip_succeeded:
+            if failure_reason == "already_processed":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "errors": {
+                            "__all__": [
+                                {
+                                    "message": "この問題はすでに処理されています。",
+                                    "code": "already_processed",
+                                }
+                            ]
+                        },
+                    },
+                    status=409,
+                )
+
+            end_reason = (
+                "question_unavailable"
+                if failure_reason == "question_unavailable"
+                else "invalid_quiz_session"
+            )
+
+            return JsonResponse(
+                build_quiz_summary_payload(
+                    request=self.request,
+                    end_reason=end_reason,
+                    ended_early=True,
+                )
+            )
+        quiz_session["question_user_vocab_id"] = None
+        quiz_session["question_attempt_token"] = None
+        quiz_session["skipped_count"] += 1
+        self.request.session["quiz_session"] = quiz_session
+        logger.info(
+            "Quiz question skipped: "
+            "operation=%s user_id=%s skipped_user_vocab_id=%s",
+            "quiz_skip",
+            self.request.user.pk,
+            skipped_question_vocab_id ,
+        )
 
         payload = build_next_question_payload(request=self.request, is_skip=True)
         if payload.get("quiz_ended"):
@@ -378,27 +509,30 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
     def get(self, request, *args, **kwargs):
         quiz_session = self.request.session.get("quiz_session", {})
         unfinished_question_user_vocab_id = quiz_session.get("question_user_vocab_id")
-        unfinished_question_user_vocab = None
         if unfinished_question_user_vocab_id is not None:
-            unfinished_question_user_vocab = (
-                UserVocab.objects
+            session_attempt_token = quiz_session.get("question_attempt_token")
+            quiz_attempt = (
+                QuizAttempt.objects
+                .select_related("user_vocab__vocab")
                 .filter(
                     user=request.user,
-                    pk=unfinished_question_user_vocab_id,
-                    in_use=True,
-                    vocab__is_active=True,
-                ).select_related("vocab").first()
+                    token=session_attempt_token,
+                    user_vocab_id=unfinished_question_user_vocab_id,
+                    status=QuizAttempt.Status.PENDING,
+                    user_vocab__in_use=True,
+                    user_vocab__vocab__is_active=True,
+                )
+                .first()
             )
-            if unfinished_question_user_vocab is None:
+            if quiz_attempt is None:
                 request.session.pop("quiz_session", None)
                 messages.warning(
                     request,
-                    "現在の問題が出題対象から外れたため、クイズを終了しました。"
+                    "未回答の問題情報が無効になったため、クイズを終了しました。",
                 )
                 return redirect("quiz:quiz_setting")
 
-            self.question_vocab = unfinished_question_user_vocab
-            user_vocab_id = unfinished_question_user_vocab.pk
+            self.question_vocab = quiz_attempt.user_vocab
             messages.warning(
                 request,
                 "まだ回答していない問題があります。"
@@ -425,12 +559,30 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
                 )
                 return redirect("quiz:quiz_setting")
 
-            self.question_vocab = get_object_or_404(question_pool_qs, pk=user_vocab_id, user=self.request.user)
+            try:
+                quiz_attempt = QuizService.create_quiz_attempt(user=self.request.user, user_vocab_id=user_vocab_id)
+            except ValidationError:
+                request.session.pop("quiz_session", None)
+                logger.info(
+                    "Quiz start rejected becuase selected question "
+                    "become unavailable: operation=%s user_id=%s user_vocab_id=%s",
+                    "quiz_attempt_create",
+                    self.request.user.pk,
+                    user_vocab_id
+                )
+                messages.warning(
+                    request,
+                    "出題予定の単語が利用できなくなりました。"
+                )
+                return redirect("HomePage")
+
+            self.question_vocab = quiz_attempt.user_vocab
 
             if unfinished_question_user_vocab_id is None:
                 quiz_session["quizzed_count"] += 1
 
-        quiz_session["question_user_vocab_id"] = self.question_vocab.pk
+        quiz_session["question_user_vocab_id"] = quiz_attempt.user_vocab_id
+        quiz_session["question_attempt_token"] = str(quiz_attempt.token)
         request.session["quiz_session"] = quiz_session
         return super().get(request, *args, **kwargs)
 
@@ -442,6 +594,7 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
         context["current_quiz_num"] = quiz_session["quizzed_count"]
         context["total_quiz_num"] = quiz_session["aims_quiz_num"]
         context["question_vocab"] = self.question_vocab
+        context["question_attempt_token"] = quiz_session.get("question_attempt_token")
         context["keyboard_rows"] = keyboard_rows
         context["mc_rows"] = mc_rows
         return context

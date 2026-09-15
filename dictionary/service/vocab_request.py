@@ -115,7 +115,6 @@ class VocabRequestService():
                         proposed_kana = kana,
                         proposed_level = form.cleaned_data["level"],
                         request_reason = form.cleaned_data.get("request_reason", "")
-                        #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     create_request.proposed_categories.set(form.cleaned_data["categories"])
                     match vocab_type:
@@ -161,7 +160,6 @@ class VocabRequestService():
                         proposed_level = form.cleaned_data["level"],
                         original_vocab = form.target_vocab,
                         request_reason = form.cleaned_data.get("request_reason", "")
-                        #proposed_similar_word = form.cleaned_data["similar_word"],
                     )
                     update_request.proposed_categories.set(form.cleaned_data["categories"])
 
@@ -174,7 +172,6 @@ class VocabRequestService():
                         "categories": list(
                             form.target_vocab.categories.values_list("name", flat=True)
                         ),
-                        #"similar_word": form.target_vocab.similar_word,
                     }
 
                     match form.cleaned_data["vocab_type"]:
@@ -222,7 +219,6 @@ class VocabRequestService():
                         proposed_level = vocab.level,
                         original_vocab = vocab,
                         request_reason = form.cleaned_data.get("request_reason", "")
-                        #proposed_similar_word = vocab.similar_word,
                     )
                     restore_request.proposed_categories.set(vocab.categories.all())
                     match vocab.type:

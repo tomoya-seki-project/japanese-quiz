@@ -1,6 +1,6 @@
 # Project History
 
-呢份文件記錄 Japanese Quiz project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
+呢份文件記錄「言葉の輪（WordLoop）」project 嘅主要開發里程碑，集中描述功能、架構決定、資料模型演進同重要技術學習。一般檔案建立、template 微調、URL 整理等基礎操作不會逐項記錄。
 
 ## 2026-05-20 - Project foundation
 
@@ -1819,3 +1819,49 @@ Status: Email login identity 已統一成 lowercase並受database case-insensiti
 - Canonical value同uniqueness係同一個identity問題嘅兩面：application normalization改善一致性，database constraint先係最終integrity boundary。
 - Session-driven workflow唔可以假設跨request資料永遠有效；恢復、提交同skip都要重新確認當前resource state。
 - Redirect或換HTML只係navigation／presentation；要完結workflow，必須同步更新或刪除server-side session state。
+
+## 2026-09-15 - PostgreSQL backend and QuizAttempt idempotency
+
+Commit: 尚未commit（working tree base：`7a9b3c4`）
+
+Status: Development runtime已由SQLite切換到PostgreSQL；Quiz Answer／Skip亦改用持久化attempt token、transaction row lock同一次性狀態轉移防止重複更新
+
+### 主要改動
+
+- `config/settings.py`改用Django PostgreSQL backend，加入Psycopg 3同`python-dotenv`；database connection values由本機`.env`載入，`.env.example`只保存無secret格式。
+- Fresh PostgreSQL database由現有migrations重建schema，再重新建立admin user及匯入category／vocab基礎資料；今次明確唔將舊SQLite records當成自動搬移。
+- 新增`QuizAttempt` model，以唯一UUID token連接user同`UserVocab`，保存`PENDING`、`ANSWERED`、`SKIPPED`同`processed_at`。
+- 初始及後續出題均建立attempt，session同Answer／Skip forms傳遞token；service由attempt決定真正題目，唔直接信任browser傳入嘅更新目標。
+- Frontend共用in-flight guard減少一般double click；view再檢查session token同question ID，database transaction負責最終一次性更新。
+
+### Database 改動
+
+- 新增並套用`quiz/migrations/0001_create_quiz_attempt.py`，建立`quiz_attempt` table、unique token及user／UserVocab foreign keys。
+- Database backend由repository內SQLite file改為獨立PostgreSQL 16 server；2026-09-15驗證可見24張tables，migration plan全部已套用。
+- PostgreSQL connection確認支援`select_for_update()`同`select_for_update(of=...)`；application role可使用現有database並保持`NOCREATEDB`，另設`japanese_quiz_test` role以`CREATEDB`管理隔離test database。
+
+### 技術重點
+
+- Answer同Skip喺`transaction.atomic()`內先`select_for_update()`鎖attempt並重新檢查`PENDING`，再固定以`QuizAttempt → UserVocab`次序鎖learning row；第二個request排隊後讀到已完成狀態，回傳`already_processed`而唔重複計分或處罰。
+- `select_for_update(of=("self",))`收窄`UserVocab` queryset嘅鎖定範圍，避免`select_related("vocab")`令只讀related row一併被鎖。
+- Browser guard、session consistency同database idempotency各自負責UX、request flow同data integrity，任何一層都唔應被誤當成其餘兩層嘅替代品。
+- Stale／duplicate request唔會盲目清除session，避免較舊request破壞已經開始嘅下一題。
+
+### 理由
+
+- 只靠button disable或session question ID無法保護multi-tab、network retry同多worker concurrency；一次性副作用需要database內有可鎖定、可重讀嘅權威狀態。
+- SQLite對row-level `FOR UPDATE`語義支援不足；切換PostgreSQL先可以按設計驗證attempt排隊同鎖定範圍。
+- Attempt records同時提供idempotency gate同audit基礎；資料保留期及scheduled cleanup可獨立於核心正確性之後決定。
+
+### 驗證與限制
+
+- `manage.py check`、migration drift check、QuizAttempt migration、PostgreSQL locking feature inspection同空集合lock query均通過。
+- Rollback smoke check確認Answer／Skip第一次處理成功，第二次同token回傳`already_processed`；使用者亦實際經browser走過PostgreSQL Answer path。
+- 獨立test role成功建立`test_japanese_quiz`、重播全部migrations、執行現有10個tests並於完成後刪除test database；結果為10／10通過，system check 0 issues。
+- 現有suite未包含真正multi-connection QuizAttempt concurrency test、Answer／Skip完整integration test同Skip browser regression，呢部分coverage仍待補充。
+
+### 學到咩
+
+- `select_for_update()`只令其他transaction排隊；真正防止重複處理要喺取得lock後重新檢查狀態。
+- Transaction correctness除咗「有冇lock」，亦包括鎖邊張row、所有路徑嘅lock order、邊個identity可信，以及duplicate result點樣傳回caller。
+- PostgreSQL application role同test role應按責任分開：前者只操作既有runtime database，後者先取得`CREATEDB`建立隔離test database，唔需要為方便測試擴大production credential權限。

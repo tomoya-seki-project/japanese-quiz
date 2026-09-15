@@ -175,7 +175,6 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
             "kana" : vocab.kana,
             "level" : vocab.level,
             "categories" : vocab.categories.all(),
-            #"similar_word" : vocab.similar_word
         })
         match vocab.type:
             case VocabType.VOCAB:
@@ -289,15 +288,6 @@ class VocabDetailView(DetailView):
 
     def get_queryset(self):
         return super().get_queryset().filter(is_active=True)
-
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-    #     context["vocab"] = get_object_or_404(
-    #         Vocab,
-    #         pk = self.kwargs["vocab_id"]
-    #     )
-    #     return context
-
 
 class VocabListView(ListView):
     model = Vocab
@@ -523,4 +513,3 @@ class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
             vocabs=form.cleaned_data["vocabs"],
         )
         return super().form_valid(form)
-

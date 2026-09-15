@@ -14,6 +14,7 @@
     <input type="hidden" name="user_vocab_id" value="{{ question_vocab.id }}">
     <input type="hidden" name="tips_count" value="0" id="tips-count">
     <input type="hidden" name="answer" id="answer-input">
+    <input type="hidden" name="attempt_token" value="{{ question_attempt_token }}">
 
     {{ question_vocab.vocab.word }}
     {{ question_vocab.vocab.meaning }}
@@ -26,5 +27,6 @@
 </form>
 <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_skip" %}">
     {% csrf_token %}
+    <input type="hidden" name="attempt_token" value="{{ question_attempt_token }}">
     <button type="submit">スキップ</button>
 </form>

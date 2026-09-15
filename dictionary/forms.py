@@ -26,7 +26,6 @@ class BaseVocabRequestForm(forms.Form):
     meaning = forms.CharField(max_length=255, label="意味")
     kana = forms.CharField(max_length=255, label='読み方（かな）')
     level = forms.ChoiceField(label="JLPTレベル", choices=VocabLevel.choices)
-    # similar_word = forms.CharField(max_length=255, required=False)
     request_reason = forms.CharField(label="理由",
                                      max_length=255,
                                      required=False,

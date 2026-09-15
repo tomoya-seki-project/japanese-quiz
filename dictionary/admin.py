@@ -175,7 +175,6 @@ class VocabRequestAdmin(admin.ModelAdmin):
         'proposed_meaning',
         'proposed_level',
         'proposed_categories',
-        #'proposed_similar_word',
         'proposed_native_japanese',
         'created_by',
         'create_at',

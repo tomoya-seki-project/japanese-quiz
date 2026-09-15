@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>由 SQLite 轉用 PostgreSQL：Django database backend、環境設定與 schema 重建</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+  <header class="report-header">
+    <h1>由 SQLite 轉用 PostgreSQL：Django database backend、環境設定與 schema 重建</h1>
+  </header>
+
+  <section class="report-section" id="summary">
+    <span class="status-badge">核心轉換已完成</span>
+    <h2>修改概要</h2>
+    <div class="summary-block">
+      <div>
+        <p>專案原本由 Django 直接開啟 repository 根目錄嘅 <code>db.sqlite3</code>。今次改動安裝 PostgreSQL server 與 Psycopg 3，將 Django <code>DATABASES</code> backend 改成 PostgreSQL，再以 <code>python-dotenv</code> 從本機 <code>.env</code> 載入連線資料。新 PostgreSQL database 透過既有 Django migrations 重建 schema，而唔係沿用 SQLite database file。</p>
+        <p>現場驗證確認 PostgreSQL 16 cluster online、Django 實際連線 vendor 為 <code>postgresql</code>、24 個 tables 可被 introspect，而且所有 migrations 已套用。Users、categories 同 vocabs 均已有資料。目前 application role 有 <code>LOGIN</code>、冇 <code>CREATEDB</code>、亦唔係 superuser；所以可以使用已存在嘅 application database，但完整 test suite 喺建立獨立 test database 前被拒絕。</p>
+      </div>
+      <aside>
+        <h3>主要修改重點</h3>
+        <ul class="key-points">
+          <li>Database engine 由 SQLite file backend 改為 Django PostgreSQL backend。</li>
+          <li>加入 Psycopg 3.3.5，負責 Django／Python 與 PostgreSQL 之間嘅 database protocol。</li>
+          <li>加入 python-dotenv 1.2.3，以環境變數提供五項 database connection settings。</li>
+          <li>用現有 migrations 喺全新 database 重建 schema，再重新建立 user 及匯入基礎 vocab data。</li>
+          <li>分清 <code>CREATE USER</code>／<code>CREATE ROLE</code>、database ownership 同 <code>CREATEDB</code> 權限。</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <nav class="report-nav" aria-label="報告目錄">
+    <h2>目錄</h2>
+    <ul>
+      <li><a href="#purpose-backend">修改目的 1：由 SQLite file backend 轉到 PostgreSQL</a></li>
+      <li><a href="#purpose-environment">修改目的 2：將 database credentials 移出 settings</a></li>
+      <li><a href="#purpose-schema-data">修改目的 3：喺新 database 重建 schema 與基礎資料</a></li>
+      <li><a href="#purpose-role-permissions">修改目的 4：理解 role 與 test database 權限</a></li>
+      <li><a href="#overall-behavior">整體行為改變</a></li>
+      <li><a href="#verification">測試及驗證結果</a></li>
+      <li><a href="#limitations">已知限制／未驗證事項</a></li>
+      <li><a href="#references">官方參考資料</a></li>
+      <li><a href="#report-baseline">Report 基準／證據範圍</a></li>
+    </ul>
+  </nav>
+
+  <div class="purpose-list">
+    <section class="purpose-card" id="purpose-backend">
+      <h2>修改目的 1：由 SQLite file backend 轉到 PostgreSQL</h2>
+
+      <h3>修改目的／理由</h3>
+      <p>SQLite 將 database 保存成單一檔案，適合 project 起步；今次目標係令 development runtime 真正使用獨立 PostgreSQL server。Django ORM 同 models 繼續保留，改動集中喺 database adapter、connection settings 同外部 server。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>config/settings.py:88</code>：選擇 Django database backend，並提供連線參數。</li>
+        <li><code>requirements.txt:3</code>：宣告 runtime 需要 Psycopg。</li>
+        <li><code>requirements-dev.txt:4</code>：記錄目前 development environment 安裝版本。</li>
+        <li><code>docs/modifications/postgreSQL.html</code>：記錄 PostgreSQL 安裝、role／database 建立及連線步驟；佢係操作來源，唔係本報告嘅 Git baseline。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source"><code>config/settings.py</code>，HEAD baseline</p>
+          <pre><code class="language-python">DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}</code></pre>
+          <p>Python process 直接讀寫 project 根目錄嘅 SQLite file，唔需要另外嘅 database server 或 driver。</p>
+        </section>
+
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>config/settings.py:88</code>，working tree</p>
+          <pre><code class="language-python">DATABASES = {
+    'default': {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ["DB_PORT"],
+    }
+}</code></pre>
+          <p class="code-source"><code>requirements.txt:3</code></p>
+          <pre><code class="language-text">psycopg==3.3.5
+psycopg-binary==3.3.5</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p><code>ENGINE</code> 決定 Django 使用邊個 backend implementation。改成 <code>django.db.backends.postgresql</code> 後，ORM 仍然產生 queries，但實際 connection、SQL adaptation、transactions 同 database-specific behavior 會由 PostgreSQL backend 配合 Psycopg 處理。</p>
+      <p><code>psycopg</code> 係 import 得到嘅 Python package；<code>psycopg-binary</code> 提供預先編譯嘅 binary implementation。原教學使用 <code>pip install "psycopg[binary]"</code>，而現時 freeze 結果將兩個 distribution 分開列出。兩者同時出現唔代表 application 需要 import 兩套 driver。</p>
+      <p>舊 SQLite block 目前以註解形式保留喺新設定上方，只作短期對照；runtime 唔會執行註解內容，亦唔會再開啟 <code>db.sqlite3</code>。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>PostgreSQL 16</strong> 係獨立 relational database server。現場檢查顯示本機 <code>16/main</code> cluster 喺 port 5432 online，client 版本為 16.15。</p>
+      <p><strong>Psycopg 3.3.5</strong> 係 Python PostgreSQL adapter，將 Django backend 嘅 connection request 同 parameters 交畀 PostgreSQL。Django 6.0 要求 Psycopg 3.1.12 或以上，因此目前版本符合 framework requirement。</p>
+    </section>
+
+    <section class="purpose-card" id="purpose-environment">
+      <h2>修改目的 2：將 database credentials 移出 settings</h2>
+
+      <h3>修改目的／理由</h3>
+      <p>PostgreSQL connection 需要 database name、role、password、host 同 port。如果將真實值直接寫入 tracked <code>settings.py</code>，Git history 會保存 credentials。今次改為由本機 <code>.env</code> 提供值，而 application code 只保留變數名稱。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>config/settings.py:13</code>：匯入 <code>os</code> 同 <code>load_dotenv</code>。</li>
+        <li><code>config/settings.py:22</code>：指定 project root 下嘅 <code>.env</code>。</li>
+        <li><code>.gitignore:5</code>：阻止真實 <code>.env</code> 進入 Git。</li>
+        <li><code>.env.example</code>：提供五個必要變數嘅可分享結構；本報告刻意唔讀取或展示任何真實 credential value。</li>
+        <li><code>requirements.txt:5</code>：宣告 python-dotenv 1.2.3。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source"><code>config/settings.py</code>／<code>.gitignore</code>，HEAD baseline</p>
+          <pre><code class="language-python">from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent</code></pre>
+          <pre><code class="language-gitignore">__pycache__/
+db.sqlite3
+.vscode/
+.venv/</code></pre>
+          <p>SQLite connection 只需要 file path，所以未有 database credential loader，亦未有 <code>.env</code> ignore rule。</p>
+        </section>
+
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>config/settings.py:13</code>、<code>.gitignore:5</code>，working tree</p>
+          <pre><code class="language-python">from pathlib import Path
+import os
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")</code></pre>
+          <pre><code class="language-gitignore">.env</code></pre>
+          <p class="code-source"><code>.env.example</code>，新增而未 tracked；values 已刻意遮蔽</p>
+          <pre><code class="language-text">DB_NAME=&lt;example-value&gt;
+DB_USER=&lt;example-value&gt;
+DB_PASSWORD=&lt;example-value&gt;
+DB_HOST=&lt;example-value&gt;
+DB_PORT=&lt;example-value&gt;</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p>Django import settings module 時會先呼叫 <code>load_dotenv(BASE_DIR / ".env")</code>，將檔案內嘅 key/value 加入 <code>os.environ</code>。之後 <code>DATABASES</code> 用方括號讀取五個 keys；任何必要 key 缺少時會立即拋出 <code>KeyError</code>，避免 application 靜默連去錯誤 database。</p>
+      <p><code>load_dotenv()</code> 預設 <code>override=False</code>，所以 deployment environment 已經提供同名變數時，系統環境值優先，local <code>.env</code> 唔會覆蓋佢。呢個 behavior 令同一份 settings 可以同時服務 local development 同外部 secret injection。</p>
+      <p><code>.gitignore</code> 只影響未 tracked files，亦唔會加密 <code>.env</code>。如果 secret 曾經 commit，之後加入 ignore rule 並唔會由 history 移除佢。現場 <code>git check-ignore</code> 已確認根目錄 <code>.env</code> 由新規則排除。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>python-dotenv 1.2.3</strong> 將 dotenv file 解析成 process environment variables。呢次只用佢做 local configuration bootstrap；真正讀值仍然係 Python standard library <code>os.environ</code>。</p>
+      <p><strong><code>.env.example</code> pattern</strong> 將「需要邊啲 keys」同「真實 secrets」分開。Example file 應 commit，真實 <code>.env</code> 應保持 ignored；兩者責任唔可以調轉。</p>
+    </section>
+
+    <section class="purpose-card" id="purpose-schema-data">
+      <h2>修改目的 3：喺新 database 重建 schema 與基礎資料</h2>
+
+      <h3>修改目的／理由</h3>
+      <p>改 backend 只會令 Django 指向另一個 database，唔會自動將 SQLite tables 或 records 搬過去。原操作紀錄選擇將 PostgreSQL 視為全新 database：先重播現有 migrations 建立 schema，再重新建立 admin user，同以 project import command 補回 vocab／category 基礎資料。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>*/migrations/*.py</code>：既有 schema 歷史，今次冇因轉 backend 而另寫一批 PostgreSQL table definitions。</li>
+        <li><code>manage.py migrate</code>：將 migration graph 套用到全新 PostgreSQL database。</li>
+        <li><code>dictionary/management/commands/import_vocab.py</code>：現有 vocab import 入口。</li>
+        <li><code>docs/modifications/postgreSQL.html</code>：記錄 <code>migrate</code>、<code>showmigrations</code>、vendor check、<code>createsuperuser</code> 同重新匯入基礎資料嘅實際流程。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source">原本 database state</p>
+          <pre><code class="language-text">Django ORM
+    ↓
+SQLite backend
+    ↓
+db.sqlite3（schema + records）</code></pre>
+          <p>Schema 同 data 都存在同一個 SQLite file。更改 settings 唔會令呢個 file 內容自動出現喺 PostgreSQL。</p>
+        </section>
+
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>docs/modifications/postgreSQL.html</code> 所記錄嘅 operational flow</p>
+          <pre><code class="language-bash">python manage.py migrate
+python manage.py showmigrations
+python manage.py shell -c \
+"from django.db import connection; print(connection.vendor)"
+python manage.py createsuperuser
+python manage.py import_vocab ...</code></pre>
+          <p>新 PostgreSQL database 由 migrations 建 schema，再以明確命令建立或匯入所需 data。</p>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p><code>migrate</code> 讀取每個 app 嘅 migration files，依 dependency order 建立 tables、constraints、indexes 同 Django metadata。佢搬嘅係<strong>schema history</strong>，唔係 SQLite records。原紀錄明確選擇不做 SQLite data dump／load，因此舊 user 同 application records唔會自動保留。</p>
+      <p>現場檢查顯示所有列出 migrations 均為 <code>[X]</code>，包括 working tree 新增嘅 <code>quiz.0001_create_quiz_attempt</code>；database introspection 可見 24 個 tables。只讀存在性檢查亦確認目前 database 有 users、categories 同 vocabs，但唔會由結果推斷每筆內容、數量或者同舊 SQLite 完全相同。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>Django migration replay</strong> 係跨 database 重建 schema 嘅既有 framework 能力。Models 表達 project schema，migration files 表達有次序嘅演進；針對新 database 執行全部 migrations，唔等於要因轉換 engine 再執行 <code>makemigrations</code>。</p>
+      <p><strong>Django connection introspection</strong> 用 backend-neutral API 列出目前 database tables；<code>connection.vendor</code> 則提供實際 backend identifier，避免只睇 settings 字串就聲稱 connection 成功。</p>
+    </section>
+
+    <section class="purpose-card" id="purpose-role-permissions">
+      <h2>修改目的 4：理解 role 與 test database 權限</h2>
+
+      <h3>修改目的／理由</h3>
+      <p>網站可以連線及執行 migrations，但 <code>manage.py test</code> 仍然可能報 <code>permission denied to create database</code>。原因係 PostgreSQL 將「登入」、「擁有／操作某個既有 database」同「建立另一個 database」分成不同權限；application 運作成功唔代表 test runner 自動具有建立 database 嘅權限。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>docs/modifications/postgreSQL.html</code>：記錄以 <code>CREATE USER</code> 建立 application role，再由 administrator 建立及指定 application database owner。</li>
+        <li>PostgreSQL cluster role attributes：屬外部 database server 狀態，唔存在於 Django code 或 migrations。</li>
+        <li>Django test runner：測試開始前嘗試建立獨立 test database，完成後再銷毀，避免接觸 application data。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>目前建立方式與預設權限</h3>
+          <p class="code-source"><code>docs/modifications/postgreSQL.html</code>，password 已遮蔽</p>
+          <pre><code class="language-sql">CREATE USER japanese_quiz_app
+WITH PASSWORD '&lt;redacted&gt;';
+
+CREATE DATABASE japanese_quiz
+OWNER japanese_quiz_app;</code></pre>
+          <p><code>CREATE USER</code> 等同 <code>CREATE ROLE ... LOGIN</code>。由於冇明確寫 <code>CREATEDB</code>，新 role 預設係 <code>NOCREATEDB</code>。</p>
+        </section>
+
+        <section class="code-panel">
+          <h3>等價寫法與權限切換</h3>
+          <p class="code-source">PostgreSQL role commands；只作說明，本報告冇執行</p>
+          <pre><code class="language-sql">-- 等價嘅 application login role
+CREATE ROLE japanese_quiz_app
+WITH LOGIN PASSWORD '&lt;redacted&gt;';
+
+-- Local development：容許 Django 建 test database
+ALTER ROLE japanese_quiz_app CREATEDB;
+
+-- 收回建立 database 權限
+ALTER ROLE japanese_quiz_app NOCREATEDB;</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>概念</th><th>代表意思</th><th>目前狀態／影響</th></tr></thead>
+          <tbody>
+            <tr><td><code>CREATE USER</code></td><td><code>CREATE ROLE</code> 嘅別名，但預設加上 <code>LOGIN</code></td><td>Application role 可以作為 connection user 登入</td></tr>
+            <tr><td><code>CREATE ROLE</code></td><td>建立 cluster-level role；未指定時預設 <code>NOLOGIN</code></td><td>如要直接登入，必須明確加 <code>LOGIN</code></td></tr>
+            <tr><td><code>OWNER japanese_quiz_app</code></td><td>令 role 擁有指定嘅既有 application database</td><td>可以喺 <code>japanese_quiz</code> 建 tables、執行 migrations；唔會因此取得 cluster-level <code>CREATEDB</code></td></tr>
+            <tr><td><code>CREATEDB</code></td><td>容許 role 建立新 database</td><td>Django test runner 建立獨立 test database 時需要</td></tr>
+            <tr><td><code>NOCREATEDB</code></td><td>禁止 role 建立新 database，而且係預設值</td><td>網站仍可使用已獲授權嘅 database，但 tests 無法自行建立 test database</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>今次 database 本身係由 <code>postgres</code> administrator 執行 <code>CREATE DATABASE</code>，再用 <code>OWNER</code> 將指定 database 交畀 application role。因此 application role 冇 <code>CREATEDB</code> 都可以正常使用 <code>japanese_quiz</code>。Django tests 則預設另建一個 test database，所以權限邊界喺呢一步先顯現。</p>
+      <p>如果呢個係只供本機開發嘅 role，可以由 administrator 暫時或持續授予 <code>CREATEDB</code>，再執行 tests。完成後使用 <code>ALTER ROLE japanese_quiz_app NOCREATEDB;</code> 會收回權限；一旦收回，下次 test runner 再要建立 database 時亦會再次失敗。Production application role 建議保持 <code>NOCREATEDB</code>，CI／tests 使用獨立 cluster 或 test role。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>PostgreSQL unified role model</strong> 將傳統「user」同「group」統一成 role；有 <code>LOGIN</code> 嘅 role 先可以作為初始 connection identity。<code>CREATE USER</code> 只係提供預設 <code>LOGIN</code> 嘅方便語法，唔會順便授予 <code>CREATEDB</code>、<code>CREATEROLE</code> 或 superuser。</p>
+      <p><strong><code>ALTER ROLE</code></strong> 可以喺 role 建立後改 attributes。<code>CREATEDB</code>／<code>NOCREATEDB</code> 係 cluster-level capability，唔應同某個 database 嘅 ownership 或 table privileges 混為一談。</p>
+    </section>
+  </div>
+
+  <section class="report-section" id="overall-behavior">
+    <h2>整體行為改變</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>層次</th><th>修改前</th><th>修改後</th><th>責任</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Database process</td><td>Application process 直接開啟 SQLite file</td><td>獨立 PostgreSQL 16 server／cluster</td><td>保存資料、執行 SQL、transactions 與 constraints</td></tr>
+          <tr><td>Django backend</td><td><code>django.db.backends.sqlite3</code></td><td><code>django.db.backends.postgresql</code></td><td>將 ORM operations 對應到指定 database engine</td></tr>
+          <tr><td>Python adapter</td><td>Python 內建 SQLite support</td><td>Psycopg 3.3.5</td><td>處理 Python 與 PostgreSQL connection／protocol</td></tr>
+          <tr><td>Connection config</td><td>固定 file path</td><td>五項 environment variables</td><td>按環境提供 database endpoint 與 credentials</td></tr>
+          <tr><td>Schema/data 建立</td><td>既有 <code>db.sqlite3</code></td><td>Migrations 重建 schema；user／基礎資料另外建立</td><td>清楚分開 schema deployment 同 data population</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="report-section" id="verification">
+    <h2>測試及驗證結果</h2>
+    <p>本報告實際執行並確認：</p>
+    <ul>
+      <li><code>git diff --check -- .gitignore config/settings.py requirements.txt requirements-dev.txt .env.example</code>：通過，相關 diff 冇 whitespace error。</li>
+      <li>Runtime import：Django 6.0.5、Psycopg 3.3.5、python-dotenv 可正常 import。</li>
+      <li><code>python manage.py check</code>：0 issues。</li>
+      <li><code>pg_lsclusters</code>：PostgreSQL 16 <code>main</code> cluster，port 5432，狀態 online。</li>
+      <li><code>psql --version</code>：PostgreSQL client 16.15。</li>
+      <li>Django connection：<code>connection.vendor == "postgresql"</code>，實際連線成功。</li>
+      <li>唯讀 role attribute 查詢：目前 connection role 為 <code>LOGIN=True</code>、<code>CREATEDB=False</code>、<code>SUPERUSER=False</code>。</li>
+      <li>Database introspection：可見 24 個 tables；<code>showmigrations --plan</code> 所列 migrations 全部已套用。</li>
+      <li>只讀資料存在性檢查：users、categories、vocabs 均有至少一筆資料；冇讀取或輸出記錄內容。</li>
+      <li><code>git check-ignore -v .env</code>：確認真實 <code>.env</code> 受 repository ignore rule 保護。</li>
+    </ul>
+
+    <div class="notice notice-warning">
+      <strong>完整 tests 未執行：</strong><code>python manage.py test</code> 喺建立 Django test database 前收到 <code>permission denied to create database</code>，因此發現到嘅 10 個 tests 實際執行數係 0。呢個結果證明 application role 可連現有 database，但未有 <code>CREATEDB</code> 權限供 Django test runner 建立隔離 database。
+    </div>
+
+    <p><code>docs/modifications/postgreSQL.html</code> 記錄網站可由 <code>runserver</code> 正常啟動、已建立 superuser 同重新加入基礎資料；本報告將呢啲視為使用者提供嘅操作紀錄。當中基礎資料存在性另有現場驗證，但今次冇重新啟動長駐 server，亦冇重新執行 create／import commands。</p>
+  </section>
+
+  <section class="report-section" id="limitations">
+    <h2>已知限制／未驗證事項</h2>
+    <ul>
+      <li><strong>Test database 權限：</strong>local development role 需要獲授 <code>CREATEDB</code>，或者另外配置可建立／使用 test database 嘅 role，完整 suite 先可以運行。Production application role 通常唔應為方便測試而取得呢個高權限。</li>
+      <li><strong>舊 SQLite data 冇做逐筆搬移：</strong>原操作紀錄採用重新建立 user／匯入基礎資料。今次只確認三類資料存在，冇證據證明全部舊 records、primary keys、relationships 或歷史狀態完整對等。</li>
+      <li><strong><code>.env.example</code> 仍然 untracked：</strong>佢要加入下一次 commit，其他 clone 先知道必需 keys；真實 <code>.env</code> 就必須繼續保持 ignored。</li>
+      <li><strong>Dependency manifests 容易漂移：</strong><code>requirements-dev.txt</code> 原本用 <code>-r requirements.txt</code> 繼承 runtime dependencies，現時改成完整重複清單；兩份檔案日後要同步改版本。較清晰做法係恢復 inheritance，只喺 dev file 增加 development-only packages。</li>
+      <li><strong>Psycopg dependency 表達較機械：</strong>現時分別 pin <code>psycopg</code> 同 <code>psycopg-binary</code>，係 <code>pip freeze</code> 結果。人手維護時可考慮用單一 <code>psycopg[binary]==3.3.5</code> 表達安裝意圖。</li>
+      <li><strong>舊 SQLite settings 仍以註解保留：</strong>佢唔影響 runtime，但長遠會增加 dead configuration noise；確認 rollback 唔再依賴後可以刪除。</li>
+      <li><strong>Secrets 搬移未全面完成：</strong>database password 已移出 settings，但 project <code>SECRET_KEY</code>、<code>DEBUG</code> 同 <code>ALLOWED_HOSTS</code> 仍係 development settings；今次唔將 PostgreSQL migration 誤當成 production hardening 已完成。</li>
+      <li><strong>外部 server 建立步驟不可由 Git 還原：</strong>PostgreSQL package、cluster、role 同 database 屬本機狀態。現時有操作 HTML 紀錄，但未有 Docker Compose 或其他 infrastructure-as-code 自動重建。</li>
+    </ul>
+  </section>
+
+  <section class="report-section" id="references">
+    <h2>官方參考資料</h2>
+    <ul>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/databases/#postgresql-notes" target="_blank" rel="noreferrer">Django 6.0：PostgreSQL notes 與支援版本</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#databases" target="_blank" rel="noreferrer">Django 6.0：DATABASES settings</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/django-admin/#migrate" target="_blank" rel="noreferrer">Django 6.0：migrate management command</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/topics/testing/overview/#the-test-database" target="_blank" rel="noreferrer">Django 6.0：test database lifecycle</a></li>
+      <li><a href="https://www.psycopg.org/psycopg3/docs/basic/install.html" target="_blank" rel="noreferrer">Psycopg 3：安裝與 binary extra</a></li>
+      <li><a href="https://bbc2.github.io/python-dotenv/" target="_blank" rel="noreferrer">python-dotenv：載入流程、override priority 與 .gitignore 建議</a></li>
+      <li><a href="https://www.postgresql.org/docs/16/sql-createdatabase.html" target="_blank" rel="noreferrer">PostgreSQL 16：CREATE DATABASE 與 CREATEDB 權限</a></li>
+      <li><a href="https://www.postgresql.org/docs/16/sql-createuser.html" target="_blank" rel="noreferrer">PostgreSQL 16：CREATE USER 係預設 LOGIN 嘅 CREATE ROLE 別名</a></li>
+      <li><a href="https://www.postgresql.org/docs/16/sql-createrole.html" target="_blank" rel="noreferrer">PostgreSQL 16：CREATE ROLE attributes 與預設值</a></li>
+      <li><a href="https://www.postgresql.org/docs/16/role-attributes.html" target="_blank" rel="noreferrer">PostgreSQL 16：LOGIN、CREATEDB 等 role attributes</a></li>
+    </ul>
+  </section>
+
+  <section class="report-section" id="report-baseline">
+    <details>
+      <summary>Report 基準／證據範圍</summary>
+      <dl class="report-meta">
+        <div><dt>產生／更新時間</dt><dd>2026-09-15T23:47:40+09:00</dd></div>
+        <div><dt>Git baseline</dt><dd><code>HEAD 7a9b3c4d3ba8a24b79757339c45e78b9d73b38ba</code></dd></div>
+        <div><dt>After state</dt><dd>目前 working tree；相關 PostgreSQL 改動未 commit</dd></div>
+        <div><dt>使用者指定主題</dt><dd>由 SQLite 轉用 PostgreSQL</dd></div>
+      </dl>
+      <h3>主要證據</h3>
+      <ul>
+        <li>HEAD 對 working tree：<code>config/settings.py</code>、<code>requirements.txt</code>、<code>requirements-dev.txt</code>、<code>.gitignore</code>。</li>
+        <li>新增檔案：<code>.env.example</code> 同操作紀錄 <code>docs/modifications/postgreSQL.html</code>。</li>
+        <li>現場 runtime：installed package versions、PostgreSQL cluster/client version、Django connection vendor、table introspection、migration plan、資料類型存在性與 test-runner 權限結果。</li>
+        <li>最近兩個 commits <code>7a9b3c4</code>、<code>89d3030</code> 已作背景核對；兩者冇修改 database settings、requirements、<code>.env</code> 或 PostgreSQL setup，因此冇納入今次 before/after modification。</li>
+      </ul>
+      <h3>排除範圍</h3>
+      <p>Working tree 共有 33 個已修改／staged entries 同 3 個 untracked entries。報告排除品牌命名、validation refactor、quiz attempt、models、views、forms、services、JavaScript、status docs 等同 PostgreSQL migration 冇直接關係嘅改動。真實 <code>.env</code>、credentials、tokens、個人資料同 database record 內容全部冇讀取或引用。本報告本身亦唔作為 modification evidence。</p>
+    </details>
+  </section>
+</main>
+</body>
+</html>

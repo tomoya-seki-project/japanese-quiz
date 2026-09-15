@@ -39,8 +39,6 @@ class UserVocabService():
 
     @staticmethod
     def sync_new_vocab(*, user):
-        #new_vocabs = UserVocabService.get_new_vocab(user=user)
-        #UserVocabService.create_user_vocabs(user=user, vocabs=new_vocabs)
         with transaction.atomic():
             User.objects.select_for_update().get(pk=user.pk)
             existing_vocab_ids = UserVocab.objects.filter(

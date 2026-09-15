@@ -20,7 +20,7 @@ class UserVocabInline(admin.TabularInline):
     can_delete = False
     def has_view_permission(self, request, obj = ...):
         return False
-    
+
 class UserProfileInline(admin.TabularInline):
     model = UserProfile
     extra = 0
@@ -30,8 +30,6 @@ class UserProfileInline(admin.TabularInline):
 
 @admin.register(User)
 class CustomizedUserAdmin(UserAdmin):
-    #inlines = [UserVocabInline]
-    #inlines = [UserProfileInline]
     form = UserChangeAdminForm
     add_form = UserCreationAdminForm
     list_display = (
@@ -82,7 +80,7 @@ class CustomizedUserAdmin(UserAdmin):
         if not obj.profile.last_vocab_sync_at:
             return "No vocabulary sync has been recorded yet."
         return timezone.localtime(obj.profile.last_vocab_sync_at).strftime("%B %d, %Y, %H:%M:%S")
-    
+
     @admin.display(description="Vocabulary count")
     def user_vocab_count(self, obj):
         count = obj.user_vocabs.count()

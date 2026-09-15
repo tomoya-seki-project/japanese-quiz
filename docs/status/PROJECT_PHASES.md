@@ -1,11 +1,11 @@
-# Japanese Quiz - Development Phases
+# 言葉の輪（WordLoop）— Development Phases
 
-呢份文件以開發階段整理 Japanese Quiz 嘅產品演進同工程決策，主要供 portfolio 閱讀。
+呢份文件以開發階段整理「言葉の輪（WordLoop）」嘅產品演進同工程決策，主要供 portfolio 閱讀。
 佢唔逐個 commit 重述施工紀錄；需要精確追蹤日期、commit 同 database 變更時，可以參考 [PROJECT_HISTORY.md](PROJECT_HISTORY.md)。
 
 ## Project Snapshot
 
-Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project 由單純 dictionary 起步，逐步建立 user-specific vocabulary、受審核嘅字庫修改流程、weighted quiz、Ajax 答題介面、事件通知、feedback、application-level error handling 同 logging foundation。
+「言葉の輪（WordLoop）」係一個以 Django 開發嘅日文詞彙學習系統。Project 由單純 dictionary 起步，逐步建立 user-specific vocabulary、受審核嘅字庫修改流程、weighted quiz、Ajax 答題介面、事件通知、feedback、application-level error handling 同 logging foundation。
 
 核心方向包括：
 
@@ -31,6 +31,7 @@ Japanese Quiz 係一個以 Django 開發嘅日文詞彙學習系統。Project �
 | [Phase 10](#phase-10-explicit-quiz-pool-choice-and-review-context) | 2026-09-07 ～ 2026-09-08 | Explicit full-pool confirmation、VocabRequest reason／review note |
 | [Phase 11](#phase-11-account-verification-and-email-identity-integrity) | 2026-09-09 ～ 2026-09-12 | Email activation、canonical identity、database uniqueness |
 | [Phase 12](#phase-12-quiz-session-terminal-recovery) | 2026-09-12 | Current-question revalidation、empty-pool termination、shared summary lifecycle |
+| [Phase 13](#phase-13-postgresql-and-quiz-attempt-idempotency) | 2026-09-15 | PostgreSQL backend、QuizAttempt、transactional Answer／Skip idempotency |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -374,6 +375,35 @@ Account 已具備完整 activation happy path，同一 email 嘅大小寫變體�
 
 Review M-01 嘅核心 session recovery 已完成；專用 integration tests同抽題後重新載入object嘅短暫race window仍列作待測試／改良。下一個 correctness工作係處理 VocabRequest 已commit後 notification callback失敗所造成嘅HTTP結果矛盾；answer／skip並行idempotency則留待attempt ID同PostgreSQL方向一併設計。
 
+## Phase 13: PostgreSQL and Quiz Attempt Idempotency
+
+**時間：2026-09-15**
+
+### 目標
+
+將development runtime由SQLite切換到真正支援row-level locking嘅PostgreSQL，並為每次Quiz Answer／Skip建立database-backed一次性處理身份，防止double click、retry或並行request重複修改learning state。
+
+### 主要成果
+
+- Django database backend改為PostgreSQL，使用Psycopg 3連線；database name、role、password、host同port由本機`.env`提供。
+- 以現有migration graph喺fresh PostgreSQL database重建schema，再明確建立user及重新匯入category／vocab基礎資料，而唔假設backend切換會自動搬移SQLite records。
+- 新增`QuizAttempt`，以唯一UUID token連接user同`UserVocab`，並保存`PENDING → ANSWERED／SKIPPED`狀態及處理時間。
+- 每次初始／後續出題均建立attempt；session同hidden forms傳遞token，Answer／Skip由attempt反查真正題目，唔直接信任client指定更新目標。
+- Answer／Skip services喺atomic transaction內先鎖attempt、檢查仍為`PENDING`，再以固定次序鎖`UserVocab`；duplicate request排隊後會得到`already_processed`而停止副作用。
+- Frontend in-flight guard、session consistency checks同database idempotency形成UX、request contract同data-integrity三層防線。
+
+### 工程決策
+
+- Row lock只負責令並行transaction排隊；真正一次性規則來自lock後重新檢查attempt status，兩者缺一不可。
+- Answer同Skip固定使用`QuizAttempt → UserVocab` lock order，降低不同路徑相反鎖序造成deadlock嘅風險。
+- `select_for_update(of=("self",))`只鎖真正需要更新嘅`UserVocab` row，避免`select_related("vocab")`令只讀related row被無意鎖定。
+- Stale／duplicate request唔應清走session內較新attempt；HTTP 409同non-field error code負責表達舊操作已失效。
+- Attempt歷史暫時保留作audit；retention同scheduled cleanup係後續方向，唔影響目前一次性處理完整性。
+
+### 階段結果
+
+2026-09-15驗證確認PostgreSQL 16.15、24張tables、migration已套用、locking features可用；rollback smoke check覆蓋Answer／Skip首次成功同第二次`already_processed`，browser亦實際走過Answer path。其後建立獨立`japanese_quiz_test` role，Django成功建立／刪除隔離test database並令現有10個tests全部通過；application role繼續保持`NOCREATEDB`。真正multi-connection concurrency test同Skip browser regression仍待補充。相關改動目前仍係working tree，未有commit里程碑。
+
 ## Current Architecture
 
 ```text
@@ -387,9 +417,9 @@ Vocab services  Quiz service   Core services
       |             |         Event / Feedback
       +-------------+--------------+
                     |
-      Django ORM / Transactions / Constraints
+ Django ORM / PostgreSQL Transactions / Row Locks
                     |
- Accounts | Dictionary | UserVocab | Events | Feedback
+Accounts | Dictionary | UserVocab | QuizAttempt | Events | Feedback
 ```
 
 主要 responsibility boundaries：
@@ -414,15 +444,14 @@ Vocab services  Quiz service   Core services
 
 ## Current State and Remaining Work
 
-目前 dictionary、VocabRequest review、UserVocab management、account email activation、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；進行中題目失效或pool變空時會明確結束並清理session；email identity 已統一 lowercase 並受 database case-insensitive uniqueness 保護；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
+目前 dictionary、VocabRequest review、UserVocab management、account email activation、event history、feedback 同 kana quiz core flows 已形成可操作嘅完整路徑。Kana answer comparison 已改用 bottom-up DP；filtered pool 無題時會由 user 明確選擇是否使用 full pool；進行中題目失效或pool變空時會明確結束並清理session；Answer／Skip已有`QuizAttempt`一次性狀態同PostgreSQL row lock保護；email identity 已統一 lowercase 並受 database case-insensitive uniqueness 保護；一般 user interface 已日文化並具備 request-level語系分流。Project 仍然係 development-stage，以下項目未完成：
 
-- Automated test suite 已有 10 個 UI／language regression tests，但 account activation／identity、主要 domain、concurrency、quiz correctness 同 no-pool／full-pool integration coverage 尚未建立。
-- Production settings 尚未 harden，包括 environment-based secrets、`DEBUG=False` deployment、hosts、static files 同 production database。
+- PostgreSQL test role同隔離database lifecycle已可運作，現有10個UI／language regression tests全部通過；account activation／identity、主要domain、QuizAttempt multi-connection concurrency、quiz correctness同no-pool／full-pool integration coverage尚未建立。
+- Development runtime已切換到PostgreSQL；production settings仍未harden，包括完整environment-based secrets、`DEBUG=False`、hosts、static files、backup／restore同database provisioning／deployment。
 - Application logging handler、formatter、routing、daily rotation、retention 同主要 domain coverage 已建立；log assertions、rotation／retention 同 concurrent sync 尚待自動驗證。
 - `MCSense` migration 已 commit；正式 multiple-choice import、admin/request 同 quiz flow尚未完成，相關 active choices 暫時停用。
 - Quiz initial filtered no-pool／full-pool choice 同進行中 session terminal recovery 已完成；initial、Next、Skip、Submit、resume、失效題目同 insufficient-pool integration tests仍未補齊。
-- VocabRequest 建立後嘅 staff notification 使用非 robust `transaction.on_commit()` callback；callback失敗可令主request已commit但HTTP仍報錯，下一輪會先決定best-effort或durable delivery policy再修正。
-- Whole-database export／restore 尚未建立。
+- VocabRequest staff notification已採用robust best-effort callback；如日後需要guaranteed delivery，仍要另外設計durable outbox／retry機制。
 - Japanese UI wording 同語系分流已完成 code-level implementation；browser visual verification、layout 同 answer overlay 仍需 polish。
 
 詳細工作狀態可參考 [TODO.md](TODO.md)，未納入目前 scope 嘅方向可參考 [FUTURE_IDEAS.md](FUTURE_IDEAS.md)。

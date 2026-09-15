@@ -2,10 +2,12 @@ __pycache__/
 db.sqlite3
 .vscode/
 .venv/
+.env
 log/*.log
 log/log.*
 log/*.log.*
 docs/diagrams/last_ver/
-review-reports/
+docs/review-reports/
 docs/diagrams/
-docs/modification/example/
+docs/modifications/example/
+docs/modifications/old_ver/

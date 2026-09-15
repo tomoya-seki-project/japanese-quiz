@@ -231,5 +231,3 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             )
         return super().form_valid(form)
 
-
-

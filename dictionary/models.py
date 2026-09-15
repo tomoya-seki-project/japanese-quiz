@@ -48,8 +48,6 @@ class Vocab(TimeStampedModel):
         related_name='vocabs',
     )
 
-    #similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
-
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through='UserVocab',
@@ -157,7 +155,6 @@ class VocabRequestType(models.TextChoices):
     CREATE = "create", "Create"
     UPDATE = "update", "Update"
     DELETE = "delete", "Delete"
-    #REVIEW = "review", "Review"
     RESTORE = "restore", "Restore"
 
 class VocabRequestStatus(models.TextChoices):
@@ -199,8 +196,6 @@ class VocabRequest(TimeStampedModel):
         related_name='vocab_requests',
         blank=True,
     )
-
-    #proposed_similar_word = models.CharField(verbose_name="Similar", max_length=255, blank=True, null=True)
 
     #vocab type
     # No special fields right now.

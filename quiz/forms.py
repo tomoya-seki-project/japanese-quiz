@@ -36,3 +36,7 @@ class QuizForm(forms.Form):
     user_vocab_id = forms.IntegerField(widget=forms.HiddenInput)
     answer = forms.CharField(max_length=25, required=True, widget=forms.HiddenInput)
     tips_count = forms.IntegerField(min_value=0, max_value=50, widget=forms.HiddenInput)
+    attempt_token = forms.UUIDField(widget=forms.HiddenInput)
+
+class QuizAttemptForm(forms.Form):
+    attempt_token = forms.UUIDField(widget=forms.HiddenInput)

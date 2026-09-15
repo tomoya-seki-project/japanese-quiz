@@ -1,6 +1,8 @@
 
+import logging
 from django.template.loader import render_to_string
-from django.shortcuts import get_object_or_404
+
+from django.core.exceptions import ValidationError
 
 from django.contrib import messages
 
@@ -12,6 +14,10 @@ from dictionary.models import (
     UserVocab,
     VocabType,
 )
+
+
+logger = logging.getLogger(__name__)
+
 def get_question_pool(*, request):
     quiz_settings = request.session.get("quiz_settings")
     question_pool_qs = QuizService.create_question_pool(
@@ -48,6 +54,7 @@ def render_quiz_question_payload_html(*, request, target_vocab):
             "current_quiz_num": quiz_session["quizzed_count"],
             "total_quiz_num": quiz_session["aims_quiz_num"],
             "question_vocab": target_vocab,
+            "question_attempt_token": quiz_session["question_attempt_token"],
         },
         request=request,
     )
@@ -67,7 +74,25 @@ def build_next_question_payload(*, request, is_skip=False):
     user_vocab_id = get_target_user_vocab_id(user=request.user, pool_queryset=question_pool_qs)
 
     if user_vocab_id is None:
-        #request.session.pop("quiz_session", None)
+        return {
+            "success": True,
+            "quiz_ended": True,
+        }
+
+    try:
+        quiz_attempt = QuizService.create_quiz_attempt(user=request.user, user_vocab_id=user_vocab_id)
+    except ValidationError:
+        logger.info(
+            "Quiz start rejected becuase selected question "
+            "become unavailable: operation=%s user_id=%s user_vocab_id=%s",
+            "quiz_attempt_create",
+            request.user.pk,
+            user_vocab_id
+        )
+        messages.warning(
+            request,
+            "出題予定の単語が利用できなくなりました。"
+        )
         return {
             "success": True,
             "quiz_ended": True,
@@ -75,15 +100,12 @@ def build_next_question_payload(*, request, is_skip=False):
 
     quiz_session = request.session["quiz_session"]
     quiz_session["question_user_vocab_id"] = user_vocab_id
+    quiz_session["question_attempt_token"] = str(quiz_attempt.token)
     if is_skip is False:
         quiz_session["quizzed_count"] += 1
     request.session["quiz_session"] = quiz_session
 
-    target_vocab = get_object_or_404(
-        UserVocab,
-        pk=user_vocab_id,
-        user=request.user,
-    )
+    target_vocab = quiz_attempt.user_vocab
 
     main_html, input_panel_html = render_quiz_question_payload_html(
         request=request,

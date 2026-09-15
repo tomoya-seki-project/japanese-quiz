@@ -66,7 +66,6 @@ class UserProfile(TimeStampedModel):
 
     def __str__(self):
         return ''
-        #return f"{self.user.username}'s Profile"
 
     class Meta:
         db_table = 'user_profile'

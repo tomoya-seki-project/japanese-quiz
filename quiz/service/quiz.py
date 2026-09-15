@@ -1,6 +1,8 @@
 import random
 from bisect import bisect_left
 from django.utils import timezone
+from django.db import transaction
+from django.core.exceptions import ValidationError
 
 from dataclasses import dataclass
 from typing import Optional
@@ -10,6 +12,7 @@ from dictionary.models import (
     UserVocab,
     Category,
 )
+from ..models import QuizAttempt
 
 from core.service.core import load_json
 
@@ -85,15 +88,55 @@ class QuizService():
         return weight_rows[index][0]
 
     @staticmethod
-    def skip_question_punish(*, user, user_vocab_id):
-        skipped_user_vocab = UserVocab.objects.filter(
-            pk=user_vocab_id,
+    def create_quiz_attempt(*, user, user_vocab_id):
+        if user is None or user_vocab_id is None:
+            raise ValidationError(
+                "user or user_vocab_id can not be None"
+            )
+        try:
+            user_vocab = UserVocab.objects.get(user=user, pk=user_vocab_id, in_use=True, vocab__is_active=True)
+        except UserVocab.DoesNotExist:
+            raise ValidationError(
+                "The selected question is no longer available."
+            )
+        return QuizAttempt.objects.create(
             user=user,
+            user_vocab=user_vocab,
+            status=QuizAttempt.Status.PENDING,
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def process_skip_attempt(*, user, attempt_token):
+        try:
+            quiz_attempt = QuizAttempt.objects.select_for_update().get(
+                user=user, token=attempt_token
+            )
+        except QuizAttempt.DoesNotExist:
+            return False, "attempt_not_found"
+
+        if quiz_attempt.status != QuizAttempt.Status.PENDING:
+            return False, "already_processed"
+
+        skipped_user_vocab = UserVocab.objects.select_for_update(of=("self",)).filter(
+            user=user,
+            pk=quiz_attempt.user_vocab_id,
             in_use=True,
             vocab__is_active=True,
         ).first()
+
         if skipped_user_vocab is None:
-            return False
+            return False, "question_unavailable"
+
+        QuizService.skip_question_punish(skipped_user_vocab=skipped_user_vocab)
+
+        quiz_attempt.status = QuizAttempt.Status.SKIPPED
+        quiz_attempt.processed_at = timezone.now()
+        quiz_attempt.save(update_fields=["status", "processed_at", "update_at"])
+        return True, None
+
+    @staticmethod
+    def skip_question_punish(*, skipped_user_vocab):
         skipped_user_vocab.weight += QUIZ_CONFIG["weight"]["skip"]
         if skipped_user_vocab.streak > 0:
             skipped_user_vocab.streak = 0
@@ -101,9 +144,53 @@ class QuizService():
             skipped_user_vocab.streak -= 1
         skipped_user_vocab.last_quiz_at = timezone.now()
         skipped_user_vocab.save(
-            update_fields=["weight","streak","last_quiz_at"]
+            update_fields=["weight","streak","last_quiz_at", "update_at"]
         )
-        return True
+
+    @staticmethod
+    @transaction.atomic
+    def process_answer_attempt(*, user, attempt_token, answer=None, tips_count=0):
+        try:
+            quiz_attempt = QuizAttempt.objects.select_for_update().get(
+                user=user, token=attempt_token
+            )
+        except QuizAttempt.DoesNotExist:
+            return False, "attempt_not_found", None, None
+
+        if quiz_attempt.status != QuizAttempt.Status.PENDING:
+            return False, "already_processed", None, None
+
+        answered_user_vocab = UserVocab.objects.select_for_update(of=("self",)).filter(
+            user=user,
+            pk=quiz_attempt.user_vocab_id,
+            in_use=True,
+            vocab__is_active=True,
+        ).select_related("vocab").first()
+
+        if answered_user_vocab is None:
+            return False, "question_unavailable", None, None
+
+        check_answer_result = QuizService.check_answer(
+            question_vocab=answered_user_vocab,
+            answer=answer,
+            tips_count=tips_count
+        )
+
+        if (check_answer_result == -1 or check_answer_result == -2):
+            return False, "question_unavailable", None, None
+
+        quiz_attempt.status = QuizAttempt.Status.ANSWERED
+        quiz_attempt.processed_at = timezone.now()
+        quiz_attempt.save(update_fields=["status", "processed_at", "update_at"])
+        return True, None, check_answer_result, answered_user_vocab
+
+    @staticmethod
+    def check_answer(*, question_vocab=None, answer=None, tips_count=0):
+        return QuizService.check_kana_answer(
+            question_vocab=question_vocab,
+            answer=answer,
+            tips_count=tips_count
+        )
 
     @staticmethod
     def check_kana_answer(*, question_vocab=None, answer=None, tips_count=0):
@@ -144,7 +231,7 @@ class QuizService():
         return is_correct
 
     @staticmethod
-    def check_mc_answer(*, question_vocab=None, answer=None):
+    def check_mc_answer(*, question_vocab=None, answer=None, tips_count=0):
         if question_vocab is None:
             return -1
 

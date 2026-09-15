@@ -4,11 +4,16 @@ function quizAreaHandler(){
     if(!quizAreaContainer || !quizInputPanelContainer){
         return;
     }
+    let on_handling = false;
     quizAreaContainer.addEventListener('submit', function(e){
         if(!e.target.classList.contains('quiz-ajax-form')){
             return;
         }
         e.preventDefault();
+        if(on_handling === true){
+            return;
+        }
+        on_handling = true
         const form = e.target;
         fetch(form.action, {
             method: form.method,
@@ -56,6 +61,9 @@ function quizAreaHandler(){
 
             errorContainer.textContent =
                 "エラーが発生しました。ページを再読み込みして、もう一度お試しください。";
+        })
+        .finally(() => {
+            on_handling = false;
         });
     })
 }
