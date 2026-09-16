@@ -15,8 +15,8 @@
 <span class="status-badge">核心改修已完成</span>
 <h2>改修概要</h2>
 <div class="summary-block">
-<p>Public registration 原本會立即建立可登入帳戶並同步個人字庫，未能證明使用者真正控制該 email。改修後先保存 inactive user，再以有時限、會隨帳戶狀態失效嘅 activation token 完成 GET 確認及 POST 啟用；成功後先同步字庫，寄信失敗或連結過期亦有重寄同 cooldown 復原流程。</p>
-<aside><h3>主要修改重點</h3><ul class="key-points"><li>Public registration 只建立 inactive user，成功 activation 後先開放登入及同步字庫。</li><li>Activation link 以 uid 定位帳戶、以 timestamped HMAC token 驗證有效性。</li><li>GET 只顯示確認頁，真正改變 is_active 嘅操作留俾重新驗證 token 嘅 POST。</li><li>寄信失敗會保留帳戶並導向 resend；cache cooldown 減少短時間重複寄送。</li><li>Development flow 已接通，但真實 mail backend、共享 cache、併發及專用 tests 仍未驗證。</li></ul></aside>
+<p>Public registration 原本會立即建立可登入帳戶並同步個人字庫，未能證明使用者真正控制該 email。改修後先保存 inactive user，再以有時限、會隨帳戶狀態失效嘅 activation token 完成 GET 確認及 POST 啟用；成功後先同步字庫，寄信失敗或連結過期亦有重寄同 cooldown 復原流程。後續再將 development console backend 換成由 environment variables 配置嘅 Zoho SMTP，並以 App Password、已建立寄件 alias、Port 465 implicit SSL 完成真實寄送。</p>
+<aside><h3>主要修改重點</h3><ul class="key-points"><li>Public registration 只建立 inactive user，成功 activation 後先開放登入及同步字庫。</li><li>Activation link 以 uid 定位帳戶、以 timestamped HMAC token 驗證有效性。</li><li>GET 只顯示確認頁，真正改變 is_active 嘅操作留俾重新驗證 token 嘅 POST。</li><li>寄信失敗會保留帳戶並導向 resend；cache cooldown 減少短時間重複寄送。</li><li>Zoho SMTP 已成功完成 SSL 登入、真實寄送同 mailbox 收件確認；共享 cache、併發同 activation 專用 automated tests 仍未完成。</li></ul></aside>
 </div>
 </section>
 <nav class="report-nav" aria-label="報告目錄"><h2>目錄</h2><ul>
@@ -26,6 +26,7 @@
 <li><a href="#修改目的-3-讀取確認頁同真正啟用分成-get-post">修改目的 3：讀取確認頁同真正啟用分成 GET／POST</a></li>
 <li><a href="#修改目的-4-建立可重試嘅寄信流程">修改目的 4：建立可重試嘅寄信流程</a></li>
 <li><a href="#修改目的-5-容許重寄-同時減少重複寄送及帳戶狀態洩漏">修改目的 5：容許重寄，同時減少重複寄送及帳戶狀態洩漏</a></li>
+<li><a href="#purpose-6-zoho-smtp">修改目的 6：由 console backend 切換到 Zoho SMTP 真實寄送</a></li>
 <li><a href="#整體行為改變">整體行為改變</a></li>
 <li><a href="#測試及驗證結果">測試及驗證結果</a></li>
 <li><a href="#已知限制-未驗證事項">已知限制／未驗證事項</a></li>
@@ -321,10 +322,55 @@ if user is not None:
 <p>Django cache API 係本次 cooldown 嘅新用途：<code>add()</code>、<code>set()</code>、<code>delete()</code> 同 TTL 配合控制重試。當前未設定共享 backend，預設 LocMem 係 process-local；多 worker 唔會共享同一份節流狀態，亦唔構成 IP／全域 rate limit。<a href="https://docs.djangoproject.com/en/6.0/topics/cache/" target="_blank" rel="noreferrer">Django cache API</a></p>
 <p><code>forms.EmailField</code>、FormView 同 named redirects 係既有手法。Email 格式驗證只檢查輸入形狀；mailbox 控制權仍由有效 activation link 證明。</p>
 </section>
+<section class="purpose-card" id="purpose-6-zoho-smtp">
+<h2>修改目的 6：由 console backend 切換到 Zoho SMTP 真實寄送</h2>
+<h3>修改目的／理由</h3>
+<p>Console backend只會將完整email印到development terminal，適合驗證template同activation URL，但收件人實際收唔到信。今次將Django email backend接到已建立custom-domain mailbox嘅Zoho SMTP，令既有<code>send_activation_email()</code>毋須改動都可以真實送出activation email。</p>
+<h3>受影響檔案與責任</h3>
+<ul>
+<li><code>config/settings.py:151</code>：由固定console backend改成environment-driven SMTP settings，解析port、SSL／TLS boolean、登入身份、寄件人同timeout。</li>
+<li><code>.env</code>：保存本機Zoho SMTP host、App Password、真正登入mailbox同已驗證寄件alias；受Git ignore保護，內容唔屬於report證據或Git history。</li>
+<li>Zoho Accounts／Mail Admin：建立App Password同寄件alias；Django只消費結果，唔管理provider-side identity。</li>
+<li><code>accounts/views.py</code>：沿用既有<code>send_mail(..., fail_silently=False)</code>，backend切換後自動改經SMTP送出，無需修改activation domain flow。</li>
+</ul>
+<div class="comparison-grid">
+<section class="code-panel">
+<h3>修改前</h3>
+<p><code>config/settings.py</code>，<code>HEAD 10f6dd2</code>：</p>
+<pre><code class="language-python">EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "言葉の輪 &lt;noreply@japanese-quiz.local&gt;"</code></pre>
+<p>信件只輸出到terminal；即使<code>send_mail()</code>回傳成功，外部mailbox都唔會收到。</p>
+</section>
+<section class="code-panel">
+<h3>修改後</h3>
+<p><code>config/settings.py:151</code>；寄件domain已遮蔽，其餘格式跟目前source：</p>
+<pre><code class="language-python">EMAIL_BACKEND = os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend",)
+EMAIL_HOST=os.getenv("EMAIL_HOST", "")
+EMAIL_PORT=int(os.getenv("EMAIL_PORT", "465"))
+EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
+EMAIL_USE_SSL=os.getenv("EMAIL_USE_SSL", "True").lower() == "true"
+EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL", "言葉の輪 &lt;verified-alias@example.invalid&gt;")
+EMAIL_TIMEOUT=int(os.getenv("EMAIL_TIMEOUT", "15"))</code></pre>
+<p>真實<code>.env</code>使用Zoho帳戶顯示嘅日本data-center SMTP host、Port 465、SSL、真正登入mailbox、App Password同已建立alias；所有實值均排除於報告。</p>
+</section>
+</div>
+<h3>前後差異與運作解釋</h3>
+<p>Django嘅<code>smtp.EmailBackend</code>會將既有<code>send_mail()</code>內容交畀SMTP server。今次provider設定係Port 465 implicit SSL，所以<code>EMAIL_USE_SSL=True</code>、<code>EMAIL_USE_TLS=False</code>；兩者唔可以同時開。Port 587 STARTTLS係另一種連線方式，唔應混用。</p>
+<p>Environment variables全部係字串。<code>bool("False")</code>喺Python仍然係<code>True</code>，所以設定要用<code>.lower() == "true"</code>轉成真正boolean；亦要記得<code>lower</code>係method，漏咗<code>()</code>只會比較method object，結果會靜默變成<code>False</code>。<code>manage.py check</code>未必捉到呢種意圖錯誤，因此今次另外檢查Django runtime settings。</p>
+<p><code>EMAIL_HOST_USER</code>係真正用App Password登入Zoho嘅mailbox；<code>DEFAULT_FROM_EMAIL</code>可以係同一地址，或者provider已批准嘅alias。今次先喺Zoho建立alias，再以該alias作From地址；未建立就只喺Django自行填寫，可能被provider當成unauthorized sender或relay拒絕。</p>
+<p>連線測試先用<code>get_connection().open()</code>驗證host、SSL同credential，成功後立即close，將authentication同真正寄信分開診斷。再用<code>send_mail()</code>由alias寄到帳戶自己嘅mailbox；Django回傳<code>1</code>，使用者亦確認實際收到，證明唔止係console output或SMTP接受但未見收件。</p>
+<h3>新使用技術</h3>
+<p><strong>Django SMTP backend：</strong>Repository使用Django 6.0.5；<code>smtp.EmailBackend</code>負責建立SMTP／SSL connection、登入、送信同關閉連線。Application既有helper仍可使用統一email API，transport由settings決定。<a href="https://docs.djangoproject.com/en/6.0/topics/email/#smtp-backend" target="_blank" rel="noreferrer">Django 6.0 SMTP backend</a></p>
+<p><strong>Zoho Mail SMTP：</strong>SMTP server同port以帳戶內Server Configuration Details為準，因account type同data center可能不同。今次使用帳戶顯示嘅日本data-center host及Port 465 SSL，唔將其他region host硬寫入code。<a href="https://www.zoho.com/mail/help/zoho-smtp.html" target="_blank" rel="noreferrer">Zoho Mail SMTP configuration</a></p>
+<p><strong>App Password同alias：</strong>SMTP credential與一般登入密碼分開；寄件alias要先由provider建立及批准。App Password只放未追蹤<code>.env</code>，report、Git diff、console output同測試指令均唔顯示實值。</p>
+<p><strong>python-dotenv 1.2.3：</strong><code>load_dotenv(BASE_DIR / ".env")</code>原本已為PostgreSQL設定存在；今次沿用同一environment boundary載入mail設定。Library唔加密secret，安全性仍依賴<code>.env</code>不入Git、檔案權限同部署環境嘅secret管理。</p>
+</section>
 </div>
 <section class="report-section" id="整體行為改變">
 <h2>整體行為改變</h2>
-<p>以前係註冊後即建立可用 user 同同步字庫。依家係註冊後保存 inactive user，再由 email link 嘅 GET 確認頁同 POST 啟用完成第二階段。成功啟用後先 sync，user 再自行登入。</p>
+<p>以前係註冊後即建立可用user同同步字庫。依家係註冊後保存inactive user，由Zoho SMTP以已批准alias真實寄出activation email，再由email link嘅GET確認頁同POST啟用完成第二階段。成功啟用後先sync，user再自行登入；console backend只保留成未配置SMTP時嘅development fallback。</p>
 <div class="table-scroll"><table><thead><tr>
 <th>事件</th>
 <th>帳戶狀態</th>
@@ -347,16 +393,26 @@ if user is not None:
 <li><code>git diff --check</code>：當前 working tree 通過。</li>
 <li><code>.venv/bin/python manage.py check</code>：0 issues。</li>
 <li><code>.venv/bin/python manage.py test accounts core</code>：10 tests 通過，使用 test database，執行後銷毀。</li>
+<li><code>.venv/bin/python manage.py check</code>（Zoho SMTP設定後）：0 issues。</li>
+<li>遮蔽式runtime設定檢查：SMTP backend、provider host、Port 465、SSL=True、TLS=False、登入身份、App Password存在性、寄件alias格式同15秒timeout全部通過；無輸出敏感值。</li>
+<li><code>get_connection(fail_silently=False).open()</code>：Zoho SMTP SSL連線及App Password登入成功，隨即關閉，未寄信。</li>
+<li>真實<code>send_mail()</code>：由已建立alias寄去帳戶自己嘅mailbox，回傳<code>sent_count=1</code>；使用者確認實際收件成功。</li>
+<li><code>git diff --check -- config/settings.py</code>：通過。</li>
 </ul>
-<p>重要範圍限制：Django commands 係喺當前 working tree 執行，當中包含未提交 accounts 同 quiz 修改；唔係喺 isolated <code>9062a2e</code> checkout 執行。因此唔可以聲稱已獨立重跑指定 commit 嘅全部行為。</p>
+<p>重要範圍限制：原activation報告記錄嘅Django commands係喺當時working tree執行，並非isolated <code>9062a2e</code> checkout；今次SMTP增補則以目前working tree執行遮蔽式設定檢查、system check、connection test同真實寄送。兩批證據屬於唔同時間點，唔可以合併聲稱成一次完整end-to-end regression test。</p>
 <p>本次只檢視而未新增嘅 tests：<code>9062a2e:accounts/tests.py</code> 係 placeholder；<code>core/tests.py</code> 主要覆蓋 templates／語系等既有 regression。10 tests 全綠唔代表已驗證 token expiry、cooldown、mail failure、POST activation 或併發啟用。</p>
-<p>Code inspection 已核對 registration → helper → URL → activation view → token → sync，同 resend → cache → helper → generic response；冇執行真實郵件寄送或 production data 修改。</p>
+<p>Code inspection 已核對registration → helper → URL → activation view → token → sync，同resend → cache → helper → generic response。Zoho extension已執行一封寄往帳戶自己mailbox嘅真實測試信，但未以新測試帳戶完成registration → 收activation email → POST啟用 → login全路徑。</p>
 </section>
 <section class="report-section" id="已知限制-未驗證事項">
 <h2>已知限制／未驗證事項</h2>
 <ul>
-<li><code>9062a2e</code> 尚未包含完整 email lowercase policy 或 case-insensitive unique constraint；resend 嘅 <code>iexact(...).first()</code> 喺有大小寫變體帳戶時存在歧義。之後 working-tree M02 修正唔屬於本報告 after state。</li>
-<li>Console backend 只適合 development。真實 mail provider、HTTPS host／proxy configuration、共享 cache 同寄送監控仍待部署時完成。</li>
+<li>原activation commit <code>9062a2e</code>尚未包含完整email lowercase policy或case-insensitive unique constraint；目前<code>HEAD 10f6dd2</code>已包含其後完成嘅canonicalization同database constraint，但本報告前五個目的章節仍保留原activation基準。</li>
+<li>Zoho SMTP真實寄送已成功，但production HTTPS host／reverse-proxy configuration、共享cache、bounce／delivery monitoring同provider outage策略仍未完成。<code>sent_count=1</code>只代表backend成功處理，唔係一般情況下保證每一封最終入Inbox。</li>
+<li><code>.env.example</code>目前只有PostgreSQL keys，未列出email設定名稱；新clone無法單靠tracked example重建SMTP配置。今次依照report-only範圍無修改config或example。</li>
+<li>SMTP設定保留console backend fallback；development方便，但production若漏設<code>EMAIL_BACKEND</code>可能退回terminal output而唔係fail fast。正式deployment應加入environment validation。</li>
+<li>App Password目前由本機<code>.env</code>提供，未接production secret manager；report只驗證存在性，無讀出、保存或重現secret。</li>
+<li>Activation URL仍由<code>request.build_absolute_uri()</code>建立；local request會產生localhost link。Custom domain能收到email唔等於網站已部署到該domain，外部可用link仍依賴DNS、HTTPS、proxy同<code>ALLOWED_HOSTS</code>。</li>
+<li>SPF、DKIM同DMARC狀態本次未由repository或DNS query驗證；實際收件成功只證明呢一封測試信可送達，唔足以概括長期deliverability。</li>
 <li>Resend 統一 response 減少直接透露 account state，但唔代表已消除 timing difference；registration duplicate validation 同 already-active activation response 亦唔係同一保密邊界。</li>
 <li>Activation 嘅「使用後失效」係狀態變化帶來嘅循序行為；POST 冇鎖定 user row 或條件式狀態更新，唔保證併發請求下 side effects exactly once。</li>
 <li><code>is_active</code> 同時承擔「未驗證」及「停用」語意。若 admin 用 False 封禁已驗證帳戶，現有 resend 亦會選中該帳戶；需要另定停權政策，唔應將本機 onboarding 實作當成完整封禁管理。</li>
@@ -371,7 +427,12 @@ if user is not None:
 <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#password-reset-timeout" target="_blank" rel="noreferrer">Django 6.0：PASSWORD_RESET_TIMEOUT</a></li>
 <li><a href="https://docs.djangoproject.com/en/6.0/ref/request-response/#django.http.HttpRequest.build_absolute_uri" target="_blank" rel="noreferrer">Django 6.0：build_absolute_uri</a></li>
 <li><a href="https://docs.djangoproject.com/en/6.0/topics/email/" target="_blank" rel="noreferrer">Django 6.0：Sending email</a></li>
+<li><a href="https://docs.djangoproject.com/en/6.0/topics/email/#smtp-backend" target="_blank" rel="noreferrer">Django 6.0：SMTP backend</a></li>
 <li><a href="https://docs.djangoproject.com/en/6.0/topics/cache/" target="_blank" rel="noreferrer">Django 6.0：Cache framework</a></li>
+<li><a href="https://www.zoho.com/mail/help/zoho-smtp.html" target="_blank" rel="noreferrer">Zoho Mail：SMTP server configuration</a></li>
+<li><a href="https://help.zoho.com/portal/en/kb/accounts/manage-your-zoho-account/articles/manage-app-passwords" target="_blank" rel="noreferrer">Zoho Accounts：Manage App Passwords</a></li>
+<li><a href="https://www.zoho.com/mail/help/adminconsole/dkim-configuration.html" target="_blank" rel="noreferrer">Zoho Mail：DKIM configuration</a></li>
+<li><a href="https://www.zoho.com/mail/help/adminconsole/dmarc-policy.html" target="_blank" rel="noreferrer">Zoho Mail：DMARC policy</a></li>
 </ul>
 <p>Token 實作補充證據：本機 Django 6.0.5 嘅 <code>django/contrib/auth/tokens.py</code>；官方 source 頁本次未能成功載入，冇將其他版本源碼當成 6.0.5 證據。</p>
 </section>
@@ -379,20 +440,21 @@ if user is not None:
 <summary>Report 基準／證據範圍</summary>
 <h2>Report 基準</h2>
 <ul>
-<li>產生時間：2026-09-10 22:30 JST。</li>
-<li>主題：已提交嘅 account email activation 修改。</li>
+<li>最初產生時間：2026-09-10 22:30 JST；Zoho SMTP增補時間：2026-09-16 23:03 JST。</li>
+<li>主題：已提交嘅account email activation修改，以及其後由console backend切換到Zoho SMTP真實寄送嘅working-tree擴充。</li>
 <li>修改前：<code>012ae6701b925c4509e36e8f52e122f0ae0a3baf</code>。</li>
-<li>修改後：<code>9062a2ea41e4e46f5f3b27fcaedf303be0e4f0d4</code>，亦係報告建立時嘅 <code>HEAD</code>。</li>
-<li>按 user 指定比較 <code>012ae67 → 9062a2e</code>；下文行號全部指修改後 commit，唔係 editor 當前行號。程式片段係該版本嘅局部原文，唔代表完整 function。</li>
+<li>原activation修改後：<code>9062a2ea41e4e46f5f3b27fcaedf303be0e4f0d4</code>，亦係原報告建立時嘅 <code>HEAD</code>。</li>
+<li>原報告按user指定比較<code>012ae67 → 9062a2e</code>；前五個目的章節行號指該修改後commit。Zoho SMTP章節以報告更新時<code>HEAD 10f6dd25098d06d29d63746fc4f488d3707c6dce</code>作before state、目前working tree作after state。</li>
 <li>直接證據：<code>accounts/forms.py</code>、<code>accounts/views.py</code>、<code>accounts/tokens.py</code>、<code>accounts/urls.py</code>、accounts activation／login／email templates，同 <code>config/settings.py</code> 嘅相關 diff。</li>
 <li>周邊核對：custom user、admin form、profile signal、<code>sync_vocab_safely()</code>、requirements 同現有 tests。</li>
-<li>Working tree 有未提交嘅 email lowercase／unique constraint 修改、quiz M01 修改、四份 status docs 修改，另有未追蹤 accounts migration；全部排除於本報告嘅 before／after 範圍。</li>
-<li>同一 commit 內其他 modification notes、status docs、dictionary URL 同 ignore 規則唔屬於今次 activation 實作解釋。現有 <code>docs/modification/email_activation.md</code> 保留；本文件係新報告。</li>
+<li>Zoho SMTP直接證據：<code>config/settings.py</code>嘅HEAD-to-working-tree diff、遮蔽式runtime settings輸出、SMTP connection結果、真實send count同使用者收件確認。Provider-side alias／App Password由使用者完成；report只記錄結果，無讀取Zoho控制台內容。</li>
+<li>更新時working tree相關code只有<code>config/settings.py</code>；真實<code>.env</code>受Git ignore並完全排除，無記錄email address、domain、App Password或其他credential。<code>.env.example</code>無email keys，作為限制記錄而非after-code。</li>
+<li>同一 commit 內其他modification notes、status docs、dictionary URL同ignore規則唔屬於今次activation實作解釋；舊版學習筆記同token策略比較文件亦無納入今次SMTP after-code證據。</li>
 <li>Repository 固定 <code>Django==6.0.5</code>；框架說明參考 Django 6.0 官方文件，token 細節亦核對本機安裝版本源碼。</li>
 </ul>
 <h3>完成度判定證據</h3>
 <p>以 development console-email workflow 為範圍，核心接線完整：public registration 保存 inactive user、建立 activation link、GET 顯示確認、POST 驗證後啟用、同步 UserVocab，亦有重寄入口同寄信失敗處理。所需 forms、URLs、templates 同 token object 均存在；沿用既有 <code>is_active</code>，毋須為本修改新增 migration。</p>
-<p>呢個判斷唔代表已驗證真實收信或全部安全邊界。<code>accounts/tests.py</code> 仍然只有 placeholder；本次現有 suite 通過只提供有限 regression 證據，詳見末段。</p>
+<p>Zoho SMTP extension已驗證真實登入、寄送及收件，但唔代表完整registration activation journey、DNS authentication、bounce handling或全部安全邊界已完成。<code>accounts/tests.py</code>仍然只有placeholder；現有suite通過只提供有限regression證據，詳見測試及限制段落。</p>
 </details>
 </main>
 </body>

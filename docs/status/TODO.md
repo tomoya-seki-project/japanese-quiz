@@ -484,10 +484,10 @@ Status badge：
 
 - Public registration會建立 `is_active=False` user；Admin add-user維持active預設，未認證帳戶唔會預先建立 `UserVocab`。
 - 專用stateless token綁定user id、password、email、timestamp及 `is_active`，24小時後過期；GET只顯示確認，POST先啟用，成功後舊link失效並執行resilient vocab sync。
-- Registration會建立完整activation URL、用日文template寄信並進入檢查email頁；development使用console backend及只限 `DEBUG`嘅URL輸出。
+- Registration會建立完整activation URL、用日文template寄信並進入檢查email頁；email backend已改由environment variables配置，未提供設定時保留console backend作development fallback。
 - Resend支援email驗證、inactive-only寄送、統一回應及每個user 60秒cache cooldown；registration首封信亦會啟動cooldown，寄信失敗會釋放key。
 - 寄信回傳0或拋exception會記錄安全audit context；registration失敗會保留inactive account並引導resend，resend失敗則維持不洩漏account狀態嘅統一回應。
-- Inactive、錯密碼及不存在email使用相同日文登入錯誤並提供resend入口；temporary integration diagnostics及現有10個automated tests均通過。
+- Zoho SMTP已使用App Password、真正登入mailbox同已批准寄件alias接通Port 465 implicit SSL；connection test、真實寄送及mailbox收件確認成功，敏感設定只保存在Git忽略嘅 `.env`。
 
 
 <p style="margin-left:1.5em;"><strong>待測試</strong></p>
@@ -497,7 +497,7 @@ Status badge：
 
 <p style="margin-left:1.5em;"><strong>改良</strong></p>
 
-- 正式部署前改用production email backend、共享cache及HTTPS site domain；credentials同 `SECRET_KEY`必須由安全環境設定提供。
+- 正式部署仍要配置HTTPS site domain、共享cache、production secret management及environment validation；亦要補齊 `.env.example` email keys，並確認SPF／DKIM／DMARC同寄送監控。
 - 如之後增加admin resend、background task或更多caller，可將activation email function由view module移到accounts service層。
 
 

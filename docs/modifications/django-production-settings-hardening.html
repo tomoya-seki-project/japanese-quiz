@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Django Production Settings Hardening 學習報告</title>
+  <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+<main class="report-shell">
+  <header class="report-header">
+    <h1>Django Production Settings Hardening</h1>
+  </header>
+
+  <section class="report-section" id="summary">
+    <span class="status-badge">設定模式已完成；實際部署待處理</span>
+    <h2>修改概要</h2>
+    <div class="summary-block">
+      <p>原本嘅Django quick-start設定將<code>SECRET_KEY</code>、<code>DEBUG=True</code>同空白<code>ALLOWED_HOSTS</code>直接寫死，適合本機起步，但唔能夠安全地切換到production。改修後，敏感值、environment switch、host／origin allowlist同HSTS時間全部由environment variables提供；當<code>DEBUG=False</code>時，Django先自動啟用HTTPS redirect同secure cookies。本機仍然可以用HTTP <code>runserver</code>，而production可以使用另一組environment values，毋須再改application source。</p>
+      <aside>
+        <h3>主要修改重點</h3>
+        <ul class="key-points">
+          <li><code>SECRET_KEY</code>改成required environment variable，漏設會立即停止啟動。</li>
+          <li><code>DEBUG</code>、<code>ALLOWED_HOSTS</code>同<code>CSRF_TRUSTED_ORIGINS</code>支援文字環境變數解析。</li>
+          <li>HTTPS redirect、secure session／CSRF cookies同HSTS只會喺production branch啟用。</li>
+          <li>同一份<code>settings.py</code>可配合development同production兩組設定；production-style runtime assertions已通過。</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <nav class="report-nav" aria-label="報告目錄">
+    <h2>目錄</h2>
+    <ul>
+      <li><a href="#purpose-required-secret">修改目的1：移除寫死嘅secret同debug mode</a></li>
+      <li><a href="#purpose-host-origin">修改目的2：建立host同CSRF origin allowlist</a></li>
+      <li><a href="#purpose-https">修改目的3：只喺production強制HTTPS</a></li>
+      <li><a href="#reusable-template">可重用設定範本</a></li>
+      <li><a href="#overall-behavior">整體行為改變</a></li>
+      <li><a href="#verification">測試及驗證結果</a></li>
+      <li><a href="#limitations">已知限制／未驗證事項</a></li>
+      <li><a href="#references">官方參考</a></li>
+      <li><a href="#baseline">Report基準／證據範圍</a></li>
+    </ul>
+  </nav>
+
+  <div class="purpose-list">
+    <section class="purpose-card" id="purpose-required-secret">
+      <h2>修改目的1：移除寫死嘅secret同debug mode</h2>
+      <h3>修改目的／理由</h3>
+      <p>Production secret唔應該進入Git history，而production亦唔可以開啟會顯示traceback、local variables同settings資料嘅debug page。設定改成由外部environment提供後，同一份source code先可以安全地喺不同環境使用。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>config/settings.py:27-32</code>：要求<code>SECRET_KEY</code>存在，並將文字形式嘅<code>DEBUG</code>轉成Python boolean。</li>
+        <li><code>.env.example:17-18</code>：公開所需key名稱同development預設形狀，但唔保存任何真正secret。</li>
+        <li><code>.env</code>：保存本機真正值；已由Git ignore，內容完全排除於報告。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source"><code>config/settings.py</code>｜<code>HEAD 10f6dd2</code>；literal已遮蔽</p>
+          <pre><code class="language-python">SECRET_KEY = "&lt;committed-development-key&gt;"
+
+DEBUG = True</code></pre>
+        </section>
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>config/settings.py:27-32</code></p>
+          <pre><code class="language-python">SECRET_KEY = os.environ["SECRET_KEY"]
+
+DEBUG = os.getenv(
+    "DEBUG",
+    "False",
+).strip().lower() == "true"</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p><code>os.environ["SECRET_KEY"]</code>係required lookup：如果環境漏設，application啟動時會立即拋出錯誤，避免靜默使用假secret。舊key已經存在Git history，所以只可當development key，production必須產生一個未曾提交、亦唔同其他project共用嘅隨機值。</p>
+      <p>Environment variable永遠以字串讀入。<code>bool("False")</code>其實係<code>True</code>，所以要先<code>strip()</code>、再<code>lower()</code>，最後明確比較<code>"true"</code>。預設值設為<code>False</code>，代表漏設時採用較安全嘅production方向，而唔係意外打開debug。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>Python <code>os.environ</code>／<code>os.getenv()</code>：</strong>前者適合必須存在嘅secret，後者適合有合理預設值嘅environment switch。呢個修改無新增dependency，而係沿用標準庫<code>os</code>。</p>
+      <p><strong>python-dotenv 1.2.3：</strong><code>load_dotenv(BASE_DIR / ".env")</code>已由早前PostgreSQL修改建立；今次重用佢將本機<code>.env</code>載入process environment。Production可以由hosting平台直接提供environment values，毋須依賴上傳本機檔案。</p>
+    </section>
+
+    <section class="purpose-card" id="purpose-host-origin">
+      <h2>修改目的2：建立host同CSRF origin allowlist</h2>
+      <h3>修改目的／理由</h3>
+      <p><code>DEBUG=False</code>時，Django需要明確知道可以服務邊啲Host header；HTTPS POST亦要知道邊啲origin可信。Development同production使用不同domain，因此兩組allowlist都要由environment提供。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>config/settings.py:34-47</code>：將comma-separated environment string拆成list，並移除空格同空項目。</li>
+        <li><code>.env.example:19-20</code>：示範本機host同origin格式。</li>
+        <li>未追蹤<code>.env</code>：目前啟用development profile，另以comment保留production profile參考；同一時間只應啟用一組同名key。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source"><code>config/settings.py</code>｜<code>HEAD 10f6dd2</code></p>
+          <pre><code class="language-python">ALLOWED_HOSTS = []
+
+# CSRF_TRUSTED_ORIGINS 未設定</code></pre>
+        </section>
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>config/settings.py:34-47</code></p>
+          <pre><code class="language-python">ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "",
+    ).split(",")
+    if origin.strip()
+]</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p><code>ALLOWED_HOSTS</code>填host name，唔包含scheme、path或尾斜線，例如<code>app.example.com</code>。<code>CSRF_TRUSTED_ORIGINS</code>填origin，必須包含scheme，例如<code>https://app.example.com</code>。兩者唔係同一份資料：前者保護Host header boundary，後者處理跨origin unsafe request嘅CSRF信任。</p>
+      <p><code>split(",")</code>將一個environment string拆開；list comprehension逐項<code>strip()</code>並用<code>if host.strip()</code>排除空值。呢個pattern可以重用於其他comma-separated設定，但只適合值本身唔會包含comma嘅情況。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>Django host validation：</strong>Django會以<code>ALLOWED_HOSTS</code>驗證經<code>request.get_host()</code>取得嘅Host header；精確列出domain比使用<code>*</code>更安全。</p>
+      <p><strong>Django CSRF trusted origins：</strong>HTTPS request帶有<code>Origin</code>時，CSRF middleware會檢查來源；只有確實需要信任嘅scheme + host應該加入list。</p>
+    </section>
+
+    <section class="purpose-card" id="purpose-https">
+      <h2>修改目的3：只喺production強制HTTPS</h2>
+      <h3>修改目的／理由</h3>
+      <p>Production登入、session同activation flow需要全站HTTPS；但普通<code>runserver</code>只提供HTTP。如果secure settings無條件啟用，本機會被redirect去無法提供嘅<code>https://localhost</code>，session同POST亦唔能夠正常運作。因此安全設定以<code>if not DEBUG</code>作environment boundary。</p>
+
+      <h3>受影響檔案與責任</h3>
+      <ul>
+        <li><code>config/settings.py:50-59</code>：production啟用HTTPS redirect、secure cookies同HSTS。</li>
+        <li><code>.env.example:21</code>：development HSTS為0；真正production environment先由較短時間開始。</li>
+      </ul>
+
+      <div class="comparison-grid">
+        <section class="code-panel">
+          <h3>修改前</h3>
+          <p class="code-source"><code>config/settings.py</code>｜<code>HEAD 10f6dd2</code></p>
+          <pre><code class="language-python"># 無production-only HTTPS settings</code></pre>
+        </section>
+        <section class="code-panel">
+          <h3>修改後</h3>
+          <p class="code-source"><code>config/settings.py:50-59</code></p>
+          <pre><code class="language-python">if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("SECURE_HSTS_SECONDS", "3600")
+    )
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False</code></pre>
+        </section>
+      </div>
+
+      <h3>前後差異與運作解釋</h3>
+      <p><code>SECURE_SSL_REDIRECT</code>將HTTP request導向HTTPS；兩個<code>*_COOKIE_SECURE</code>令browser只經HTTPS送出session同CSRF cookies。<code>SECURE_HSTS_SECONDS</code>會要求browser喺指定時間內直接使用HTTPS，因此只應喺certificate、proxy同redirect全部確認正常後由短時間開始。</p>
+      <p><code>SECURE_HSTS_INCLUDE_SUBDOMAINS=False</code>同<code>SECURE_HSTS_PRELOAD=False</code>係刻意保守選擇。打開前要確認相關subdomains全部永久支援HTTPS，亦要理解browser preload list係長期承諾；唔應只為清除deploy check warning而開。</p>
+
+      <h3>新使用技術</h3>
+      <p><strong>Django <code>SecurityMiddleware</code>：</strong>Project本身已載入middleware；今次開始透過security settings使用佢嘅HTTPS redirect同HSTS response header能力。Secure cookies則由session同CSRF設定控制browser傳送條件。</p>
+    </section>
+  </div>
+
+  <section class="report-section" id="reusable-template">
+    <h2>可重用設定範本</h2>
+    <p>以下係今次實作抽出嚟、可以移植到其他Django project嘅最小pattern。先確認新project已經載入environment values；唔好照抄真實domain或secret。</p>
+    <details open>
+      <summary><code>settings.py</code>可重用部分</summary>
+      <pre><code class="language-python">SECRET_KEY = os.environ["SECRET_KEY"]
+
+DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
+
+ALLOWED_HOSTS = [
+    value.strip()
+    for value in os.getenv("ALLOWED_HOSTS", "").split(",")
+    if value.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    value.strip()
+    for value in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if value.strip()
+]
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("SECURE_HSTS_SECONDS", "3600")
+    )
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False</code></pre>
+    </details>
+    <div class="comparison-grid">
+      <section class="code-panel">
+        <h3>Development profile</h3>
+        <p class="code-source">本機HTTP <code>runserver</code>示例</p>
+        <pre><code>SECRET_KEY=&lt;local-only-random-key&gt;
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+CSRF_TRUSTED_ORIGINS=http://localhost:8000
+SECURE_HSTS_SECONDS=0</code></pre>
+      </section>
+      <section class="code-panel">
+        <h3>Production profile</h3>
+        <p class="code-source">由hosting／server environment提供</p>
+        <pre><code>SECRET_KEY=&lt;different-production-random-key&gt;
+DEBUG=False
+ALLOWED_HOSTS=app.example.com
+CSRF_TRUSTED_ORIGINS=https://app.example.com
+SECURE_HSTS_SECONDS=3600</code></pre>
+      </section>
+    </div>
+    <aside class="notice notice-warning">
+      <strong>切換規則：</strong>同一environment唔好同時定義兩組同名key。本機<code>.env</code>唔應上傳到server；production由server、container、systemd或者hosting secret settings提供另一組值。
+    </aside>
+  </section>
+
+  <section class="report-section" id="overall-behavior">
+    <h2>整體行為改變</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>環境</th><th>設定來源</th><th>HTTP／HTTPS行為</th><th>Host／CSRF boundary</th></tr></thead>
+        <tbody>
+          <tr><td>Development</td><td>未追蹤本機<code>.env</code></td><td><code>DEBUG=True</code>，普通HTTP runserver可用；production-only branch唔執行。</td><td>只列出localhost／loopback需要嘅值。</td></tr>
+          <tr><td>Production</td><td>Server／hosting environment或secret manager</td><td><code>DEBUG=False</code>，HTTP redirect去HTTPS，session同CSRF cookies只經HTTPS傳送，開始送出HSTS header。</td><td>精確列出實際application domain同HTTPS origin。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="report-section" id="verification">
+    <h2>測試及驗證結果</h2>
+    <ul>
+      <li><code>git diff --check -- config/settings.py .env.example</code>：通過。</li>
+      <li><code>.venv/bin/python manage.py check</code>：development profile 0 issues。</li>
+      <li>確認<code>.env</code>由<code>.gitignore</code>規則排除，無讀出或記錄任何secret value。</li>
+      <li>以shell environment暫時覆寫<code>DEBUG=False</code>、production-shaped host／origin同HSTS 3600，毋須修改本機<code>.env</code>。</li>
+      <li>Production-style runtime assertions：<code>DEBUG</code>、host list、origin list、SSL redirect、secure cookies、HSTS秒數、subdomain同preload flags全部符合預期。</li>
+      <li><code>manage.py check --deploy</code>喺production-shaped environment完成；只剩<code>security.W005</code>同<code>security.W021</code>，分別對應刻意未啟用嘅HSTS include-subdomains同preload。</li>
+    </ul>
+    <p>無新增或執行專用automated tests；呢次修改屬settings wiring，驗證集中喺Django system checks同runtime value assertions。</p>
+  </section>
+
+  <section class="report-section" id="limitations">
+    <h2>已知限制／未驗證事項</h2>
+    <ul>
+      <li>設定模式已完成，但網站尚未真正deploy；未有production TLS certificate、reverse proxy、WSGI／ASGI server或外部request證據。</li>
+      <li><code>SECURE_PROXY_SSL_HEADER</code>未設定。呢個值必須按實際Cloudflare／Nginx／hosting topology決定，確認proxy會覆寫而唔係盲目信任client header後先加入。</li>
+      <li>HSTS include-subdomains同preload保持False，所以deploy check仍有兩個warning；要等全部相關subdomains都永久支援HTTPS，並理解preload移除成本後先考慮打開。</li>
+      <li><code>.env.example</code>目前提供development形狀，未另建<code>.env.production.example</code>；production值仍由部署環境負責。</li>
+      <li>舊development <code>SECRET_KEY</code>已存在Git history，永遠唔可以用作production key。Report無檢查、保存或比較目前真正key內容。</li>
+      <li>Static files、media、database backup／restore、logging／monitoring、shared cache、rate limiting同deployment automation唔屬於今次settings修改，仍然係production readiness後續工作。</li>
+      <li>Content Security Policy係Django 6.0另一項可用security layer，但今次無實作，亦唔係清除目前七個原始deploy warnings所需嘅核心範圍。</li>
+    </ul>
+  </section>
+
+  <section class="report-section" id="references">
+    <h2>官方參考</h2>
+    <ul>
+      <li><a href="https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/" target="_blank" rel="noreferrer">Django 6.0：Deployment checklist</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/topics/security/" target="_blank" rel="noreferrer">Django 6.0：Security in Django</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#allowed-hosts" target="_blank" rel="noreferrer">Django 6.0：ALLOWED_HOSTS</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#csrf-trusted-origins" target="_blank" rel="noreferrer">Django 6.0：CSRF_TRUSTED_ORIGINS</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#secure-hsts-seconds" target="_blank" rel="noreferrer">Django 6.0：SECURE_HSTS_SECONDS</a></li>
+      <li><a href="https://docs.djangoproject.com/en/6.0/ref/settings/#secure-proxy-ssl-header" target="_blank" rel="noreferrer">Django 6.0：SECURE_PROXY_SSL_HEADER</a></li>
+      <li><a href="https://saurabh-kumar.com/python-dotenv/" target="_blank" rel="noreferrer">python-dotenv documentation</a></li>
+    </ul>
+  </section>
+
+  <details id="baseline">
+    <summary>Report基準／證據範圍</summary>
+    <h2>Report基準</h2>
+    <ul>
+      <li>產生時間：2026-09-16 23:45 JST。</li>
+      <li>使用者指定主題：Django production settings hardening，並以日後其他project可重用為學習目標。</li>
+      <li>Git repository：<code>/home/seki/projects/self_projects/japanese-quiz</code>。</li>
+      <li>Primary before state：<code>HEAD 10f6dd25098d06d29d63746fc4f488d3707c6dce</code>。</li>
+      <li>After state：目前未提交working tree嘅<code>config/settings.py</code>同<code>.env.example</code>相關security settings。</li>
+      <li>直接檢視：完整HEAD-to-working-tree diff、相關source上下文、目前runtime settings、Git ignore結果、Django checks同production-shaped assertions。</li>
+      <li>背景檢視：最近兩個commits <code>10f6dd2</code>同<code>7a9b3c4</code>；前者建立python-dotenv／PostgreSQL environment foundation，後者與今次主題無直接security settings改動。</li>
+      <li>版本證據：<code>requirements.txt</code>及<code>requirements-dev.txt</code>固定<code>Django==6.0.5</code>、<code>python-dotenv==1.2.3</code>。</li>
+      <li>排除：同一working tree嘅Zoho SMTP修改已由<code>email-activation.html</code>記錄；該report自身更新、TODO更新同其他project變更均不屬於今次before／after。</li>
+      <li>敏感資料：未追蹤<code>.env</code>只用作遮蔽式存在性／runtime驗證；report無收錄真正secret、password、mailbox、personal data或project domain，範例一律使用<code>example.com</code>。</li>
+    </ul>
+  </details>
+</main>
+</body>
+</html>

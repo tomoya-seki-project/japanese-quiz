@@ -24,13 +24,39 @@ load_dotenv(BASE_DIR / ".env")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-x5_cac3ai@b=n^cj&670+&2&o1$w^6pxak%=c0@d5=os_r643-'
+SECRET_KEY = os.environ["SECRET_KEY"]
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv(
+    "DEBUG",
+    "False",
+).strip().lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "",
+    ).split(",")
+    if origin.strip()
+]
+
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("SECURE_HSTS_SECONDS", "3600")
+    )
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
 
 
 # Application definition
@@ -148,8 +174,15 @@ AUTH_USER_MODEL = 'accounts.User'
 
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "言葉の輪 <noreply@japanese-quiz.local>"
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend",)
+EMAIL_HOST=os.getenv("EMAIL_HOST", "")
+EMAIL_PORT=int(os.getenv("EMAIL_PORT", "465"))
+EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
+EMAIL_USE_SSL=os.getenv("EMAIL_USE_SSL", "True").lower() == "true"
+EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL", "言葉の輪 <no-reply@silent-mori.com>")
+EMAIL_TIMEOUT=int(os.getenv("EMAIL_TIMEOUT", "15"))
 
 ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS = 60
 LOGIN_URL = '/accounts/user_login/'
