@@ -6,9 +6,5 @@ db.sqlite3
 log/*.log
 log/log.*
 log/*.log.*
-docs/diagrams/last_ver/
-docs/review-reports/
-docs/diagrams/
-docs/modifications/example/
-docs/modifications/old_ver/
-docs/deployment/
+docs-myself/
+README-zh.md

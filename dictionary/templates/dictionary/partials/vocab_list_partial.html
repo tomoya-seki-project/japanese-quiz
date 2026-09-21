@@ -10,7 +10,7 @@
         {% for vocab in vocabs %}
         <tr>
             <td>{{ vocab.pk }}</td>
-            <td><a href="{% url "dictionary:vocab_detail" pk=vocab.pk %}">{{ vocab.word }}</a></td>
+            <td><a href="{% url "dictionary:vocab_detail" pk=vocab.pk %}?next={{ request.get_full_path|urlencode }}">{{ vocab.word }}</a></td>
             <td>{{ vocab.kana }}</td>
         </tr>
         {% endfor %}

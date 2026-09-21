@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block content %}
+    <h1>単語帳</h1>
+    <form
+        method="GET"
+        action="{% url "dictionary:vocab_list" %}"
+    >
+        {{ search_form.as_p }}
+        <button type="submit">検索</button>
+    </form>
+{% endblock %}

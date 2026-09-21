@@ -1,8 +1,9 @@
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from django.core.exceptions import ValidationError
 
@@ -286,8 +287,34 @@ class VocabDetailView(DetailView):
     template_name = "dictionary/vocab_detail.html"
     context_object_name = "vocab"
 
+    def get_return_url(self):
+        next_url = self.request.GET.get("next")
+        if url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+        return reverse("dictionary:vocab_list_filter")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["return_url"] = self.get_return_url()
+        return context
+
     def get_queryset(self):
         return super().get_queryset().filter(is_active=True)
+
+class VocabListFilterView(TemplateView):
+    template_name = "dictionary/vocab_list_filter.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["search_form"] = VocabSearchForm(
+            self.request.GET
+        )
+        return context
 
 class VocabListView(ListView):
     model = Vocab
@@ -298,10 +325,6 @@ class VocabListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        context["search_form"] = VocabSearchForm(
-            self.request.GET
-        )
         query_params = self.request.GET.copy()
         query_params.pop("page", None)
         context["query_string"] = query_params.urlencode()
@@ -337,9 +360,20 @@ class VocabListView(ListView):
             return render(self.request, 'dictionary/partials/vocab_list_partial.html', context)
         return super().render_to_response(context, **response_kwargs)
 
+class UserVocabListFilterView(LoginRequiredMixin, TemplateView):
+    template_name = "dictionary/user_vocab_list_filter.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['search_form'] = UserVocabSearchForm(
+            self.request.GET
+        )
+        return context
+
 class UserVocabListView(LoginRequiredMixin, ListView):
     model = UserVocab
-    template_name = 'dictionary/user_vocab_list.html'
+    template_name = "dictionary/user_vocab_list.html"
     context_object_name = 'user_vocabs'
     ordering = ['pk',]
     paginate_by = 30
@@ -391,11 +425,6 @@ class UserVocabListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        context['search_form'] = UserVocabSearchForm(
-            self.request.GET
-        )
-
         query_params = self.request.GET.copy()
         query_params.pop("page", None)
         context['query_string'] = query_params.urlencode()
@@ -440,6 +469,18 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
     model = UserVocab
     template_name = "dictionary/user_vocab_detail.html"
     context_object_name = "user_vocab"
+
+    def get_return_url(self):
+        next_url = self.request.GET.get("next")
+
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+
+        return reverse("dictionary:user_vocab_list_filter")
 
     def post(self, request, *args, **kwargs):
         user_vocab = self.get_object()
@@ -489,6 +530,7 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
             context["in_use_form"] = UserVocabInUseSingleUpdateForm(
                 initial={"in_use":self.object.in_use}
             )
+        context["return_url"] = self.get_return_url()
         return context
 
     def get_queryset(self):

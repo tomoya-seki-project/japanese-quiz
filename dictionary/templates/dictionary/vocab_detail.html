@@ -3,6 +3,9 @@
     <h1>単語の詳細</h1>
     {{ vocab.word }}
     {{ vocab.kana }}
-    <a href="{% url "dictionary:vocab_update" vocab_id=vocab.pk%}" class="btn btn-primary">変更申請</a>
-    <a href="{% url "dictionary:vocab_delete" vocab_id=vocab.pk%}" class="btn btn-primary">削除申請</a>
+    {% if user.is_authenticated %}
+        <a href="{% url "dictionary:vocab_update" vocab_id=vocab.pk%}" class="btn btn-primary">変更申請</a>
+        <a href="{% url "dictionary:vocab_delete" vocab_id=vocab.pk%}" class="btn btn-primary">削除申請</a>
+    {% endif %}
+    <a href="{{ return_url }}" class="btn btn-primary">一覧に戻る</a>
 {% endblock %}

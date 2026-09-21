@@ -12,10 +12,10 @@
             {% if user.is_authenticated %}
                 <a class="navbar-brand" href="{% url "accounts:user_detail" %}">プロフィール</a>
                 <a class="navbar-brand" href="{% url "core:user_event_list" %}">お知らせ{% if unread_event_count %}（{{ unread_event_count }}）{% endif %}</a>
-                <a class="navbar-brand" href="{% url "dictionary:user_vocab_list" %}">単語帳</a>
+                <a class="navbar-brand" href="{% url "dictionary:user_vocab_list_filter" %}">単語帳</a>
                 <a class="navbar-brand" href="#" id="logout-link">ログアウト</a>
             {% else %}
-            <a class="navbar-brand" href="{% url "dictionary:vocab_home" %}">単語帳</a>
+                <a class="navbar-brand" href="{% url "dictionary:vocab_home" %}">単語帳</a>
                 <a class="navbar-brand" href="{% url "accounts:user_regist" %}">登録</a>
                 <a class="navbar-brand" href="{% url "accounts:user_login" %}">ログイン</a>
             {% endif %}

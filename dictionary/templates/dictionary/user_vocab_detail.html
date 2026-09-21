@@ -42,7 +42,7 @@
             <div>{{ category }}</div>
         {% endfor %}
     </div>
-    <a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">変更申請</a>
-    <a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk%}" class="btn btn-primary">削除申請</a>
-    <a href="{% url "dictionary:user_vocab_list"%}" class="btn btn-primary">一覧に戻る</a>
+    <a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk %}" class="btn btn-primary">変更申請</a>
+    <a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk %}" class="btn btn-primary">削除申請</a>
+    <a href="{{ return_url }}" class="btn btn-primary">一覧に戻る</a>
 {% endblock %}

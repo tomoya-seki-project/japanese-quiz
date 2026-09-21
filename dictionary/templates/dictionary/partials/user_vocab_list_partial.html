@@ -17,14 +17,14 @@
             <tr>
                 <td>
                     <input type="hidden" name="selectable_ids" value="{{ user_vocab.id }}">
-                    <input 
-                        type="checkbox" 
-                        name="selected_ids" 
+                    <input
+                        type="checkbox"
+                        name="selected_ids"
                         class="in-use-checkbox"
-                        value="{{ user_vocab.id }}" 
+                        value="{{ user_vocab.id }}"
                         {% if user_vocab.in_use %}checked{% endif %}>
                 </td>
-                <td><a href="{% url "dictionary:user_vocab_detail" pk=user_vocab.pk %}">{{ user_vocab.vocab.word }}</a></td>
+                <td><a href="{% url "dictionary:user_vocab_detail" pk=user_vocab.pk %}?next={{ request.get_full_path|urlencode }}">{{ user_vocab.vocab.word }}</a></td>
                 <td>{{ user_vocab.vocab.kana }}</td>
                 <td>{{ user_vocab.vocab.meaning }}</td>
             </tr>

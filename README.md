@@ -1,254 +1,212 @@
-# 言葉の輪（WordLoop）
+# WordLoop (言葉の輪)
 
-「言葉の輪（WordLoop）」係一個用 Django 開發嘅日文詞彙學習 project。
+WordLoop is a Django-based Japanese vocabulary learning application. It combines a reviewed shared dictionary with user-specific learning state, weighted quizzes, visual kana feedback, notifications, and feedback workflows.
 
-Project 目前集中處理 user account、vocab dictionary、`VocabRequest` review workflow、`UserVocab` learning data、event notification、user feedback flow、Ajax quiz flow、application error handling 同 logging foundation。
+> **Status:** In development
+>
+> **Version:** v0.7.0
+>
+> **Milestone:** Core workflows are complete; UI/UX redesign and production hardening are still pending.
 
-> **Project status：開發中**
->
-> **Current version：v0.7.0**
->
-> **Milestone：Core workflows complete; UI/UX redesign and production hardening pending.**
->
-> 呢個 project 暫時未適合 production 使用。Dictionary、VocabRequest review flow、CSV vocab import、`UserVocab` sync flow、account email activation及identity canonicalization、event notification、user feedback、Ajax quiz play、quiz session terminal recovery、QuizAttempt idempotency、bottom-up DP answer comparison、PostgreSQL development backend、日文 user interface、HTTP error pages同rotating-file logging foundation已經建立，但multiple-choice flow、quiz scoring balance、完整automated regression coverage同production settings仍然未完成。
+The project is not yet production-ready. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. Multiple-choice quizzes, broader automated regression coverage, final UI work, and production deployment settings remain incomplete.
 
 ## Current Features
 
 ### Accounts
 
-- Custom `User` model，以 email 作為 login identifier。
-- User registration 會先建立 inactive account，經有時限嘅一次性 email link 確認後先啟用；亦支援統一回應及 cooldown 保護嘅 activation email resend。
-- Registration、login、resend 同 admin user forms 會將 email 統一成 lowercase；database 亦以 case-insensitive unique constraint 防止大小寫變體帳戶。
-- Login、logout 同 profile page。
-- Login session 可以選擇 remember me。
-- Django Admin 可以管理 users。
+- A custom `User` model uses email as the login identifier.
+- Registration creates an inactive account that must be activated through a time-limited, single-use email link.
+- Activation emails can be resent through a privacy-preserving flow with cooldown protection.
+- Registration, login, resend, and admin forms canonicalise email addresses to lowercase.
+- A case-insensitive database constraint prevents duplicate identities that differ only by letter case.
+- Login, logout, profile, and optional remember-me sessions are supported.
 
-### Dictionary
+### Dictionary and Personal Vocabulary
 
-- 顯示 active vocab list。
-- 支援按 word、kana、JLPT level 同 category search。
-- Vocab detail page。
-- Logged-in user 可以查看自己嘅 `UserVocab` list。
-- `UserVocab` 支援 `in_use` 狀態，方便將「已加入但未啟用」同「正在 quiz 使用」嘅 vocab 分開。
-- 支援一般 vocab 同 katakana vocab data。
+- The public dictionary lists active vocabulary and supports word, kana, JLPT level, and category filters.
+- General vocabulary and katakana-specific vocabulary are supported.
+- Each user has independent `UserVocab` learning state, including `in_use`, weight, answer counts, streak, and last quiz time.
+- Users can manage personal learning data without directly modifying shared vocabulary records.
 
-### VocabRequest
+### Reviewed Vocabulary Requests
 
-- Logged-in user 可以建立 vocab create request。
-- 可以為現有 vocab 建立 update、delete 或 restore request。
-- 使用 database constraints 防止 duplicate pending requests。
-- Request creation flow 使用 `transaction.atomic()`。
-- Django Admin 已經有 approve / reject UI，經 POST request 處理。
-- Approve 會按 request type 執行 create、update、restore 或 deactivate vocab。
-- User 可為 create、update、restore 同 delete request 提供 optional request reason；reviewer 亦可另外填寫 review note。
-- Reject 會更新 request status 同 reviewer，但唔會改動 vocab，並要求 reviewer 必須填寫 review note。
-- Approve／reject 結果通知會包含 reviewer note。
-- Approve / reject flow 使用 `transaction.atomic()`、`select_for_update()` 同 pending status check，減少重複 review 風險。
+- Authenticated users can request vocabulary creation, update, deletion, or restoration.
+- Request creation is transactional and protected against duplicate pending requests by service checks and database constraints.
+- Users may provide an optional request reason; reviewers may add a separate review note.
+- Django Admin provides POST-based Approve and Reject actions.
+- Approval executes the appropriate domain service. Rejection changes request state without modifying vocabulary and requires a review note.
+- Review uses `transaction.atomic()`, row locks, pending-state checks, permission checks, and readonly workflow fields.
+- Result notifications include the review note.
 
-> **未完善：** DELETE request 已保存完整 proposed snapshot；additional vocab types 同 `MCSense` schema foundation 已建立，但 request、import、admin 同 quiz runtime flow 仍未接通。
-
-### Admin
-
-- 管理 `Vocab`、`UserVocab` 同 `VocabRequest`。
-- VocabRequest admin page 有 custom approve / reject buttons。
-- Vocab admin 禁止直接新增 vocab，正式 creation path 會經 `VocabActionService`。
-- Vocab type 喺 admin change form 入面設為 readonly，避免 type/detail mismatch。
-- 可以查看 user learning stats，例如 weight、correct count、incorrect count 同 streak。
+The `MCSense` schema foundation exists, but its import, request, admin, and quiz runtime flows are intentionally not exposed yet.
 
 ### Quiz
 
-- 已有 quiz setting form，可按 vocab type、JLPT level 同 category 選擇出題範圍。
-- Quiz question pool 來自目前 user 嘅 `UserVocab(in_use=True)`。
-- 支援 weighted random selection，weight 越高越容易被抽中。
-- 會避開最近 quiz 過嘅 10 個 vocab，減少短時間重複出題。
-- Filter 無題時唔會自動提供設定範圍外嘅題目；user 會先進入確認頁，選擇返回 setting 或經 POST 明確改用 full active／in-use pool。
-- Full active pool 數量不足最低出題要求時會返回 `UserVocab` list 並顯示 warning；確認使用 full pool 後，Next／Skip 會沿用同一 pool。
-- Resume、answer submit同skip會重新驗證目前題目仍屬於該user、`in_use=True`及related vocab active；題目中途失效時會終止quiz，避免繼續更新無效learning state。
-- Answer／skip後如果question pool中途變空，會顯示提早結束summary並清除`quiz_session`，避免user再次被送返無法完成嘅unfinished flow。
-- Quiz play page 已使用 Ajax partial flow：answer submit、result、next question 同 skip question 都可以局部更新。
-- 每次出題會建立帶唯一 UUID token 嘅 `QuizAttempt`；Answer／Skip喺同一 transaction內鎖定attempt同`UserVocab`，只容許`PENDING`狀態處理一次，避免duplicate request重複更新learning state。
-- Session同hidden form field會一併保存／提交attempt token；stale、question mismatch同already-processed request會被分流處理，而frontend in-flight guard會先減少一般double click。
-- Hiragana / katakana custom keyboard panel 已有初稿，answer 會寫入 hidden input 再提交到 backend。
-- Tips button 已有前端提示邏輯，並會提交 `tips_count` 俾 backend 納入 weight calculation。
-- Skip question flow 已建立，會增加 skipped vocab weight、更新 streak 同 `last_quiz_at`。
-- Quiz result 已可顯示 kana-by-kana answer comparison visual feedback，支援 match、wrong、missing 同 extra kana 顯示。
-- Answer comparison 會判斷 `NORMAL`、`DAKUTEN`、`HANDAKUTEN`、`SMALL_KANA` wrong subtype，並用 static kana image assets 顯示初版錯位圖。
-- Answer comparison 已由指數級 recursive branch search 改為 `O(m × n)` bottom-up DP，保留原有 score ranking、subtype preference、deterministic tie-breaking 同 result contract。
-- Quiz summary flow 已可統計答題數、正確數、錯誤數、skip 數同 tips 使用量。
+- Quiz settings filter by vocabulary type, JLPT level, and category.
+- Questions come from the current user's active, in-use vocabulary.
+- Weighted random selection favours higher-weight items and avoids the ten most recently used records.
+- An empty filtered pool never silently ignores the user's settings. The user can return to settings or explicitly confirm a full active/in-use pool.
+- Resume, Answer, and Skip revalidate ownership, `in_use`, and vocabulary active state.
+- If the current question becomes invalid or the pool becomes empty, the quiz ends through a shared summary and session-cleanup path.
+- The play screen uses server-rendered Ajax partials for Answer, Result, Next, Skip, and Summary.
+- Every displayed question creates a `QuizAttempt` with a unique UUID token.
+- Answer and Skip lock the attempt and `UserVocab` in one transaction and allow only a `PENDING` attempt to mutate learning state.
+- A frontend in-flight guard reduces ordinary double clicks; database idempotency remains the authoritative protection.
+- A custom kana keyboard and hint counter feed the normal backend validation flow.
+- Answer feedback distinguishes match, wrong, missing, and extra kana, including dakuten, handakuten, and small-kana subtypes.
+- Answer comparison uses an `O(m × n)` bottom-up dynamic-programming algorithm with deterministic tie-breaking.
+- The summary tracks answered, correct, incorrect, skipped, and hint counts.
 
 ### Interface Language
 
-- 一般 user-facing UI 使用日文；Django Admin 同只供管理員處理 feedback／審批嘅介面維持英文。
-- Request-level language middleware 會按頁面切換 `ja`／`en-us`，response 後還原原本語系，避免相鄰 requests 互相污染。
-- Model／form choices 保留原有 database values，只調整顯示 label；假名 keyboard 同 JavaScript event values亦保持不變。
+- User-facing screens are in Japanese.
+- Django Admin and administrator-only review screens remain in English.
+- Request-level middleware selects `ja` or `en-us` by page responsibility and restores the previous language after the response.
+- Stored values, keyboard data attributes, and JavaScript event contracts remain language-independent.
 
-### Events
+### Events and Feedback
 
-- 已建立 `Event` / `UserEvent` data model foundation。
-- Vocab request result event 同 vocab sync summary event 已有 service flow 初稿。
-- User event list / detail page 已可顯示基本 notification data。
-
-### Feedback
-
-- Logged-in user 可以提交 feedback，例如 vocab suggestion、bulk vocab request、bug report 或 feature request。
-- Feedback 入口會按 user role redirect：superuser 去 feedback list，普通 user 去 feedback create。
-- Superuser 可以查看 feedback list / detail。
-- Superuser 可以 reply feedback。
-- Reply 後會將 feedback status 由 `PENDING` 更新成 `REPLIED`，並建立 `FEEDBACK_REPLY` event 通知提交者。
+- `Event` and `UserEvent` provide per-user notification history and read state.
+- Vocabulary request results, vocabulary synchronisation summaries, and feedback replies generate events.
+- Authenticated users can submit vocabulary suggestions, bulk requests, bug reports, and feature requests.
+- Superusers can review and reply to feedback; replies notify the submitter.
+- Follow-up replies are permitted until feedback reaches its terminal `CLOSED` state.
 
 ### Error Handling and Logging
 
-- 已註冊全域 `400`、`403`、`404` 同 `500` error handlers。
-- Quiz Ajax action 會將 form validation failure 回傳 structured `400` JSON，前端亦會處理非 JSON response、network failure 同 parsing failure。
-- Account entry points 使用 resilient vocab sync wrapper，sync 或 event side effect 失敗時會保留 traceback，避免無必要中斷 login、registration 或 profile flow。
-- Application logging 已有 console、DEBUG-only、INFO+ 同 ERROR+ handlers，file logs 每日 rotate 並保留七日。
-- Vocab request／admin review、UserVocab sync／in-use、quiz、accounts、events、feedback 同 vocab management commands 已加入 outcome-oriented logging，並避免記錄 credentials、feedback body或完整 POST payload。
+- Global `400`, `403`, `404`, and `500` handlers are registered.
+- Quiz Ajax actions return structured validation errors and the client handles non-JSON, network, and parsing failures.
+- Account entry points use a resilient vocabulary-sync wrapper so retryable side-effect failures do not unnecessarily block login or registration.
+- Logging separates console, debug-only, information, and error output.
+- File logs rotate daily and retain seven days.
+- Domain workflows log outcomes and identifiers without recording credentials, feedback bodies, sessions, or complete POST payloads.
 
 ## Current Priorities
 
-- 補 account、domain、QuizAttempt concurrency同quiz integration automated tests。
-- 完成production settings、secrets、deployment同database operation hardening。
-- 完成v1.0.0前嘅UI／UX polish；`MCSense` vertical flow等延伸功能留待之後版本。
+- Expand account, domain, quiz integration, and `QuizAttempt` concurrency tests.
+- Complete production settings, secret management, deployment, and database-operation hardening.
+- Finish the v1.0.0 UI/UX pass.
+- Keep unfinished multiple-choice functionality outside the active user flow until its full vertical slice is complete.
 
-完整規劃可以睇 [docs/status/TODO.md](docs/status/TODO.md)。
+See [the project TODO](docs/TODO.md) for current work and [Future Ideas](docs/FUTURE_IDEAS.md) for work outside the current scope.
 
 ## Tech Stack
 
-| Item | Current choice |
+| Area | Technology |
 | --- | --- |
-| Backend | Django |
+| Backend | Django 6.0.5 |
 | Language | Python |
-| Database | PostgreSQL 16（Django PostgreSQL backend + Psycopg 3） |
-| Frontend | Django Templates |
-| Authentication | Django Auth + custom `User` model |
+| Database | PostgreSQL 16 with Psycopg 3 |
+| Frontend | Django Templates and vanilla JavaScript |
+| Authentication | Django Auth with a custom `User` model |
 | Time zone | Asia/Tokyo |
-
-`config/settings.py` 顯示 project 由 Django `6.0.5` 建立。
 
 ## Main Data Models
 
 ### Accounts
 
-- `User`：使用 email login 嘅 custom user。
-- `UserProfile`：user profile extension。
+- `User`: custom email-based user.
+- `UserProfile`: account profile extension.
 
 ### Dictionary
 
-- `Vocab`：word、kana、meaning、type、level、category 等基本資料。
-- `VocabDetail`：一般 vocab 嘅 detail extension。
-- `KatakanaDetail`：katakana 專用資料，例如 native Japanese。
-- `UserVocab`：連接 user 同 vocab，保存 `in_use`、weight、answer counts、streak 同 last quiz time。
-- `VocabRequest`：保存 create、update、delete、restore request。
-- `MCSense`：multiple-choice vocab 嘅多義 sense foundation，保存 question prompts 同 distractors；migration `0027_add_mc_sense.py` 已 commit，實際 import/admin/request/quiz flow仍未接通。
+- `Vocab`: shared word, kana, meaning, type, level, category, and active state.
+- `VocabDetail`: detail extension for general vocabulary.
+- `KatakanaDetail`: katakana-specific data such as the native Japanese equivalent.
+- `UserVocab`: user-specific learning state for shared vocabulary.
+- `VocabRequest`: reviewed create, update, delete, and restore request.
+- `MCSense`: foundation for ordered multiple-choice senses, questions, and distractors.
 
 ### Core
 
-- `TimeStampedModel`：共用 create/update timestamps。
-- `Event`：系統事件 master record。
-- `UserEvent`：連接 user 同 event，保存 read status。
-- `Feedback`：保存 user feedback、suggestion、bug report、reply status 同 admin reply metadata。
+- `TimeStampedModel`: reusable creation and update timestamps.
+- `Event`: notification master record.
+- `UserEvent`: per-user event assignment and read state.
+- `Feedback`: user submission, handling state, and administrator reply metadata.
 
 ### Quiz
 
-- `QuizAttempt`：以唯一token、owner、題目、一次性status同處理時間保存每次Answer／Skip嘅權威處理狀態。
+- `QuizAttempt`: authoritative, single-use state for one Answer or Skip operation.
 
 ## Project Structure
 
 ```text
-accounts/      User model、authentication、account pages
+accounts/      User model, authentication, activation, and account pages
 assets/        Source and exported visual assets
-config/        Django settings、root URLs、WSGI / ASGI
-core/          Shared models、base templates、general pages
-devtools/      Development-only helper tools, including image generators
-dictionary/    Vocab models、forms、views、admin、request service
-docs/          Project status and development documentation
+config/        Django settings, root URLs, WSGI, and ASGI
+core/          Shared models, events, feedback, and base templates
+devtools/      Development-only tools, including image generators
+dictionary/    Vocabulary models, forms, views, admin, and services
+docs/          Public project documentation
 errorHandler/  Global HTTP error handlers and templates
-log/           Runtime application logs; generated .log files are ignored
-quiz/          Quiz settings、weighted random service、Ajax quiz play flow
+log/           Generated runtime logs; log files are ignored by Git
+quiz/          Quiz settings, selection, attempts, and Ajax play flow
 ```
 
-其他 project documents：
+Additional public documentation:
 
-- [docs/status/PROJECT_PHASES.md](docs/status/PROJECT_PHASES.md)：按開發階段整理嘅 portfolio 技術總覽。
-- [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)：主要開發歷史。
-- [docs/status/TODO.md](docs/status/TODO.md)：已發現問題、planned features 同 implementation notes。
+- [Development phases](docs/PROJECT_PHASES.md)
+- [Project history](docs/PROJECT_HISTORY.md)
+- [Project TODO](docs/TODO.md)
+- [Future ideas](docs/FUTURE_IDEAS.md)
 
 ## Local Setup
 
-### 1. Clone Project
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/tomoya-seki-project/japanese-quiz.git
 cd japanese-quiz
 ```
 
-### 2. Create Virtual Environment
+### 2. Create and activate a virtual environment
 
 ```bash
 python -m venv .venv
 ```
 
-Windows：
+Windows:
 
 ```powershell
 .venv\Scripts\activate
 ```
 
-macOS / Linux：
+macOS/Linux:
 
 ```bash
 source .venv/bin/activate
 ```
 
-部分環境需要將 `python` 改成 `py` 或 `python3`。
+Depending on the environment, use `py` or `python3` instead of `python`.
 
-### 3. Install Dependencies
-
-Runtime dependencies：
+### 3. Install dependencies
 
 ```bash
 python -m pip install -r requirements.txt
-```
-
-Development / asset-generation dependencies：
-
-```bash
 python -m pip install -r requirements-dev.txt
 ```
 
 ### 4. Configure PostgreSQL
 
-先建立本機PostgreSQL role同database，再由example建立未追蹤嘅本機設定：
+Create a local PostgreSQL role and database, then copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-填寫`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`DB_HOST`同`DB_PORT`。`.env`包含本機credential，唔應提交到Git。
+Set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and `DB_PORT`. The local `.env` contains credentials and must not be committed.
 
-### 5. Apply Migrations
+### 5. Initialise and run the application
 
 ```bash
 python manage.py migrate
-```
-
-### 6. Create Admin User
-
-```bash
 python manage.py createsuperuser
-```
-
-Custom user model 會要求 email、username 同 password。
-
-### 7. Start Development Server
-
-```bash
 python manage.py runserver
 ```
 
-預設 development URL：
+Development URLs:
 
-- Website: `http://127.0.0.1:8000/`
+- Application: `http://127.0.0.1:8000/`
 - Django Admin: `http://127.0.0.1:8000/admin/`
 
 ## Main URLs
@@ -257,169 +215,93 @@ python manage.py runserver
 | --- | --- |
 | `/` | Project home |
 | `/accounts/` | Account home |
-| `/accounts/user_regist/` | User registration |
+| `/accounts/user_regist/` | Registration |
 | `/accounts/user_login/` | Login |
-| `/accounts/user_detail/` | User detail |
+| `/accounts/user_detail/` | User profile |
 | `/dictionary/` | Dictionary home |
-| `/dictionary/vocab/list` | Active vocab list |
-| `/dictionary/vocab/create` | Create vocab request |
-| `/dictionary/user_vocab/list` | Current user vocab list |
+| `/dictionary/vocab/list` | Active vocabulary list |
+| `/dictionary/vocab/create` | Create-vocabulary request |
+| `/dictionary/user_vocab/list` | Current user's vocabulary |
 | `/quiz/` | Quiz home |
-| `/quiz/setting` | Quiz setting |
-| `/quiz/play` | Ajax quiz play page |
-| `/core/feedback/` | Feedback entry redirect |
+| `/quiz/setting` | Quiz settings |
+| `/quiz/play` | Ajax quiz play |
+| `/core/feedback/` | Role-based feedback entry |
 | `/core/feedback/create/` | Submit feedback |
 | `/core/feedback/list/` | Superuser feedback list |
 | `/admin/` | Django Admin |
 
 ## Management Commands
 
-### Import Vocab
-
-`import_vocab` 已開始實作，用嚟俾 admin 由 CSV 匯入 vocab：
+### Import vocabulary
 
 ```bash
 python manage.py import_vocab list.csv
 ```
 
-目前 command 會：
+The command authenticates a superuser, validates required headers, creates vocabulary through `VocabActionService`, supports up to three categories, continues after row-level validation or integrity errors, and prints a summary.
 
-- 要求輸入 admin email / password。
-- 只容許 superuser 執行。
-- 檢查必要 CSV headers。
-- 逐行呼叫 `VocabActionService.create_vocab()` 建立 vocab 同對應 detail model。
-- 支援 `category1`、`category2`、`category3`，配合 `Vocab.categories` ManyToManyField。
-- row-level validation / integrity error 會輸出錯誤並繼續處理下一行。
-- 輸出成功 / 失敗 row summary。
+Expected headers:
 
-預期 CSV headers：
-
-```bash
+```text
 word,kana,meaning,type,level,category1,category2,category3,native_japanese
 ```
 
-### Setup Categories
-
-`setup_categories` 用嚟由 CSV seed category data：
+### Seed categories
 
 ```bash
 python manage.py setup_categories resource/categories.csv
 ```
 
-### Development Clear Vocab
-
-`dev_clear_vocab` 用嚟喺開發期間清理 vocab 相關資料，方便重建測試資料：
+### Clear development vocabulary
 
 ```bash
 python manage.py dev_clear_vocab
 ```
 
-> **注意：** 呢個 command 只應用喺 local development / testing。
+This destructive command is intended only for local development and testing. Full database export and restore remain planned work.
 
-### Export / Restore
+## Visual Assets and Development Tools
 
-計劃中嘅 command interface：
+Source files live under `assets/source/`, exported assets under `assets/export/`, and helper scripts under `devtools/`.
 
-```bash
-python manage.py export_whole <output_folder>
-```
-
-`export_vocab_to_csv` 目前只係 placeholder；完整 database export / restore flow 尚未實作。
-
-## Visual Assets / Dev Tools
-
-Quiz visual assets are stored outside the Django static runtime folders while they are still being designed.
-
-Current asset layout:
-
-```text
-assets/source/      Source files, such as PSD files
-assets/export/      Exported/generated assets
-devtools/           Development helper scripts
-```
-
-### Kana Background Generator
-
-`devtools/image_generator/generate_kana_bg.py` generates reusable kana background tiles:
+Generate reusable kana background tiles with:
 
 ```bash
 python devtools/image_generator/generate_kana_bg.py
 ```
 
-The generator writes output to:
-
-```text
-assets/export/background/kana_bg_output_blue/
-```
-
-Visual tuning values such as font colors, background color, font sizes, density and character counts are configured in:
-
-```text
-devtools/image_generator/kana_bg_config.json
-```
-
-The generator has its own notes in [devtools/image_generator/README.md](devtools/image_generator/README.md).
-
 ## Testing
 
-> **初步建立，尚未完整**
+The current suite contains ten UI and language regression tests covering template compilation, public/admin language boundaries, built-in validation language, shared choices, kana keyboard event values, output escaping, notification language, and key detail labels.
 
-目前已有10個UI／language regression tests，覆蓋templates compile、public/admin language boundary、built-in validation language、共用choices、假名keyboard event values、answer escaping、notification language同主要detail labels。獨立`japanese_quiz_test` PostgreSQL role可以建立及刪除隔離test database；目前10個tests已喺PostgreSQL完整通過。
-
-之後預計加入：
-
-- VocabRequest create/update/delete/restore tests。
-- Duplicate pending request tests。
-- Admin approve/reject tests。
-- UserVocab streak 同 weight calculation tests。
-- Weighted random 同 recent 10 questions tests。
-- Event notification tests。
-- Quiz answer comparison correctness／performance tests。
-- Quiz filtered no-pool confirmation、full-pool initial／Next／Skip integration tests。
-
-Test role credential應由shell environment或獨立local／CI secret提供，唔應提交到Git。例如：
+An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test database. Supply its credentials through the shell environment or local/CI secrets:
 
 ```bash
 DB_USER=japanese_quiz_test DB_PASSWORD="<test-role-password>" python manage.py test
 ```
 
+High-priority missing coverage includes activation and email identity, reviewed vocabulary mutations, concurrent request handling, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
+
 ## Current Limitations
 
-- Kana quiz 已有 Ajax play、weight adjustment 同 answer comparison flow，但 multiple-choice answer flow 仍未接通。
-- Kana answer comparison performance 問題已用 bottom-up DP 解決；filter 無題改為由 user 明確確認是否使用 full pool，唔再靜默 fallback。
-- `MCSense` model 同 migration foundation 已建立並 commit；validation、import、admin、request 同 quiz integration 仍未完成。四種未完成 MC vocab choices 暫時停用，避免 user 進入未接通流程。
-- VocabRequest approve/reject 已有 transaction、row lock、permission、`original_vocab` state guard、完整 DELETE proposed snapshot，以及分開嘅 request reason／review note；Reject 必須提供 review note。
-- Event notification system 已有 request result、vocab sync summary 同 feedback reply flow，UI / wording 同更多 event type 仍可改善。
-- Feedback flow 已建立，但 UI wording、public contact form 同更細緻 admin handling status 仍未 polish。
-- Logging handlers 同主要 domain flow coverage 已建立；log assertions、concurrent sync 同 rotation／retention 仍待自動驗證。
-- 完整 export / restore 尚未完成。
-- Automated tests 已有初步 UI／language coverage，但主要 domain、concurrency、quiz correctness 同 no-pool/full-pool integration tests 仍未建立。
-- User-facing wording 已完成日文化及語系分流；UI layout、answer overlay 同 browser visual verification 仍需繼續整理。
-- Production deployment settings 未準備。
+- Multiple-choice import, review, administration, and quiz flows are not connected; their active vocabulary types remain disabled.
+- Automated tests do not yet cover the major domain and concurrency paths.
+- Full database export and restore are not implemented.
+- Browser-level visual verification, layout polish, and answer-overlay work remain incomplete.
+- Production deployment settings and operational procedures are not ready.
 
 ## Security Notes
 
-目前 settings 只適合 local development：
-
-- `SECRET_KEY` 仍然直接寫喺settings；database connection values已使用environment variables，但其他production secrets尚未搬移。
-- `DEBUG=True`。
-- `ALLOWED_HOSTS` 未設定。
-- 未完成 production static files、HTTPS、database 同 deployment configuration。
-
-正式 deployment 前必須處理以上項目。
+The current default settings are for local development. Before production deployment, move secrets and environment-dependent settings out of source control, use `DEBUG=False`, configure allowed hosts and trusted origins, enforce HTTPS, prepare static-file serving, provision and back up PostgreSQL, and run Django's deployment checks.
 
 ## Development History
 
-Project 由 2026-05-20 開始，主要改動同相關 code paths 記錄喺 [docs/status/PROJECT_HISTORY.md](docs/status/PROJECT_HISTORY.md)。
+Development began on 20 May 2026. See [Project History](docs/PROJECT_HISTORY.md) for milestones and [Development Phases](docs/PROJECT_PHASES.md) for a portfolio-oriented technical overview.
 
 ## Contributing
 
-> **未準備**
-
-Project 目前主要係 personal learning project，暫時未有正式 contribution guide、issue template 或 pull request rules。
+This is currently a personal learning project. A contribution guide, issue templates, and pull-request rules have not yet been prepared.
 
 ## License
 
-> **未決定**
-
-Project 暫時未加入 license。未選擇 license 前，請唔好假設 project code 可以自由複製、修改或重新發布。
+No licence has been selected. Do not assume that the source may be copied, modified, or redistributed until a licence is added.
