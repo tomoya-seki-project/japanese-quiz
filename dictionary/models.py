@@ -6,7 +6,7 @@ from core.models import TimeStampedModel
 
 class VocabType(models.TextChoices):
     VOCAB = "vocab", "一般語彙"
-    KATAKANA = "katakana", "カタカナ語"
+    KATAKANA = "katakana", "カタカナ"
     # ADVERB = "adverb", "副詞"
     # MIMETIC = "mimetic", "擬音・擬態語"
     # CONJUNCTION = "conjunction", "接続詞"

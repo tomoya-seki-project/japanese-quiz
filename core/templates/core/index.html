@@ -2,7 +2,7 @@
 {% block content %}
     <h1>言葉の輪へようこそ！</h1>
     {% if user.is_authenticated %}
-        <a href="{% url "quiz:quiz_home" %}" class="btn btn-primary">クイズ</a>
+        <a href="{% url "quiz:quiz_setting" %}" class="btn btn-primary">クイズ</a>
         <a href="{% url "dictionary:vocab_create" %}" class="btn btn-primary">単語の追加</a>
     {% endif %}
 {% endblock %}

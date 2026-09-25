@@ -1,10 +1,10 @@
 <table>
     <thead>
         <tr>
-            <th>User</th>
-            <th>Type</th>
-            <th>Message</th>
-            <th>Details</th>
+            <th>ユーザー</th>
+            <th>種類</th>
+            <th>内容</th>
+            <th>詳細</th>
         </tr>
     </thead>
     <tbody>
@@ -15,7 +15,7 @@
                 <td>{{ feedback.context }}</td>
                 <td>
                     <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
-                        View details
+                        詳細を見る
                     </a>
                 </td>
             </tr>
@@ -25,9 +25,9 @@
 {% if is_paginated %}
     <div>
         {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}" class="page-change">Previous</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
         {% else %}
-            Previous
+            前へ
         {% endif %}
 
         {% for num in page_obj.paginator.page_range %}
@@ -39,9 +39,9 @@
         {% endfor %}
 
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}" class="page-change">Next</a>
+            <a href="?page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
         {% else %}
-            Next
+            次へ
         {% endif %}
     </div>
 {% endif %}

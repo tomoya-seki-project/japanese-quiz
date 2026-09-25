@@ -25,4 +25,4 @@ class FeedbackCreateForm(forms.Form):
 
 class FeedbackReplyForm(forms.Form):
     is_close = forms.BooleanField(label="終了", required=False)
-    context = forms.CharField(label="Message", max_length=255, widget=forms.Textarea)
+    context = forms.CharField(label="返信内容", max_length=255, widget=forms.Textarea)

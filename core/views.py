@@ -227,7 +227,6 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             )
             messages.success(
                 self.request,
-                f"Your reply to feedback #{self.kwargs['feedback_pk']} has been sent."
+                f"フィードバック #{self.kwargs['feedback_pk']} への返信を送信しました。"
             )
         return super().form_valid(form)
-

@@ -134,50 +134,56 @@ class VocabDeleteRequestForm(forms.Form):
 class VocabSearchForm(forms.Form):
     word = forms.CharField(label="単語", max_length=50, required=False)
     kana = forms.CharField(label="読み方（かな）", max_length=255, required=False)
-    vocab_type = forms.ChoiceField(
-        choices=[("","すべて")] + VocabType.choices,
+    vocab_type = forms.MultipleChoiceField(
+        choices=VocabType.choices,
         required=False,
         label="種類",
+        widget=forms.CheckboxSelectMultiple,
     )
-    level = forms.ChoiceField(label="JLPTレベル",
-        choices=[("","すべて")] + VocabLevel.choices,
+    level = forms.MultipleChoiceField(
+        label="JLPTレベル",
+        choices=VocabLevel.choices,
         required=False,
+        widget=forms.CheckboxSelectMultiple,
     )
-    category = forms.ModelChoiceField(label="カテゴリー",
+    category = forms.ModelMultipleChoiceField(
+        label="カテゴリー",
         queryset=Category.objects.all(),
         required=False,
-        empty_label="すべて"
+        widget=forms.CheckboxSelectMultiple,
     )
 class UserVocabInUse:
-    NO_MATTER = ""
-    YES = "yes"
-    NO = "no"
     choices = [
-        (NO_MATTER, "すべて"),
-        (YES, "はい"),
-        (NO, "いいえ"),
+        (True, "はい"),
+        (False, "いいえ"),
     ]
 
 class UserVocabSearchForm(forms.Form):
-    in_use = forms.ChoiceField(label="出題対象",
+    in_use = forms.MultipleChoiceField(
+        label="出題対象",
         choices=UserVocabInUse.choices,
         required=False,
+        widget=forms.CheckboxSelectMultiple,
     )
     word = forms.CharField(label="単語", max_length=50, required=False)
     kana = forms.CharField(label="読み方（かな）", max_length=255, required=False)
-    vocab_type = forms.ChoiceField(
-        choices=[("","すべて")] + VocabType.choices,
+    vocab_type = forms.MultipleChoiceField(
+        choices=VocabType.choices,
         required=False,
         label="種類",
+        widget=forms.CheckboxSelectMultiple,
     )
-    level = forms.ChoiceField(label="JLPTレベル",
-        choices=[("","すべて")] + VocabLevel.choices,
+    level = forms.MultipleChoiceField(
+        label="JLPTレベル",
+        choices=VocabLevel.choices,
         required=False,
+        widget=forms.CheckboxSelectMultiple,
     )
-    category = forms.ModelChoiceField(label="カテゴリー",
+    category = forms.ModelMultipleChoiceField(
+        label="カテゴリー",
         queryset=Category.objects.all(),
         required=False,
-        empty_label="すべて",
+        widget=forms.CheckboxSelectMultiple,
     )
 
 class UserVocabSelectForm(forms.Form):

@@ -345,15 +345,15 @@ class VocabListView(ListView):
                 qs = qs.filter(kana__icontains=kana)
             vocab_type = form.cleaned_data.get("vocab_type")
             if vocab_type:
-                qs = qs.filter(type=vocab_type)
+                qs = qs.filter(type__in=vocab_type)
             lv = form.cleaned_data.get("level")
             if lv:
-                qs = qs.filter(level=lv)
+                qs = qs.filter(level__in=lv)
             category = form.cleaned_data.get("category")
             if category:
-                qs = qs.filter(categories=category)
+                qs = qs.filter(categories__in=category).distinct()
 
-        return qs
+        return qs.order_by("pk")
 
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == "XMLHttpRequest":
@@ -440,11 +440,9 @@ class UserVocabListView(LoginRequiredMixin, ListView):
 
         if form.is_valid():
 
-            is_use = form.cleaned_data.get("in_use")
-            if is_use == UserVocabInUse.YES:
-                qs = qs.filter(in_use=True)
-            elif is_use == UserVocabInUse.NO:
-                qs = qs.filter(in_use=False)
+            in_use = form.cleaned_data.get("in_use")
+            if in_use:
+                qs = qs.filter(in_use__in=in_use)
 
             word = form.cleaned_data.get("word")
             if word:
@@ -455,15 +453,15 @@ class UserVocabListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(vocab__kana__icontains=kana)
             vocab_type = form.cleaned_data.get("vocab_type")
             if vocab_type:
-                qs = qs.filter(vocab__type=vocab_type)
+                qs = qs.filter(vocab__type__in=vocab_type)
             lv = form.cleaned_data.get("level")
             if lv:
-                qs = qs.filter(vocab__level=lv)
+                qs = qs.filter(vocab__level__in=lv)
             category = form.cleaned_data.get("category")
             if category:
-                qs = qs.filter(vocab__categories=category)
+                qs = qs.filter(vocab__categories__in=category).distinct()
 
-        return qs
+        return qs.order_by("pk")
 
 class UserVocabDetailView(LoginRequiredMixin, DetailView):
     model = UserVocab

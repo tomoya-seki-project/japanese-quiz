@@ -11,11 +11,9 @@ FEEDBACK_TYPES = {
 }
 EVENT_TYPES = {
     "vocab_request_result": "単語申請の審査結果",
-    # Only staff receive these notifications, even on the shared notifications page.
-    "new_vocab_request": "New vocabulary request",
+    "new_vocab_request": "新規申請",
     "vocab": "単語",
     "weight_update_by_system": "出題優先度の自動更新",
     "feedback_reply": "フィードバックへの返信",
 }
 REQUEST_TYPES_JA = {"create": "追加", "update": "変更", "delete": "削除", "restore": "復元"}
-REQUEST_TYPES_EN = {"create": "Creation", "update": "Update", "delete": "Deletion", "restore": "Restoration"}

@@ -44,7 +44,7 @@ class FeedbackService():
             target_feedback = Feedback.objects.select_for_update().get(pk=target_feedback.pk)
             if target_feedback.status == FeedbackStatus.CLOSED:
                 raise ValidationError(
-                    "this feedback case already closed!"
+                    "このフィードバックはすでに終了しています。"
             )
 
 

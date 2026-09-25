@@ -1,4 +1,4 @@
-from core.ui import REQUEST_TYPES_EN, REQUEST_TYPES_JA
+from core.ui import REQUEST_TYPES_JA
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
@@ -89,8 +89,8 @@ class VocabRequestService():
         with transaction.atomic():
             event = EventService.create_event(
                         event_type=EventType.NEW_VOCAB_REQUEST,
-                        event_title=f"A new vocabulary request has been submitted: {REQUEST_TYPES_EN[request_type]}.",
-                        event_msg=f"{word} ({kana}) was requested by {request_by}."
+                        event_title=f"単語の{REQUEST_TYPES_JA[request_type]}申請が送信されました。",
+                        event_msg=f"{request_by}さんから「{word}（{kana}）」が申請されました。"
                     )
             EventService.assign_event_to_users(event=event, user_list=User.objects.filter(is_staff=True))
 

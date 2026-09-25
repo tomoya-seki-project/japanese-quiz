@@ -1,10 +1,10 @@
 {% extends "core/base.html" %}
 {% block content %}
-    <h1>Feedback details</h1>
+    <h1>フィードバック詳細</h1>
     {{ feedback.user }}
     {{ feedback.get_type_display }}
     {{ feedback.context }}
     {% if feedback.status != "closed" %}
-        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">Reply</a>
+        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">返信</a>
     {% endif %}
 {% endblock %}

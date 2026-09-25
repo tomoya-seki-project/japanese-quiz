@@ -41,7 +41,7 @@ class TemplateLanguageTests(SimpleTestCase):
         self.assertEqual(VocabLevel.JLPT_N0.label, '未設定')
         self.assertEqual(dict(FeedbackCreateForm.base_fields['feedback_type'].choices)['bug_report'], '不具合の報告')
         self.assertEqual(FeedbackType.BUG_REPORT.label, '不具合の報告')
-        self.assertEqual(FeedbackReplyForm.base_fields['context'].label, 'Message')
+        self.assertEqual(FeedbackReplyForm.base_fields['context'].label, '返信内容')
         self.assertEqual(UserCreationAdminForm.base_fields['password2'].label, 'Confirm password')
 
     def test_debug_result_codes_are_preserved_and_answers_escaped(self):
@@ -80,32 +80,34 @@ class InterfaceLanguageTests(TestCase):
         admin = self.client.post(reverse('admin:login'), {})
         self.assertContains(admin, 'This field is required.')
 
-    def test_admin_uses_japanese_on_public_pages_and_english_on_feedback_pages(self):
+    def test_admin_uses_japanese_on_public_and_feedback_pages(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('quiz:quiz_setting'))
         self.assertEqual(response['Content-Language'], 'ja')
         feedback = self.client.get(reverse('core:feedback_list'))
-        self.assertEqual(feedback['Content-Language'], 'en-us')
-        self.assertContains(feedback, '<html lang="en-us">')
-        self.assertContains(feedback, 'Feedback')
+        self.assertEqual(feedback['Content-Language'], 'ja')
+        self.assertContains(feedback, '<html lang="ja">')
+        self.assertContains(feedback, 'フィードバック一覧')
         self.assertContains(feedback, 'フィードバック')
         self.assertContains(feedback, 'ホーム')
 
-    def test_feedback_reply_form_is_english_and_public_form_is_japanese(self):
+    def test_feedback_reply_and_public_forms_are_japanese(self):
         self.client.force_login(self.admin)
         item = Feedback.objects.create(user=self.user, type='bug_report', context='Example')
         response = self.client.get(reverse('core:feedback_reply', kwargs={'feedback_pk': item.pk}))
-        self.assertContains(response, 'Message')
-        self.assertContains(response, 'Reply to feedback')
+        self.assertContains(response, '返信内容')
+        self.assertContains(response, 'フィードバックに返信')
         self.client.force_login(self.user)
         response = self.client.get(reverse('core:feedback_create'))
         self.assertContains(response, '不具合の報告')
         self.assertContains(response, '内容')
 
-    def test_notification_language_follows_recipient_not_current_locale(self):
-        with translation.override('ja'):
+    def test_notifications_are_japanese_even_in_english_locale(self):
+        with translation.override('en-us'):
             VocabRequestService.create_event_for_admin(word='猫', kana='ねこ', request_type='create', request_by=self.user)
-        self.assertIn('Creation', Event.objects.get(event_type='new_vocab_request').title)
+        event = Event.objects.get(event_type='new_vocab_request')
+        self.assertEqual(event.title, '単語の追加申請が送信されました。')
+        self.assertEqual(event.message, 'learnerさんから「猫（ねこ）」が申請されました。')
         request = VocabRequest.objects.create(
             created_by=self.user, request_type=VocabRequestType.CREATE,
             status=VocabRequestStatus.PENDING, proposed_word='猫', proposed_kana='ねこ',
