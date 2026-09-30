@@ -1,0 +1,1972 @@
+{
+  "source": "/home/seki/projects/self_projects/japanese-quiz/assets/export/font",
+  "normal_color": [
+    38,
+    52,
+    61
+  ],
+  "error_color": [
+    173,
+    75,
+    85
+  ],
+  "counts": {
+    "normal": 167,
+    "error": 171,
+    "partial": 51
+  },
+  "contact_sheets": [
+    "contact-sheet-1.png",
+    "contact-sheet-2.png",
+    "contact-sheet-3.png",
+    "contact-sheet-4.png",
+    "contact-sheet-5.png"
+  ],
+  "files": [
+    {
+      "path": "hiragana/png/normal/a.png",
+      "status": "normal",
+      "source_sha256": "639805e2a70f05958c23757c1fccdcb8ca3bdc4650525b6011d179b80bf2d7e3"
+    },
+    {
+      "path": "hiragana/png/normal/ba.png",
+      "status": "normal",
+      "source_sha256": "f9aac1b658be6aa627357f16c6e6a438409950e9cbf950e69ea6f602a56fe724"
+    },
+    {
+      "path": "hiragana/png/normal/be.png",
+      "status": "normal",
+      "source_sha256": "4a93e78f06a07764f66ce67cefa9dac836d9060602ceca0aa6c7f13dddbd1973"
+    },
+    {
+      "path": "hiragana/png/normal/bi.png",
+      "status": "normal",
+      "source_sha256": "0f49c36ad2eec9ecb6f571bb7ea6c63b85caa619c384e4c8f0d1e8e49aab3427"
+    },
+    {
+      "path": "hiragana/png/normal/bo.png",
+      "status": "normal",
+      "source_sha256": "cc73161c48bebcbfbc799378b20b778376c189c814a7cf5978a03bf2aee68c83"
+    },
+    {
+      "path": "hiragana/png/normal/bu.png",
+      "status": "normal",
+      "source_sha256": "fa59a0f1753c905069c8a6adde06a0ac83da940e454d7f388307ff5872fec501"
+    },
+    {
+      "path": "hiragana/png/normal/chi.png",
+      "status": "normal",
+      "source_sha256": "9af35afadbff7950a517b8924033d32143880866c1f7c7fe700cf707a91b0fa3"
+    },
+    {
+      "path": "hiragana/png/normal/da.png",
+      "status": "normal",
+      "source_sha256": "de62256dba9d46915bb541a166c2a55997431f996395538ccc56c63520c41a4f"
+    },
+    {
+      "path": "hiragana/png/normal/de.png",
+      "status": "normal",
+      "source_sha256": "a2c72df1e24bb7c7e251908fedd792f5d730c43be3b3c3fcd39882f9c65f6f86"
+    },
+    {
+      "path": "hiragana/png/normal/di.png",
+      "status": "normal",
+      "source_sha256": "55f30ba84b7a4f9079c39def5690d7f91b32cafa807022f2f8c4c2cbaaaef58a"
+    },
+    {
+      "path": "hiragana/png/normal/do.png",
+      "status": "normal",
+      "source_sha256": "79977ac8bba03c14209545e3ea7705272b4a6edbbde799ed1e50d6fcb661bbfd"
+    },
+    {
+      "path": "hiragana/png/normal/du.png",
+      "status": "normal",
+      "source_sha256": "708acf09df28cedf515f2a788173adafb1cde9d44756964ded63582549ad9350"
+    },
+    {
+      "path": "hiragana/png/normal/e.png",
+      "status": "normal",
+      "source_sha256": "c328c851ee690fd535b5c9d37ef203a43b5d9d870f5aab193736b7621619fce8"
+    },
+    {
+      "path": "hiragana/png/normal/fu.png",
+      "status": "normal",
+      "source_sha256": "eb0117df2dc4ac61d28dc4810df8db8ccb8c82d14899b015b2ef52396ee27ad4"
+    },
+    {
+      "path": "hiragana/png/normal/ga.png",
+      "status": "normal",
+      "source_sha256": "8854cd292365935fb544def9e3c80ea212f7f7fe0d60781fea79776b47de1878"
+    },
+    {
+      "path": "hiragana/png/normal/ge.png",
+      "status": "normal",
+      "source_sha256": "de6190abb84b292fd6df43b5016fab7ca14079694456c855defaab05e55a25fa"
+    },
+    {
+      "path": "hiragana/png/normal/gi.png",
+      "status": "normal",
+      "source_sha256": "a7d5eacf2297c6b402727d8169e37069063cb8eb3daf0e500ee2c24a452db371"
+    },
+    {
+      "path": "hiragana/png/normal/go.png",
+      "status": "normal",
+      "source_sha256": "d2a1419cf3382c4c0df307c264ae95a14d55e02ee2cdd9895a2914208598df14"
+    },
+    {
+      "path": "hiragana/png/normal/gu.png",
+      "status": "normal",
+      "source_sha256": "840e5cac819c1011f426c6c139389150de05231b2156bbbc47652319c683f115"
+    },
+    {
+      "path": "hiragana/png/normal/ha.png",
+      "status": "normal",
+      "source_sha256": "dcce766b2754bb1abcccfc8de2ed9d54787b5de3eb90a32122132e953f97e475"
+    },
+    {
+      "path": "hiragana/png/normal/he.png",
+      "status": "normal",
+      "source_sha256": "8fca5e4cabfa178c12a8b58efef3d15063b60696d7a9b8a0d5d07bc8d34aba68"
+    },
+    {
+      "path": "hiragana/png/normal/hi.png",
+      "status": "normal",
+      "source_sha256": "9e07cb27dd2870185121e70d299712c14ba6438014136df7772e91e7e32ee587"
+    },
+    {
+      "path": "hiragana/png/normal/ho.png",
+      "status": "normal",
+      "source_sha256": "026b82598ec463bb658f57df0b78bee5b770909f8f4ea9621d855b90fac52b67"
+    },
+    {
+      "path": "hiragana/png/normal/i.png",
+      "status": "normal",
+      "source_sha256": "b4aeb9760adfcda724426603e34cc4863c52ec54ec055e2c1bef6a9a6d3a45e3"
+    },
+    {
+      "path": "hiragana/png/normal/ji.png",
+      "status": "normal",
+      "source_sha256": "d784bf4e0610c42f4078cc70c04ab24018252d1c8a55739b46f87e87a9e43ecc"
+    },
+    {
+      "path": "hiragana/png/normal/ka.png",
+      "status": "normal",
+      "source_sha256": "c0207bd7cb6156519ec3e476de2f43f4615f3cfe9a25a49d695b4288168b0624"
+    },
+    {
+      "path": "hiragana/png/normal/ke.png",
+      "status": "normal",
+      "source_sha256": "554d01c1c4cfbb1e3b6d8a2a2b8494e02db12ab70d8648621e1ce14eb66456c7"
+    },
+    {
+      "path": "hiragana/png/normal/ki.png",
+      "status": "normal",
+      "source_sha256": "1ad22dddf7dab7f43db30d876e0fa96199721aca7f9355d631353addc72e89d0"
+    },
+    {
+      "path": "hiragana/png/normal/ko.png",
+      "status": "normal",
+      "source_sha256": "6a813c424be99c15ac1bb2735eb44f919d4e44eba209b079891fb14980873e6f"
+    },
+    {
+      "path": "hiragana/png/normal/ku.png",
+      "status": "normal",
+      "source_sha256": "07a9640c8641eb81267fbbe265ba0d990235f4dd8b6c5b270749014a95d9cb9e"
+    },
+    {
+      "path": "hiragana/png/normal/ma.png",
+      "status": "normal",
+      "source_sha256": "7073773ee9052c1cb45238802d78415ab89eba82a2c9a7b494954b84a393939d"
+    },
+    {
+      "path": "hiragana/png/normal/me.png",
+      "status": "normal",
+      "source_sha256": "225ee07e8b7f14a6d2e597ae79e680d50c35f475b508e9e8352810734fe06d90"
+    },
+    {
+      "path": "hiragana/png/normal/mi.png",
+      "status": "normal",
+      "source_sha256": "4b955e135e37ca492a29f1451644c461a384311fd35e7480022fd0eca591cf3a"
+    },
+    {
+      "path": "hiragana/png/normal/mo.png",
+      "status": "normal",
+      "source_sha256": "477769619ccb8b92051fb1f4dfd2ca87d10f781f925735ff378998d58c322842"
+    },
+    {
+      "path": "hiragana/png/normal/mu.png",
+      "status": "normal",
+      "source_sha256": "33f2a0f29fbc5044eadff325f9209387fe34cd94e7fba44855e8afeb5240e7ba"
+    },
+    {
+      "path": "hiragana/png/normal/n.png",
+      "status": "normal",
+      "source_sha256": "3e68bdfafb98f75374880f9717288dd7570596a2e34f539312886ab34979f5b9"
+    },
+    {
+      "path": "hiragana/png/normal/na.png",
+      "status": "normal",
+      "source_sha256": "8c04147fd421fe6adff556704ed53878b485f70f6d02fd0e8d6ed8f99ac5c6c9"
+    },
+    {
+      "path": "hiragana/png/normal/ne.png",
+      "status": "normal",
+      "source_sha256": "2c7cac24fd649b3a7158cd9d1102a3fae6f3010bd059216e62ea63c7ff84bdba"
+    },
+    {
+      "path": "hiragana/png/normal/ni.png",
+      "status": "normal",
+      "source_sha256": "bae8b29d4c1a400e35c751c445f9c0ab8255c6682d66c358b74b3039e4658e71"
+    },
+    {
+      "path": "hiragana/png/normal/no.png",
+      "status": "normal",
+      "source_sha256": "4fb31df6c712678d0c056614157da3e3e778aed8b3a1fb12e4469aafb020c7a9"
+    },
+    {
+      "path": "hiragana/png/normal/nu.png",
+      "status": "normal",
+      "source_sha256": "f504f0265722e761a9e77023c9e36f80647f5e5ff238578cb3e049e208908b3f"
+    },
+    {
+      "path": "hiragana/png/normal/o.png",
+      "status": "normal",
+      "source_sha256": "05302ef29c74b06c93eea3467e9e8eda19ee093f060040b2ca9fbb017809996f"
+    },
+    {
+      "path": "hiragana/png/normal/pa.png",
+      "status": "normal",
+      "source_sha256": "1bc4b3175fa75fb1f8eaad9075427101e0710b38f7fd9d4d34a0c0ad5db75e2b"
+    },
+    {
+      "path": "hiragana/png/normal/pe.png",
+      "status": "normal",
+      "source_sha256": "1b6eac37a4382b39a8a87e43f0e521db0121a8900f92fa6c61ac4999297c2784"
+    },
+    {
+      "path": "hiragana/png/normal/pi.png",
+      "status": "normal",
+      "source_sha256": "e34caa2c9980f2799155aebba90ffc6af443f5cdead63b2b38f0aeb4936fec7c"
+    },
+    {
+      "path": "hiragana/png/normal/po.png",
+      "status": "normal",
+      "source_sha256": "cc2fd7bbe85a07d81c71098434ab6f2d6d3bb54d0f2e886a9ef7d00555f9493f"
+    },
+    {
+      "path": "hiragana/png/normal/pu.png",
+      "status": "normal",
+      "source_sha256": "dff90208a6c83ee52a09c7c0af721646b41e043127425f2e132f7000172d4db0"
+    },
+    {
+      "path": "hiragana/png/normal/ra.png",
+      "status": "normal",
+      "source_sha256": "57112571e715b7c72b642cbfc52621131de74cdbab61f66d67711018f80ac6f9"
+    },
+    {
+      "path": "hiragana/png/normal/re.png",
+      "status": "normal",
+      "source_sha256": "69efaf70debeede20826887e8ea8221131f6c737e38da522d54dd9ba72b7d7f3"
+    },
+    {
+      "path": "hiragana/png/normal/ri.png",
+      "status": "normal",
+      "source_sha256": "2eb952090665acb4c56587de87b3f7fa64e80d90cc9eae36015a2df537012843"
+    },
+    {
+      "path": "hiragana/png/normal/ro.png",
+      "status": "normal",
+      "source_sha256": "360830c386c745a702056c245967808bec426026feb2ff0122eff9d0e058d13d"
+    },
+    {
+      "path": "hiragana/png/normal/ru.png",
+      "status": "normal",
+      "source_sha256": "ae4200e261f05cda5a5bf7b08a7a736feec7b93e569bf7753d6152e72e2ca0d3"
+    },
+    {
+      "path": "hiragana/png/normal/sa.png",
+      "status": "normal",
+      "source_sha256": "97aeb15e8b39aef3e87c798562b1773af58b22916f77a9800ece311d1e91d244"
+    },
+    {
+      "path": "hiragana/png/normal/se.png",
+      "status": "normal",
+      "source_sha256": "ec8db0efd782468e4ea41283c870110191a9df69c817a3aedb8ac02a94afe190"
+    },
+    {
+      "path": "hiragana/png/normal/shi.png",
+      "status": "normal",
+      "source_sha256": "f434ccf623252238276478652542ee95de17b9df7e1083bd7aa801f5480407e3"
+    },
+    {
+      "path": "hiragana/png/normal/so.png",
+      "status": "normal",
+      "source_sha256": "87b85ab3530d2d8d7bba2c32699347f1d9692d139cc219db2e4eb2a6b2ea8a5f"
+    },
+    {
+      "path": "hiragana/png/normal/su.png",
+      "status": "normal",
+      "source_sha256": "99110231fda1138f6a3315bb87d52e1ce779df8abd7ac1cedac54ac277a83a82"
+    },
+    {
+      "path": "hiragana/png/normal/ta.png",
+      "status": "normal",
+      "source_sha256": "ed66fcb7e3dac7b4c68eb3fe7ed8aada3a5819963f96e68ca511255e91ad06d8"
+    },
+    {
+      "path": "hiragana/png/normal/te.png",
+      "status": "normal",
+      "source_sha256": "4bb987746fb59e6fcd68cf24b06dcc9ddce97d321a1964278f1a6a01a677a4ce"
+    },
+    {
+      "path": "hiragana/png/normal/to.png",
+      "status": "normal",
+      "source_sha256": "d94a112d5227556b71f9ddc9ca022332e25edf7057f6c068eb39d07846a78cb2"
+    },
+    {
+      "path": "hiragana/png/normal/tsu.png",
+      "status": "normal",
+      "source_sha256": "7be2f7b1b8f7f7b5f3f1886b8432bc914eec52abd95054cf7e79e72d9f96f6ed"
+    },
+    {
+      "path": "hiragana/png/normal/u.png",
+      "status": "normal",
+      "source_sha256": "7c6ed163e9c37d96feaea49f65c2d56e8612a9c5f2c8448666ce0ff576cfc158"
+    },
+    {
+      "path": "hiragana/png/normal/wa.png",
+      "status": "normal",
+      "source_sha256": "b97c73c48350f45e443a8416a61afe92c72d0fd5dc3f6b49f78fa37a7c29d849"
+    },
+    {
+      "path": "hiragana/png/normal/wo.png",
+      "status": "normal",
+      "source_sha256": "c85bd53b3a88a126e3363db829c2d67c954f1c84a1e98c11a1d0cde2239d5202"
+    },
+    {
+      "path": "hiragana/png/normal/xa.png",
+      "status": "normal",
+      "source_sha256": "1e22dbebc1281dcfb7285d34cd05cb03b1590739acc4149b4c0f7f678a5c7854"
+    },
+    {
+      "path": "hiragana/png/normal/xe.png",
+      "status": "normal",
+      "source_sha256": "0980cdd2d739e0ce0b972e21941a3fbb7fafb59478d9488dcc0e8a6820256f1c"
+    },
+    {
+      "path": "hiragana/png/normal/xi.png",
+      "status": "normal",
+      "source_sha256": "1bb5ec8206797030fd51c782ffc6776541f51d952440dde23045f1a56484a8cb"
+    },
+    {
+      "path": "hiragana/png/normal/xo.png",
+      "status": "normal",
+      "source_sha256": "9c5b7ea444a82815c339391a0e89da250d0956246553d46c6a4d91aa6d1353a9"
+    },
+    {
+      "path": "hiragana/png/normal/xtsu.png",
+      "status": "normal",
+      "source_sha256": "9f8e7e27cd29837f7a5b50f9b46900438041a66a40444200e14edd93cc2cec23"
+    },
+    {
+      "path": "hiragana/png/normal/xu.png",
+      "status": "normal",
+      "source_sha256": "21cfe4f4ac19229b5470cb4b4e3fc9b447f0991458d0f2b23c329ab405a76199"
+    },
+    {
+      "path": "hiragana/png/normal/xwa.png",
+      "status": "normal",
+      "source_sha256": "030a093388cb5964b06e5296f4b65cf6a93d97faf50f21407351586522f5b368"
+    },
+    {
+      "path": "hiragana/png/normal/xya.png",
+      "status": "normal",
+      "source_sha256": "0a0290ed961748b47839c74de0d8d3f34844ce2def3125b8696d1f86675ac761"
+    },
+    {
+      "path": "hiragana/png/normal/xyo.png",
+      "status": "normal",
+      "source_sha256": "2ea29edb7030281e7a030f97f0697a0864048c6065015c94cfb4406714a19c2e"
+    },
+    {
+      "path": "hiragana/png/normal/xyu.png",
+      "status": "normal",
+      "source_sha256": "20a16c7e2e9e56c107c910dee38153d061aa5956fb198d72bd5c45a229e22f76"
+    },
+    {
+      "path": "hiragana/png/normal/ya.png",
+      "status": "normal",
+      "source_sha256": "f178e110ed39f265aa897647d0cb4448290d1fcc1c6f46d41ca12fd9bb7bba95"
+    },
+    {
+      "path": "hiragana/png/normal/yo.png",
+      "status": "normal",
+      "source_sha256": "b39a1f8cb3ef67c6135a869528cc876878ccde45d6939dad64b1a0ef3a5674fa"
+    },
+    {
+      "path": "hiragana/png/normal/yu.png",
+      "status": "normal",
+      "source_sha256": "6a0c1462098c349dc72f034433607b22b5a68a768d805ca17d2691cc14195e2d"
+    },
+    {
+      "path": "hiragana/png/normal/za.png",
+      "status": "normal",
+      "source_sha256": "05f379238c308e42e6655f8a0c0be3de4d9e371eae92679a22d66ad67b94f7bb"
+    },
+    {
+      "path": "hiragana/png/normal/ze.png",
+      "status": "normal",
+      "source_sha256": "1de7a9b0b0579e88663258f8611f512ba9e7ecacd6b8b4263cc4dcc9648e1393"
+    },
+    {
+      "path": "hiragana/png/normal/zo.png",
+      "status": "normal",
+      "source_sha256": "de5ddfb0885911bb6b47957198b44f3263b4c3f736295550e1549e58c46e4b86"
+    },
+    {
+      "path": "hiragana/png/normal/zu.png",
+      "status": "normal",
+      "source_sha256": "1cd41121eacb3b806b079c2202ec5c710b9893b107dbb2d53b6affaabf4ce18c"
+    },
+    {
+      "path": "hiragana/png/wrong/a_red.png",
+      "status": "error",
+      "source_sha256": "7b6932ebc60c3bb25088c90f74106cf1e1709013ac28fe0319eaad4330e19e40"
+    },
+    {
+      "path": "hiragana/png/wrong/ba_mark_red.png",
+      "status": "partial",
+      "source_sha256": "db01ee2c5d47f88f5af772b0b975a36aa6927f8a599c1faf62f57728533e7e5b"
+    },
+    {
+      "path": "hiragana/png/wrong/ba_red.png",
+      "status": "error",
+      "source_sha256": "3bafb2ea1318b45a91ff81d6b6ea5b799ffee813bad33ad28d8cc2a521b7c6e5"
+    },
+    {
+      "path": "hiragana/png/wrong/be_mark_red.png",
+      "status": "partial",
+      "source_sha256": "976ea188a825c15c2353d91c5f3e2c818216a5dd2c88b0c6e827d6add65b7df0"
+    },
+    {
+      "path": "hiragana/png/wrong/be_red.png",
+      "status": "error",
+      "source_sha256": "d720ca516651a4eb03449fbdb150db1e0c1037c309b58c70010e8876715fe115"
+    },
+    {
+      "path": "hiragana/png/wrong/bi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "500b543c028211e58033f80a7d31ce5019f129d1d6f35b6fdeb11e7667a97b0f"
+    },
+    {
+      "path": "hiragana/png/wrong/bi_red.png",
+      "status": "error",
+      "source_sha256": "619becb5834d75ca0e5693a0ff8a65d2657303847f104124007eb7bc9ef58b7a"
+    },
+    {
+      "path": "hiragana/png/wrong/bo_mark_red.png",
+      "status": "partial",
+      "source_sha256": "a77ee0947c2778a1bd47b277dfc8acac5a6091f5ca1ac6aee071a4366ab0ba38"
+    },
+    {
+      "path": "hiragana/png/wrong/bo_red.png",
+      "status": "error",
+      "source_sha256": "4c9e3470aef53ce79eabc701afa5f52efcb3521c76240d550c7d041912c64fb3"
+    },
+    {
+      "path": "hiragana/png/wrong/bu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "1d355e9cb7fffda415c24a7b863aa298d58ba4a0c1539bf6c6ead545f7d212d4"
+    },
+    {
+      "path": "hiragana/png/wrong/bu_red.png",
+      "status": "error",
+      "source_sha256": "41331d88bf162b15e8b1e0a303afa4acd4a0e94e9f55d325537d7f0c559b2f8f"
+    },
+    {
+      "path": "hiragana/png/wrong/chi_red.png",
+      "status": "error",
+      "source_sha256": "fbebd690d6ab1f21a1d49a89efbb114e5c224e6b3075a7a9f2bbb9deced7a684"
+    },
+    {
+      "path": "hiragana/png/wrong/da_mark_red.png",
+      "status": "partial",
+      "source_sha256": "54b0d872367ac98c51081dae4e63ac1bfa17a9923cab754a6fce11fa7da0fc17"
+    },
+    {
+      "path": "hiragana/png/wrong/da_red.png",
+      "status": "error",
+      "source_sha256": "e6e1e40025e6e8e7b64a114317af62533016015c808e425f38fa6a4d11abb84f"
+    },
+    {
+      "path": "hiragana/png/wrong/de_mark_red.png",
+      "status": "partial",
+      "source_sha256": "3f8bf20631312f6b214bd514aa0f50a4a93ce0cf60b35f758e7ccafdb2bf03ea"
+    },
+    {
+      "path": "hiragana/png/wrong/de_red.png",
+      "status": "error",
+      "source_sha256": "0daa2e1317216d7056180bcd338a63d4b016c020d4534fb8fc571e29de06886c"
+    },
+    {
+      "path": "hiragana/png/wrong/di_mark_red.png",
+      "status": "partial",
+      "source_sha256": "04e57f25a1a2534e5608aed78cf7d83a5279cb7effb4422cd4f6259e0930f235"
+    },
+    {
+      "path": "hiragana/png/wrong/di_red.png",
+      "status": "error",
+      "source_sha256": "1707e8e25a8477f6cb50c60086d82beec1f556963cdf0086bdf7d0684b2e392b"
+    },
+    {
+      "path": "hiragana/png/wrong/do_mark_red.png",
+      "status": "partial",
+      "source_sha256": "5e2569cb01a85f9e01b3f491a9b8fbff7a691ee1bd1872062b3984eebdee94fa"
+    },
+    {
+      "path": "hiragana/png/wrong/do_red.png",
+      "status": "error",
+      "source_sha256": "5da89af96a00db5425c12567ccdde2437e5b257b162be7a799aaf812a265cf45"
+    },
+    {
+      "path": "hiragana/png/wrong/du_mark_red.png",
+      "status": "partial",
+      "source_sha256": "55e7145345ecc759fd7d6a2eaaca4800271cf79438828a1b884d49ce56a201f0"
+    },
+    {
+      "path": "hiragana/png/wrong/du_red.png",
+      "status": "error",
+      "source_sha256": "65ce002c8aa20844491605190b2fcdabc2935eb18804ad6d13c9e1c79ef8a5e5"
+    },
+    {
+      "path": "hiragana/png/wrong/e_red.png",
+      "status": "error",
+      "source_sha256": "41cbe5385bac7df92c4f2be889e6232b7b2d4dad3acfdeec0182c66fba40ade6"
+    },
+    {
+      "path": "hiragana/png/wrong/fu_red.png",
+      "status": "error",
+      "source_sha256": "a1dfe9af734944b58fa0bbfeb46d64a02ba14128d9a6635e47d730cb5bf7082c"
+    },
+    {
+      "path": "hiragana/png/wrong/ga_mark_red.png",
+      "status": "partial",
+      "source_sha256": "669369d8be832883cd95e1e1f6fa533d83d1e256b36bdd65a3464ecbcb4fe3d4"
+    },
+    {
+      "path": "hiragana/png/wrong/ga_red.png",
+      "status": "error",
+      "source_sha256": "0f75988c4fdac431c26cff9c810385a8ef9a952b1171d164d02e84739e52cb58"
+    },
+    {
+      "path": "hiragana/png/wrong/ge_mark_red.png",
+      "status": "partial",
+      "source_sha256": "f0f090431d8df9c2fe20ceb8c73da6459175ae5170f431c16de4d45bc8995c43"
+    },
+    {
+      "path": "hiragana/png/wrong/ge_red.png",
+      "status": "error",
+      "source_sha256": "9e4cc04810f8fea0455132a34c529462a630612584e4b791c5e1d842d093e441"
+    },
+    {
+      "path": "hiragana/png/wrong/gi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "c5f2eab5bfd6aab4068d21913988dad9df2ac27a6632d47c9e91c3a25f067a6d"
+    },
+    {
+      "path": "hiragana/png/wrong/gi_red.png",
+      "status": "error",
+      "source_sha256": "9e9ddaaa4c38a115bed03392396e4de3996b05432767aaec1e040d876c39a20a"
+    },
+    {
+      "path": "hiragana/png/wrong/go_mark_red.png",
+      "status": "partial",
+      "source_sha256": "355660a5adbdf41f7245349865b776d83f49f14e9a1934d74256ed35637b8b06"
+    },
+    {
+      "path": "hiragana/png/wrong/go_red.png",
+      "status": "error",
+      "source_sha256": "f591ac4b9b05a7e8d582f930dbf16ba17b166ecb4dd2c85a58d87490882c050b"
+    },
+    {
+      "path": "hiragana/png/wrong/gu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "9e67873071bdb147a644b95cc86a9c5ac7e51d90f669df455cbf2e8028284100"
+    },
+    {
+      "path": "hiragana/png/wrong/gu_red.png",
+      "status": "error",
+      "source_sha256": "591b57a5d13bd8ab6ff2972308e2e77fa90cc47cbfa44ecbe3ef20f59499aca6"
+    },
+    {
+      "path": "hiragana/png/wrong/ha_red.png",
+      "status": "error",
+      "source_sha256": "5d79827763593726e78a69d8cce623c2f19dab3b769c8239f13217533475d046"
+    },
+    {
+      "path": "hiragana/png/wrong/he_red.png",
+      "status": "error",
+      "source_sha256": "edb03a9c4b15b731db86f2c05cb5b43d7f3d07e049ac806314fb5dc67df37551"
+    },
+    {
+      "path": "hiragana/png/wrong/hi_red.png",
+      "status": "error",
+      "source_sha256": "b255ce50087249f2b8082de16927fe2249d344d0dc0fc38c57eebaf3c6683f75"
+    },
+    {
+      "path": "hiragana/png/wrong/ho_red.png",
+      "status": "error",
+      "source_sha256": "160b7c60d8e27f7455167eaa3d054696097f06762dbaaefede2ac7f14fa1091e"
+    },
+    {
+      "path": "hiragana/png/wrong/i_red.png",
+      "status": "error",
+      "source_sha256": "7e3852fa98f4299163af2c16f0b72f20a392886ea0fe75818e34b0bcc3d1f7b1"
+    },
+    {
+      "path": "hiragana/png/wrong/ji_mark_red.png",
+      "status": "partial",
+      "source_sha256": "b094cca145d1a84860086ca55055dc2b5fbbb5c7d575b01ec65d182af4f0876d"
+    },
+    {
+      "path": "hiragana/png/wrong/ji_red.png",
+      "status": "error",
+      "source_sha256": "931d57481b5b5451266740415749c0ca2dd69d0b436f2a33473c131d5f6a1bf3"
+    },
+    {
+      "path": "hiragana/png/wrong/ka_red.png",
+      "status": "error",
+      "source_sha256": "c186a52de7d2b72d14e8c83c6966e22f301b76e14111cd2c644d0d50a249656a"
+    },
+    {
+      "path": "hiragana/png/wrong/ke_red.png",
+      "status": "error",
+      "source_sha256": "ff6d423155f23f6dca03fb5ddef5e7fe4fe211d952c699d6c677238d408303ca"
+    },
+    {
+      "path": "hiragana/png/wrong/ki_red.png",
+      "status": "error",
+      "source_sha256": "6a41c4ed4e04489b840ad5b1c05adcedd848768ae3e42179346fe6609c177949"
+    },
+    {
+      "path": "hiragana/png/wrong/ko_red.png",
+      "status": "error",
+      "source_sha256": "7c12e1392583aabd776ddf23bb9a15e2280ce635499806d7c1f834c9ac65bee0"
+    },
+    {
+      "path": "hiragana/png/wrong/ku_red.png",
+      "status": "error",
+      "source_sha256": "14786e506f18de53e576308a2f4a78d000e64d95152dc6bb045720f3e2346882"
+    },
+    {
+      "path": "hiragana/png/wrong/ma_red.png",
+      "status": "error",
+      "source_sha256": "8194346ecaa93748f9293a7a203007fb6e40d356450fbb688789a2465f7561ee"
+    },
+    {
+      "path": "hiragana/png/wrong/me_red.png",
+      "status": "error",
+      "source_sha256": "e549ae4c6cbdde568233281517a8223cc143a064cdc3fceb8b80413b3a87ee98"
+    },
+    {
+      "path": "hiragana/png/wrong/mi_red.png",
+      "status": "error",
+      "source_sha256": "2bdeda2a65e75edca18a65ab771bd9521165b077f2b474b4ec4d47049a4916cb"
+    },
+    {
+      "path": "hiragana/png/wrong/mo_red.png",
+      "status": "error",
+      "source_sha256": "2be2b6ee57d55d776d8e56523ca83c4463b39f80f281d50493b1e32badc2cfb1"
+    },
+    {
+      "path": "hiragana/png/wrong/mu_red.png",
+      "status": "error",
+      "source_sha256": "749a5669c20ebda42dd36196de994e2dee9f514bced179b812812b958e0e9771"
+    },
+    {
+      "path": "hiragana/png/wrong/n_red.png",
+      "status": "error",
+      "source_sha256": "005f09fedaad032d1055b444d13df32d8912a23506ab3e5a1df8cfc84da1512f"
+    },
+    {
+      "path": "hiragana/png/wrong/na_red.png",
+      "status": "error",
+      "source_sha256": "53031fbb45fee3a7ad0e46366ee3ebd136d37a85853a4448ca5b85040b7dc875"
+    },
+    {
+      "path": "hiragana/png/wrong/ne_red.png",
+      "status": "error",
+      "source_sha256": "6bc4634540bd68ccf0204105a76df513a8ebe96221ea6254c187f98e383d007d"
+    },
+    {
+      "path": "hiragana/png/wrong/ni_red.png",
+      "status": "error",
+      "source_sha256": "1d5fd1edac2a70228d44f2dfeceb26df5cb24cf637bd6d6fe3198a7813dcddd2"
+    },
+    {
+      "path": "hiragana/png/wrong/no_red.png",
+      "status": "error",
+      "source_sha256": "dc439250edb1dd86107ee54e26518039ff8f0162ac06babc0fb47612c31765b3"
+    },
+    {
+      "path": "hiragana/png/wrong/nu_red.png",
+      "status": "error",
+      "source_sha256": "00c3a9ecf2e4254043335fb5653627833f076f5caad35058e2f8de9e4d035f59"
+    },
+    {
+      "path": "hiragana/png/wrong/o_red.png",
+      "status": "error",
+      "source_sha256": "f4cb84457953f66a55888713b1155d3434303533c8cd9d290df876ef1f93d623"
+    },
+    {
+      "path": "hiragana/png/wrong/pa_mark_red.png",
+      "status": "partial",
+      "source_sha256": "f0905e6b614d53acdb0326a6205cc5911b1b606bf83ce9446e11b3bf2a3e29f5"
+    },
+    {
+      "path": "hiragana/png/wrong/pa_red.png",
+      "status": "error",
+      "source_sha256": "57cb7f119198a1ed67db8481c7b10362bfd2dce0274f70ecac5036884c474ced"
+    },
+    {
+      "path": "hiragana/png/wrong/pe_mark_red.png",
+      "status": "partial",
+      "source_sha256": "feee9ee69112e698fb8bcd7f0e8192bbdd7b6b6afbe475a49aaf365e452a2b48"
+    },
+    {
+      "path": "hiragana/png/wrong/pe_red.png",
+      "status": "error",
+      "source_sha256": "cd3e11b670d44c188247a9735beb72bf9583aff71075ad2ea805d93bb9edcf97"
+    },
+    {
+      "path": "hiragana/png/wrong/pi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "a77d01f07e48375154f433594c2464acf939c81bbeec1ae9af8183870ecdae53"
+    },
+    {
+      "path": "hiragana/png/wrong/pi_red.png",
+      "status": "error",
+      "source_sha256": "856848fae035cbac536b32da1371e377fa53c4846e1a242857fe4b6e66879594"
+    },
+    {
+      "path": "hiragana/png/wrong/po_mark_red.png",
+      "status": "partial",
+      "source_sha256": "fc93121768ffa799577af91f75a4378ff0bb3a3a109af0b82399915760b72844"
+    },
+    {
+      "path": "hiragana/png/wrong/po_red.png",
+      "status": "error",
+      "source_sha256": "8770899976d175bfc3652f08f3ec3aab3d09cebbb15261dbd2bc3362d61e2f0d"
+    },
+    {
+      "path": "hiragana/png/wrong/pu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "06a0455f1c37099d74b98a33a6217c1e646cdf6967e969ed571ad4474b0270f8"
+    },
+    {
+      "path": "hiragana/png/wrong/pu_red.png",
+      "status": "error",
+      "source_sha256": "2ac43303967a0d99a431f310010f5bc01242f13e33ac6305226d1dcd1726393c"
+    },
+    {
+      "path": "hiragana/png/wrong/ra_red.png",
+      "status": "error",
+      "source_sha256": "3247ff1cb5e6716a68d7257efb2d1e586290d4b2ba8d02539934ab65cebccd65"
+    },
+    {
+      "path": "hiragana/png/wrong/re_red.png",
+      "status": "error",
+      "source_sha256": "a519013ae5bce6e8f9ee555f1f31a6ae9dd3ea971ca13bc4a4dc0865f8dcdec5"
+    },
+    {
+      "path": "hiragana/png/wrong/ri_red.png",
+      "status": "error",
+      "source_sha256": "a2a7c7c7336117f8c1c06b8300e5c318371c2c99e9efc80871c5f5a2e9210da9"
+    },
+    {
+      "path": "hiragana/png/wrong/ro_red.png",
+      "status": "error",
+      "source_sha256": "f64c6505658f49416a8d0794024667a1c11b75bd813607b437018188f9267be1"
+    },
+    {
+      "path": "hiragana/png/wrong/ru_red.png",
+      "status": "error",
+      "source_sha256": "f4d92247f1ef8020eca17e1ee866bebc1cafd643d0a56e0279c034e76283c8b7"
+    },
+    {
+      "path": "hiragana/png/wrong/sa_red.png",
+      "status": "error",
+      "source_sha256": "1bd0b20449c543c118ba787c34bd6a9b80494e142d632647f00c8e2bdffe1db1"
+    },
+    {
+      "path": "hiragana/png/wrong/se_red.png",
+      "status": "error",
+      "source_sha256": "97354b588d8d3a253f50fc5976a946b0a57f54d3ca8861487376af1d5806fcfd"
+    },
+    {
+      "path": "hiragana/png/wrong/shi_red.png",
+      "status": "error",
+      "source_sha256": "751614a03889bec589681286f8927b5dd7197d92af19bbd353938e4bc9c79f0d"
+    },
+    {
+      "path": "hiragana/png/wrong/so_red.png",
+      "status": "error",
+      "source_sha256": "03cb6dfc642a3f603f2627d2a573c6a14fab8134a3f4d1112d0c8576995ddf8d"
+    },
+    {
+      "path": "hiragana/png/wrong/su_red.png",
+      "status": "error",
+      "source_sha256": "73e1e4cf26aca41b6d978691be9e1b46420366a275cb9def1f11a70dfd12d31d"
+    },
+    {
+      "path": "hiragana/png/wrong/ta_red.png",
+      "status": "error",
+      "source_sha256": "862bfe5505344362569211136c980442e2cdeb72b156707f5d4806d1cee2ac0b"
+    },
+    {
+      "path": "hiragana/png/wrong/te_red.png",
+      "status": "error",
+      "source_sha256": "a0210b88ac549cdec8c128192c021839cb14a79feaaa0b7fae0d38c7bb7f7bb9"
+    },
+    {
+      "path": "hiragana/png/wrong/to_red.png",
+      "status": "error",
+      "source_sha256": "851972bbe0be05f26ead421094b5ecf8e0654e9d92894d50de4b7524d07a9fad"
+    },
+    {
+      "path": "hiragana/png/wrong/tsu_red.png",
+      "status": "error",
+      "source_sha256": "791470996b8d65995100fc529c4e333194018a7b34fdaa7125a8e7d2f8cd2e01"
+    },
+    {
+      "path": "hiragana/png/wrong/u_red.png",
+      "status": "error",
+      "source_sha256": "01c72d0aab7f6d067cc616e7367c0761913ec93c8f6bc96a8d7323e0eba3101a"
+    },
+    {
+      "path": "hiragana/png/wrong/wa_red.png",
+      "status": "error",
+      "source_sha256": "376baf23b366ccc5e79d5f8baad95a7da662d6436b005e0ed9029e2c4b10a635"
+    },
+    {
+      "path": "hiragana/png/wrong/wo_red.png",
+      "status": "error",
+      "source_sha256": "14b23f0c108387edf0ee315cac74c2bec02d9b94a5d0bd65b6cd66d048dd52b8"
+    },
+    {
+      "path": "hiragana/png/wrong/xa_red.png",
+      "status": "error",
+      "source_sha256": "af8bbb218e47687eef478e2f29f587be4196120be0038a5da34a45e97674c2ee"
+    },
+    {
+      "path": "hiragana/png/wrong/xe_red.png",
+      "status": "error",
+      "source_sha256": "efa0736a503b62b4cfc04ebe2b52b4546747a51a7aa3ad2600ed7ddc30762db9"
+    },
+    {
+      "path": "hiragana/png/wrong/xi_red.png",
+      "status": "error",
+      "source_sha256": "b728cc29a48b326607ffc586c444f1f71bdfee806553511dbeec8c9a398de6ad"
+    },
+    {
+      "path": "hiragana/png/wrong/xo_red.png",
+      "status": "error",
+      "source_sha256": "5a2fcea79b06788cb43a58e5663f725ecd8f6d2599e47411d1b597989f477898"
+    },
+    {
+      "path": "hiragana/png/wrong/xtsu_red.png",
+      "status": "error",
+      "source_sha256": "72674fc1bcdf5cb13d83d4853e0fbeea3d3044025559afe2eb3d3eed74d5ebfe"
+    },
+    {
+      "path": "hiragana/png/wrong/xu_red.png",
+      "status": "error",
+      "source_sha256": "ce1f875b7b96722c56ca6a656a7739181ea86d63802211fbd2d7e94063322881"
+    },
+    {
+      "path": "hiragana/png/wrong/xwa_red.png",
+      "status": "error",
+      "source_sha256": "3866115cec6cb0d04e78723c1dd1adc7a5f0617fbda160e139310f165e1a0434"
+    },
+    {
+      "path": "hiragana/png/wrong/xya_red.png",
+      "status": "error",
+      "source_sha256": "41cb211b3b40d9b6591945aaa926ade8bd0d340b0666f270e4d1aae3817063f1"
+    },
+    {
+      "path": "hiragana/png/wrong/xyo_red.png",
+      "status": "error",
+      "source_sha256": "9c0882d426f08e2e299570812c4b929bf5e89ff5eae946f56ab6b0e1899d1748"
+    },
+    {
+      "path": "hiragana/png/wrong/xyu_red.png",
+      "status": "error",
+      "source_sha256": "cf94629aa197b075153fa8d1917ddbc129093f8d803b401f3c2df65050160f95"
+    },
+    {
+      "path": "hiragana/png/wrong/ya_red.png",
+      "status": "error",
+      "source_sha256": "ddc893242e161a39bb88ad3ddace654c96c9b051304f4f6bcea4e3bcc1cc4d34"
+    },
+    {
+      "path": "hiragana/png/wrong/yo_red.png",
+      "status": "error",
+      "source_sha256": "536b6336fc1bcfc15103975dfe0e523061ed9e8c7d0b1f31e8a442c9e5270664"
+    },
+    {
+      "path": "hiragana/png/wrong/yu_red.png",
+      "status": "error",
+      "source_sha256": "d8aef3cd77b3b289cc5c31092060d63e6ff7328742378f68ba5d879d7864d933"
+    },
+    {
+      "path": "hiragana/png/wrong/za_mark_red.png",
+      "status": "partial",
+      "source_sha256": "8e4baa62c7d45939bc6fd953ab03ded4882b2e530d30cd3b604200b39dccba69"
+    },
+    {
+      "path": "hiragana/png/wrong/za_red.png",
+      "status": "error",
+      "source_sha256": "d921ddf793a8e21cde72e1c6f1c24a577ae17cacb1d6a26c62cd3ca030559c62"
+    },
+    {
+      "path": "hiragana/png/wrong/ze_mark_red.png",
+      "status": "partial",
+      "source_sha256": "755647c2dba86b091c8f141871d27e41ea9d0eaec94a8b8ed6b93275688b557d"
+    },
+    {
+      "path": "hiragana/png/wrong/ze_red.png",
+      "status": "error",
+      "source_sha256": "3f650ac2b05e5c1e41053ac5e3a83ec54d9b3388cb618f5a8417a3d8418cb59c"
+    },
+    {
+      "path": "hiragana/png/wrong/zo_mark_red.png",
+      "status": "partial",
+      "source_sha256": "cb9c3f99c3a4941915daa4ab8567240c6d5f2b8e569740fc09820332eb927f48"
+    },
+    {
+      "path": "hiragana/png/wrong/zo_red.png",
+      "status": "error",
+      "source_sha256": "8e3aeefcad7ffe3bd81f676388204ea68166bbf5cc5f5c0b986acf0ce8bfd02e"
+    },
+    {
+      "path": "hiragana/png/wrong/zu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "fbaf1cbf63f9ec259e1650d403f89191f6852e30971cc1b676eeb22873d13511"
+    },
+    {
+      "path": "hiragana/png/wrong/zu_red.png",
+      "status": "error",
+      "source_sha256": "3b2fc2f280f2af0010394dde5fc2f9c513d3583dd0abdb3a4df6bfd00f88b884"
+    },
+    {
+      "path": "katakana/png/normal/a.png",
+      "status": "normal",
+      "source_sha256": "407b41cf87e4e98d118b93afff581273a3578c740353632bd6baffa79d5f2da8"
+    },
+    {
+      "path": "katakana/png/normal/ba.png",
+      "status": "normal",
+      "source_sha256": "ba64bb35e5c06dc61b1bd7bd0bcdd396d14e552b091e5eddc58e045efa3e471c"
+    },
+    {
+      "path": "katakana/png/normal/be.png",
+      "status": "normal",
+      "source_sha256": "7a562d02598576bc8f0339b3c6fa23c10516aa5017abfc19f5ab3a05fb6e7aa5"
+    },
+    {
+      "path": "katakana/png/normal/bi.png",
+      "status": "normal",
+      "source_sha256": "d9e49ecfb095a5290c92371889f0711369c17c87cfeee26ba362809aed889fa3"
+    },
+    {
+      "path": "katakana/png/normal/bo.png",
+      "status": "normal",
+      "source_sha256": "16ba4d9bfd016ce6d991c8aa3351e3990a948a3a4382abd8b0496874cc5c2b5d"
+    },
+    {
+      "path": "katakana/png/normal/bu.png",
+      "status": "normal",
+      "source_sha256": "b27b61f3bcf918d44fcb6e668c2aaae4fe07cea2fa615e67ace66ceb225a6356"
+    },
+    {
+      "path": "katakana/png/normal/chi.png",
+      "status": "normal",
+      "source_sha256": "504364e90a649cbfbee4bfc1c111b5e1f1e48c197c1217a0b1439e4d6e61f46b"
+    },
+    {
+      "path": "katakana/png/normal/da.png",
+      "status": "normal",
+      "source_sha256": "dc6dd7e9c6d410686405a5dc241ab21290e54c615fe38f905f20278da5d621ff"
+    },
+    {
+      "path": "katakana/png/normal/de.png",
+      "status": "normal",
+      "source_sha256": "eb5698b16f43ceb047ca1975690382ff5d66c22e2408d283c49d4f7cc7f40930"
+    },
+    {
+      "path": "katakana/png/normal/di.png",
+      "status": "normal",
+      "source_sha256": "b6959e7515dd6e774f5d6a7ee5b7e15b6199f5c618736394c8875f85d114529b"
+    },
+    {
+      "path": "katakana/png/normal/do.png",
+      "status": "normal",
+      "source_sha256": "e6f322aee630cc98de68f310ae2922f592ca379b855f9c64b8fc4057b5a2d803"
+    },
+    {
+      "path": "katakana/png/normal/du.png",
+      "status": "normal",
+      "source_sha256": "11a9e330a4ca2add7cd3519853147e219afc4bccdfe754537ead6fc5319639f6"
+    },
+    {
+      "path": "katakana/png/normal/e.png",
+      "status": "normal",
+      "source_sha256": "1845f404bb356024a08bf36726cf3cc364f2a106668212985f534b9c4fa17866"
+    },
+    {
+      "path": "katakana/png/normal/fu.png",
+      "status": "normal",
+      "source_sha256": "654dc6675c54fedd9317964f759f2505d26c1e75c1f084c0fca93757bc3c5303"
+    },
+    {
+      "path": "katakana/png/normal/ga.png",
+      "status": "normal",
+      "source_sha256": "e67a418314fdc744c528fc6d82fb4c76f3fdb27d7545eb884e1804383352239d"
+    },
+    {
+      "path": "katakana/png/normal/ge.png",
+      "status": "normal",
+      "source_sha256": "904e203e516d05757d822e0709afa8c85e0949d1255c3ca0838ebf3e5372985e"
+    },
+    {
+      "path": "katakana/png/normal/gi.png",
+      "status": "normal",
+      "source_sha256": "a603bead081adaf0d0b660b7a82a17d0e40ea37901dfebc599898c108213ad89"
+    },
+    {
+      "path": "katakana/png/normal/go.png",
+      "status": "normal",
+      "source_sha256": "e4ff0fe8eb641151ebc2a75cb2b5157e1c4ea8cdd5b6b83c5b52e8030d100562"
+    },
+    {
+      "path": "katakana/png/normal/gu.png",
+      "status": "normal",
+      "source_sha256": "1fe24ebb6382899017b095f4e0f277968fe7a45858098d8a9b3c1458c61f1f23"
+    },
+    {
+      "path": "katakana/png/normal/ha.png",
+      "status": "normal",
+      "source_sha256": "6776704bd33a86d6517366bc98c7819de8ca6aa293751e4c5dfe81c7ca37863a"
+    },
+    {
+      "path": "katakana/png/normal/he.png",
+      "status": "normal",
+      "source_sha256": "d8e868a48ff42e675dc596af45f9aef1612c7f77e1112f7a161d65c0703db4f6"
+    },
+    {
+      "path": "katakana/png/normal/hi.png",
+      "status": "normal",
+      "source_sha256": "c4b1112dffd7d8d25acfe4eb56ac5e120b988421cf7a4db3525db140fec1c433"
+    },
+    {
+      "path": "katakana/png/normal/ho.png",
+      "status": "normal",
+      "source_sha256": "015eca34667ca57ae3d57bfd5d302d05ea44d73eb7a42c8f5695f860b12f29a1"
+    },
+    {
+      "path": "katakana/png/normal/i.png",
+      "status": "normal",
+      "source_sha256": "657cbecb0ad04feed4fe9ce8b05b0b84b18b9fc5a8c26ea6c8777e178d0f4e08"
+    },
+    {
+      "path": "katakana/png/normal/ji.png",
+      "status": "normal",
+      "source_sha256": "f38e39172374ce1b89327f18a90de730cfed85b88586f464cc3913b6b37b486c"
+    },
+    {
+      "path": "katakana/png/normal/ka.png",
+      "status": "normal",
+      "source_sha256": "9f4bc6e036cb82af10999e6ec624cefd6e8a502cb7a6a127bc2813f729c4d603"
+    },
+    {
+      "path": "katakana/png/normal/ke.png",
+      "status": "normal",
+      "source_sha256": "0bf4f11e5afaae7d6e1624648110d43a47bc1ee01a4575228d9a30a86f00fbcb"
+    },
+    {
+      "path": "katakana/png/normal/ki.png",
+      "status": "normal",
+      "source_sha256": "f8a9d044e645beba50050804b802689d0d36ff36a0af9fbad1253f5599a51740"
+    },
+    {
+      "path": "katakana/png/normal/ko.png",
+      "status": "normal",
+      "source_sha256": "51ecda655b52462abbf756d305fa5fb57956438b81f8158c473773dce7562ac9"
+    },
+    {
+      "path": "katakana/png/normal/ku.png",
+      "status": "normal",
+      "source_sha256": "ea14a596ac1a6e8857ad3029c9597f78ffd33c703dccd59012d028ad8ddabaa5"
+    },
+    {
+      "path": "katakana/png/normal/long.png",
+      "status": "normal",
+      "source_sha256": "fb344297b4407f96cdd914f31ab5297b3fa13c6d1adc933f88b7de4b17e4cf70"
+    },
+    {
+      "path": "katakana/png/normal/ma.png",
+      "status": "normal",
+      "source_sha256": "f7751078583a32173a97bbc5a7521e5b8b3839171e224507bc44d67eb2ca9f98"
+    },
+    {
+      "path": "katakana/png/normal/me.png",
+      "status": "normal",
+      "source_sha256": "db32569bf2b7439aea5667deb2302d9e53901f1d0d03edab4bbdb0b804fd6925"
+    },
+    {
+      "path": "katakana/png/normal/mi.png",
+      "status": "normal",
+      "source_sha256": "802a25c91288f2b7427bcd2bbac9d970d1ddfb9bd11b87336e45db0603eedf57"
+    },
+    {
+      "path": "katakana/png/normal/mo.png",
+      "status": "normal",
+      "source_sha256": "5163b270f6cfc4189f75d7809d7930319a316963e388ab182c91138c36c4c03c"
+    },
+    {
+      "path": "katakana/png/normal/mu.png",
+      "status": "normal",
+      "source_sha256": "c41991c0a111d1ca046a665946d28d7cea02bba12149a272058c85770003bd27"
+    },
+    {
+      "path": "katakana/png/normal/n.png",
+      "status": "normal",
+      "source_sha256": "a6f0d172ce951e0a53b4d303f5099ae1ccb43983b164ee28744b28cd0ea4ba7f"
+    },
+    {
+      "path": "katakana/png/normal/na.png",
+      "status": "normal",
+      "source_sha256": "829e0ce3f57393d26a5678f7b058e4a9e4cc811eb595ce684c41c286f56893ea"
+    },
+    {
+      "path": "katakana/png/normal/ne.png",
+      "status": "normal",
+      "source_sha256": "231489df084ef9d04829c47f47e5d2d71a76b520b066b0afa66bead2bd818c33"
+    },
+    {
+      "path": "katakana/png/normal/ni.png",
+      "status": "normal",
+      "source_sha256": "cca91dfc915354595cdf5d731a2b212e287ef79eb76d427aede982cdcb838bd5"
+    },
+    {
+      "path": "katakana/png/normal/no.png",
+      "status": "normal",
+      "source_sha256": "a66966bd4d9bc34326aa3614f70568cac7193f663e035c82f7cf1962aef04a05"
+    },
+    {
+      "path": "katakana/png/normal/nu.png",
+      "status": "normal",
+      "source_sha256": "6a142f9149c54c3771ca6e36618a07a90b1767c328ad92ee3ec0ef659f33dc5a"
+    },
+    {
+      "path": "katakana/png/normal/o.png",
+      "status": "normal",
+      "source_sha256": "c053ed57461aa02572e34b19b17f75e9c4da9be230d1de1b836f36e2446f07a0"
+    },
+    {
+      "path": "katakana/png/normal/pa.png",
+      "status": "normal",
+      "source_sha256": "935a8e40a8d0d7dc239d0a8b6aa0f24753780c72b6cd782323348781c20c9a59"
+    },
+    {
+      "path": "katakana/png/normal/pe.png",
+      "status": "normal",
+      "source_sha256": "3d205be955d44334e4cc607dfa462f7447196ed27f056c0d3aa918859914058f"
+    },
+    {
+      "path": "katakana/png/normal/pi.png",
+      "status": "normal",
+      "source_sha256": "a3a026ecfe01ab396421827ece8383cac3a41eabe488feb1a05e03314602472f"
+    },
+    {
+      "path": "katakana/png/normal/po.png",
+      "status": "normal",
+      "source_sha256": "9581c35d72d8834bdcad179f49474a703c8e539ffc4c977120a0cb168ac4778e"
+    },
+    {
+      "path": "katakana/png/normal/pu.png",
+      "status": "normal",
+      "source_sha256": "677259796202bfffc1c56640063b3ca3c45b5fce30cb1e81c5dd3468977f44b4"
+    },
+    {
+      "path": "katakana/png/normal/ra.png",
+      "status": "normal",
+      "source_sha256": "cf52addaf36337356347ec8f58953b8ad8d6b75aaefd7ae411796dc538fb7119"
+    },
+    {
+      "path": "katakana/png/normal/re.png",
+      "status": "normal",
+      "source_sha256": "351c63e5dfed69134e01565494da454428a27ffe02c1e9a8f5cafed69fe6549a"
+    },
+    {
+      "path": "katakana/png/normal/ri.png",
+      "status": "normal",
+      "source_sha256": "ed43a2948a71a20c9dab8c1260ba3d947a9bb1870e9c488ee68412ebffeab9f7"
+    },
+    {
+      "path": "katakana/png/normal/ro.png",
+      "status": "normal",
+      "source_sha256": "c624cabda4db7a28b8fa2cfeb0324651212ca60f5ccfe857c4af751aaad5a12a"
+    },
+    {
+      "path": "katakana/png/normal/ru.png",
+      "status": "normal",
+      "source_sha256": "a155bc8da8a033ad6c31d609ab839fef6a0cb0d187d335116108038226dbd8f2"
+    },
+    {
+      "path": "katakana/png/normal/sa.png",
+      "status": "normal",
+      "source_sha256": "bb0466b0339c92351ca36ddefadb1c6e1317d2f8e438ab32a352b79de52b1d22"
+    },
+    {
+      "path": "katakana/png/normal/se.png",
+      "status": "normal",
+      "source_sha256": "a712f1fed84c8e9cc20615d8274690ca989ee2f7274630859daf36daf4a55d2d"
+    },
+    {
+      "path": "katakana/png/normal/shi.png",
+      "status": "normal",
+      "source_sha256": "759939782990bea393992c76cdb4650b6fc865c0abd54585ed80f1295af3c449"
+    },
+    {
+      "path": "katakana/png/normal/so.png",
+      "status": "normal",
+      "source_sha256": "1b04a7940b4c194e67b8ec70e4361a2b5946f7dc9d53f36da8865ce6ab38b5b6"
+    },
+    {
+      "path": "katakana/png/normal/special.png",
+      "status": "normal",
+      "source_sha256": "1391ef80c033029db78ec71ef031fb6ca41b51ba7549d4c17129cc79b68f15b2"
+    },
+    {
+      "path": "katakana/png/normal/su.png",
+      "status": "normal",
+      "source_sha256": "db29ff1014a16a6c0a79e2db6be3719595da7dd40f859415b72196080e371d53"
+    },
+    {
+      "path": "katakana/png/normal/ta.png",
+      "status": "normal",
+      "source_sha256": "a98753c6c60153d7568ec143269424f89df9e371e21a244d7d358ffa186248ef"
+    },
+    {
+      "path": "katakana/png/normal/te.png",
+      "status": "normal",
+      "source_sha256": "8da3538831597f42f7df97d44378f0e68ab340953f29fd865ed5c54a26a51f28"
+    },
+    {
+      "path": "katakana/png/normal/to.png",
+      "status": "normal",
+      "source_sha256": "fbf2ffabf9e079fed4b167ea33f78d474c9fbaa459bce3249f10f011b67218c5"
+    },
+    {
+      "path": "katakana/png/normal/tsu.png",
+      "status": "normal",
+      "source_sha256": "513da01815102cc45bc54a4ebd5d2cb541e9cdab9968cabd1b22f4a6196b7ec4"
+    },
+    {
+      "path": "katakana/png/normal/u.png",
+      "status": "normal",
+      "source_sha256": "56bbe86ec3054b141eb1eb1e273874236ac725c2e5d7dfb3a164a9cdd89a5d2d"
+    },
+    {
+      "path": "katakana/png/normal/vu.png",
+      "status": "normal",
+      "source_sha256": "bbba319c3193cef93c54c66f55e91cd1c52447a894d1659eac8aa8a219b209a3"
+    },
+    {
+      "path": "katakana/png/normal/wa.png",
+      "status": "normal",
+      "source_sha256": "7cc2b67561c7c95591e895f8bb7156473cea4a8bd9d79e1e7a8419c94283c680"
+    },
+    {
+      "path": "katakana/png/normal/wo.png",
+      "status": "normal",
+      "source_sha256": "db9fcab027013f46f555b9408f31fe87f22352df77ab089d0587c41151479a1a"
+    },
+    {
+      "path": "katakana/png/normal/xa.png",
+      "status": "normal",
+      "source_sha256": "c88b6a33fe11a3be9e33aae2400809c4bfa56c081514194afa58690e45f48d5a"
+    },
+    {
+      "path": "katakana/png/normal/xe.png",
+      "status": "normal",
+      "source_sha256": "b526482d6d33ed74bd70c4c676f9bde705f7ee756a4c2d7baa99e83616bac970"
+    },
+    {
+      "path": "katakana/png/normal/xi.png",
+      "status": "normal",
+      "source_sha256": "11fbd76d327761d2fd68ad58e23d456c4222fe0abec89e0ac1f862d5871622fa"
+    },
+    {
+      "path": "katakana/png/normal/xka.png",
+      "status": "normal",
+      "source_sha256": "2f29892b21787fb615a075133d6434c031f90b410168e7761a4431fab3e9c329"
+    },
+    {
+      "path": "katakana/png/normal/xke.png",
+      "status": "normal",
+      "source_sha256": "55bbef88f20643f4f7a7812bc7c2f4eae4423440a35bcf8892734d5b0009dee3"
+    },
+    {
+      "path": "katakana/png/normal/xo.png",
+      "status": "normal",
+      "source_sha256": "00ccf9d396f8fbf6756d3ec32057b067000d150b83ba9f240e445e65fe311bd1"
+    },
+    {
+      "path": "katakana/png/normal/xtsu.png",
+      "status": "normal",
+      "source_sha256": "2aa1f2d0dc9313d87cb1ea3949a8deb6d9413c998e5ab62c7f43115086ecd4df"
+    },
+    {
+      "path": "katakana/png/normal/xu.png",
+      "status": "normal",
+      "source_sha256": "260165805b2848b1f6f6f59ecc3accca435538fd44898c97c0d4c0b922cd31ef"
+    },
+    {
+      "path": "katakana/png/normal/xwa.png",
+      "status": "normal",
+      "source_sha256": "230b44e9154d45294f838f3dd8152ad15eaf51c5ef599b59318e2e32d61daa41"
+    },
+    {
+      "path": "katakana/png/normal/xya.png",
+      "status": "normal",
+      "source_sha256": "122e90b2e847e525c5351ca8890425325b96ba9d2839a2d32dabf1464bcc839c"
+    },
+    {
+      "path": "katakana/png/normal/xyo.png",
+      "status": "normal",
+      "source_sha256": "b16f6c297762adbe1473d62c7a6f9a329b51aec5d8ce33aef5f90d709c827416"
+    },
+    {
+      "path": "katakana/png/normal/xyu.png",
+      "status": "normal",
+      "source_sha256": "df1a7b1338a7d9fa1a69c272a6ebb2c9bb0230ba8ea9b20a2bae2f8ea6c7bc87"
+    },
+    {
+      "path": "katakana/png/normal/ya.png",
+      "status": "normal",
+      "source_sha256": "dc3a4b315ac123b415e06f6c44bd3cf542eae1551b425ed3c8ae762658e74160"
+    },
+    {
+      "path": "katakana/png/normal/yo.png",
+      "status": "normal",
+      "source_sha256": "de5b73c3358316075bde9615d8ecb944c40e769736ebc38523bfd6a38a95ee9f"
+    },
+    {
+      "path": "katakana/png/normal/yu.png",
+      "status": "normal",
+      "source_sha256": "764d8938d055ae7d06f3b7660e60e6e6c0bcbeab84da554044c5573fa65a8fcd"
+    },
+    {
+      "path": "katakana/png/normal/za.png",
+      "status": "normal",
+      "source_sha256": "e1faf1fb24049fcb6c12ca56f8e06aaff9e9ded86c610f290562565e3608e6f6"
+    },
+    {
+      "path": "katakana/png/normal/ze.png",
+      "status": "normal",
+      "source_sha256": "443fa3b5150eb00c18fc266ebb331e3be203be17a72afb3916f6f671b1cdf3ea"
+    },
+    {
+      "path": "katakana/png/normal/zo.png",
+      "status": "normal",
+      "source_sha256": "0ca1e45dd40930f1ddbed468911fdaf315b772364c73c174b8444698a152b745"
+    },
+    {
+      "path": "katakana/png/normal/zu.png",
+      "status": "normal",
+      "source_sha256": "2f9bc4646372419b414fd62e44f0b0cbba1747f7fd953b7f0635f2abab8363f5"
+    },
+    {
+      "path": "katakana/png/wrong/a_red.png",
+      "status": "error",
+      "source_sha256": "7ca7f6c37261182e632ff50106bfadf4a1e330631f7d1867eb2f1036c516fc6d"
+    },
+    {
+      "path": "katakana/png/wrong/ba_mark_red.png",
+      "status": "partial",
+      "source_sha256": "167e7fe6199b2a25fe630f82422d6a4e7d3c2048b0f37283fd4fdaef3cd55949"
+    },
+    {
+      "path": "katakana/png/wrong/ba_red.png",
+      "status": "error",
+      "source_sha256": "2d33cc2028afaa61c6cb0b06d2684964021939c9d3880862a0d5d07084c3801a"
+    },
+    {
+      "path": "katakana/png/wrong/be_mark_red.png",
+      "status": "partial",
+      "source_sha256": "2ef0482cbaee9613c54cd5e473e4f84e988d79343395dbeabbf1d14460075e59"
+    },
+    {
+      "path": "katakana/png/wrong/be_red.png",
+      "status": "error",
+      "source_sha256": "a9befb8957d7887951de079698e2c0b7263d5f0c2d6bb9654ab9950aa8045d61"
+    },
+    {
+      "path": "katakana/png/wrong/bi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "d0ac31d5e18c7d1c013db6bd6836df79385a60cad520463d5e6be29245250fee"
+    },
+    {
+      "path": "katakana/png/wrong/bi_red.png",
+      "status": "error",
+      "source_sha256": "971a50cc8805313ce8b9ad65ef4d658c5cc3322e8cbf40463d2e6a22985bba5f"
+    },
+    {
+      "path": "katakana/png/wrong/bo_mark_red.png",
+      "status": "partial",
+      "source_sha256": "5051a332b82a2abb7b42f8a57b1de77e977b59fd9a5b1c384e763d7e487e899f"
+    },
+    {
+      "path": "katakana/png/wrong/bo_red.png",
+      "status": "error",
+      "source_sha256": "4d9254ccb324fe68638dc1a1ae52aee2d7df0a1e7c63e64e1b90d3dc4cfffcb8"
+    },
+    {
+      "path": "katakana/png/wrong/bu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "62c3cdf0ced07c754dafe8a620a231880b1f56ae3889e75c29d1711d4f820e51"
+    },
+    {
+      "path": "katakana/png/wrong/bu_red.png",
+      "status": "error",
+      "source_sha256": "b1c86477cfa60a379dc4553dbf2911018bd425b771ad845c8cf24c2588046359"
+    },
+    {
+      "path": "katakana/png/wrong/chi_red.png",
+      "status": "error",
+      "source_sha256": "35583305d24c11b20ef313ab4b71ed32bfb182bd42398575b5116a2fdc04669b"
+    },
+    {
+      "path": "katakana/png/wrong/da_mark_red.png",
+      "status": "partial",
+      "source_sha256": "f13c286b7d78d982de3a3410dcf8652b824b54936720f6e08a9e561ac5e924a8"
+    },
+    {
+      "path": "katakana/png/wrong/da_red.png",
+      "status": "error",
+      "source_sha256": "cb15de6d692a1f6aa34405e4ab71bca54ac669c492f8ed8b3e5885bc01126c7a"
+    },
+    {
+      "path": "katakana/png/wrong/de_mark_red.png",
+      "status": "partial",
+      "source_sha256": "7f381a593a35128c66568ab512ffab7aa7fb01730f2300eb4f57ceb140908df1"
+    },
+    {
+      "path": "katakana/png/wrong/de_red.png",
+      "status": "error",
+      "source_sha256": "bf867f5f3d7d265f794a17f16d5095adb24c8965f55a59886b827c53469e7ab1"
+    },
+    {
+      "path": "katakana/png/wrong/di_mark_red.png",
+      "status": "partial",
+      "source_sha256": "443cd6a8f19f84020473889ccdef38fa4f1ce25cbfa26d97da8152d636869081"
+    },
+    {
+      "path": "katakana/png/wrong/di_red.png",
+      "status": "error",
+      "source_sha256": "946809dc5c784cc87fa35bd804127431da1ebf92ba63e7cf5b95c00d65b5bf1d"
+    },
+    {
+      "path": "katakana/png/wrong/do_mark_red.png",
+      "status": "partial",
+      "source_sha256": "40bc516ee2ca5b75bb836d1e4c3a934b142d1fe3d56c9e32376b820e682c95b6"
+    },
+    {
+      "path": "katakana/png/wrong/do_red.png",
+      "status": "error",
+      "source_sha256": "86c73ddd8b143251376134caf9979261fd516c2a94fce0e29db3e0894bd67230"
+    },
+    {
+      "path": "katakana/png/wrong/du_mark_red.png",
+      "status": "partial",
+      "source_sha256": "9c7d9e525dc3da233471566249c8fe8dcf7ecd3ca53f5165c2ed1bdb5e9a0cc7"
+    },
+    {
+      "path": "katakana/png/wrong/du_red.png",
+      "status": "error",
+      "source_sha256": "912ae3f9a7776cdf6f6ed9b63461a2cc48321609bb69558e2ee746b83e3b7987"
+    },
+    {
+      "path": "katakana/png/wrong/e_red.png",
+      "status": "error",
+      "source_sha256": "2ab760c4a1b3a0ecb5b5123241a2573d5efbf1edc0209c238b9e881d7d7860bf"
+    },
+    {
+      "path": "katakana/png/wrong/fu_red.png",
+      "status": "error",
+      "source_sha256": "da0ef841108d2451ea27c25b41da265de84fb9fa87c775f9b57ae96c023ef54d"
+    },
+    {
+      "path": "katakana/png/wrong/ga_mark_red.png",
+      "status": "partial",
+      "source_sha256": "511cdea2830ed72ac3070b111a509f28235f681f429bdf9b34b6c6323c074b83"
+    },
+    {
+      "path": "katakana/png/wrong/ga_red.png",
+      "status": "error",
+      "source_sha256": "2d225e8d0c5a60cf4f751b05c14abc52a0e1ed6dbab6de2354a47f4c9e48dfd1"
+    },
+    {
+      "path": "katakana/png/wrong/ge_mark_red.png",
+      "status": "partial",
+      "source_sha256": "6c1e440a7e70c82910070dac31b284b98c9ebc37dec7ce73243fd73bcefe18f8"
+    },
+    {
+      "path": "katakana/png/wrong/ge_red.png",
+      "status": "error",
+      "source_sha256": "23aa9ee22019279b7fe987b0dd2aa2863a38e30eaa9ee309b05c4ed5e72aab8d"
+    },
+    {
+      "path": "katakana/png/wrong/gi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "071471ab6b0d4be2e7e218daec63e65f9c86da8d883f49230860b13e3cfdd3f7"
+    },
+    {
+      "path": "katakana/png/wrong/gi_red.png",
+      "status": "error",
+      "source_sha256": "bc0e1d67fc45de27d6116ede878577724ae01911e52bcadb691de044ca10e8d7"
+    },
+    {
+      "path": "katakana/png/wrong/go_mark_red.png",
+      "status": "partial",
+      "source_sha256": "14318111971f394df52abb4175c014a2f3b44e28bde890d648bd6015eb9f9266"
+    },
+    {
+      "path": "katakana/png/wrong/go_red.png",
+      "status": "error",
+      "source_sha256": "122b023a2c26f0f07fce28f1fa97e098cc4cb1a468501507cc9df5d2c07a7c80"
+    },
+    {
+      "path": "katakana/png/wrong/gu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "da0471deb53fc262cf8fdb00dbc81348e738cea0aa2e50e194298a11ca236e9c"
+    },
+    {
+      "path": "katakana/png/wrong/gu_red.png",
+      "status": "error",
+      "source_sha256": "b4df5661d4b533d8b4bfe68dd8de233c81dff20ddf126d62c4d8910174d34f33"
+    },
+    {
+      "path": "katakana/png/wrong/ha_red.png",
+      "status": "error",
+      "source_sha256": "fca7d6dd80e37814007ee8d48cc877a4c3d26059252fd33668c0f8817fe42791"
+    },
+    {
+      "path": "katakana/png/wrong/he_red.png",
+      "status": "error",
+      "source_sha256": "e39bd5385c981c57568ffad8b0a1d5a42d1f7ca0c702a1928eddf362dcb5fb1b"
+    },
+    {
+      "path": "katakana/png/wrong/hi_red.png",
+      "status": "error",
+      "source_sha256": "975f1ec9bee7d34c930f6d965b3299c49a6bbe8ab8aba9382aacd108a9849bba"
+    },
+    {
+      "path": "katakana/png/wrong/ho_red.png",
+      "status": "error",
+      "source_sha256": "e64ac59e10b40609a0d01913e8e493c533b03bbcb9b0e98e0b6723da208ed4d7"
+    },
+    {
+      "path": "katakana/png/wrong/i_red.png",
+      "status": "error",
+      "source_sha256": "836df437a71741c416bf7b08d01b0bba30b583b20acde5a63e9b824d4f521b3a"
+    },
+    {
+      "path": "katakana/png/wrong/ji_mark_red.png",
+      "status": "partial",
+      "source_sha256": "214820e350f726ac77ac088517f83b982700c0bbb508e7449da4058d7ebfbc42"
+    },
+    {
+      "path": "katakana/png/wrong/ji_red.png",
+      "status": "error",
+      "source_sha256": "b81429f06f3347086dfa52064dc2ab34aa362393a7c8d157e275bcf1048abd0a"
+    },
+    {
+      "path": "katakana/png/wrong/ka_red.png",
+      "status": "error",
+      "source_sha256": "0a32f8dc64733a800d795db83342361629ca865e01fc6959d60eb76dc2498a16"
+    },
+    {
+      "path": "katakana/png/wrong/ke_red.png",
+      "status": "error",
+      "source_sha256": "4e1f8c2787282ff823584ba2355c510b5e10fddf393bc77e61e9385aa9d7dee7"
+    },
+    {
+      "path": "katakana/png/wrong/ki_red.png",
+      "status": "error",
+      "source_sha256": "687be05a35a54ba0117eaad1bfa899a2d53d09b265d733b52a4db2dbded67ae6"
+    },
+    {
+      "path": "katakana/png/wrong/ko_red.png",
+      "status": "error",
+      "source_sha256": "119999ed8a953a4bab58f789ca7a662bd511da41c1e61a4ff232aef8f2d2596b"
+    },
+    {
+      "path": "katakana/png/wrong/ku_red.png",
+      "status": "error",
+      "source_sha256": "f5da70d25a1aeeeee12f27dfaa31ebdab7c7973d6c62f4fd7d48399e25ec539e"
+    },
+    {
+      "path": "katakana/png/wrong/long_red.png",
+      "status": "error",
+      "source_sha256": "e0ac8792ce7f7c0ae40d52566448560f65c1d8e58fbba30908784f815ffb9edb"
+    },
+    {
+      "path": "katakana/png/wrong/ma_red.png",
+      "status": "error",
+      "source_sha256": "440bc156d1fb7ba9feddcf7a6ae65d42a416dac4fadbca2f1002c079c725b5e9"
+    },
+    {
+      "path": "katakana/png/wrong/me_red.png",
+      "status": "error",
+      "source_sha256": "be2ff9dfa159b307c613a4f53bd87f7239d212c1b69da3573aa22f9b081bbdb2"
+    },
+    {
+      "path": "katakana/png/wrong/mi_red.png",
+      "status": "error",
+      "source_sha256": "fb3b4b6ad4a0b9e0c8377735311fe4e6a869e98ed1d3339606744aaabbdffd7c"
+    },
+    {
+      "path": "katakana/png/wrong/mo_red.png",
+      "status": "error",
+      "source_sha256": "3e9e8d990e58cc866cff207c4a7c36a11d98af2aa21800d70ba3a28c374085bb"
+    },
+    {
+      "path": "katakana/png/wrong/mu_red.png",
+      "status": "error",
+      "source_sha256": "2100689759c790e8c156fbf4121b0396fa1a0693414f399cb254177183d3e223"
+    },
+    {
+      "path": "katakana/png/wrong/n_red.png",
+      "status": "error",
+      "source_sha256": "6cd44d9cc0c437f44773750dcecf0d3e5b154620fb2eda153991bc25fdddec35"
+    },
+    {
+      "path": "katakana/png/wrong/na_red.png",
+      "status": "error",
+      "source_sha256": "1e3211fb062d01b918b69a51ed5e092d4dc16b9f71e997a08a0fe402eb89435f"
+    },
+    {
+      "path": "katakana/png/wrong/ne_red.png",
+      "status": "error",
+      "source_sha256": "35cf9b68f2f36e3015f117305ee3ebfd66003a3f14efa8cbef65d376e2b1451f"
+    },
+    {
+      "path": "katakana/png/wrong/ni_red.png",
+      "status": "error",
+      "source_sha256": "07c6e139d6372814f165c05e8811e7767f6522d55909339c1c455be3620f7582"
+    },
+    {
+      "path": "katakana/png/wrong/no_red.png",
+      "status": "error",
+      "source_sha256": "c97d5d5ae311e185cf6f1c725e3e9fc4693e9d78622ba45c6805477441052be9"
+    },
+    {
+      "path": "katakana/png/wrong/nu_red.png",
+      "status": "error",
+      "source_sha256": "9b3abec63ab418f98c7e452d272b3343dd23c5a67b620de9279b094a19bc4749"
+    },
+    {
+      "path": "katakana/png/wrong/o_red.png",
+      "status": "error",
+      "source_sha256": "40d5c09e4692375bff0af53353b70a7dd5db7bde5c870db4f7a1958a6d63ca69"
+    },
+    {
+      "path": "katakana/png/wrong/pa_mark_red.png",
+      "status": "partial",
+      "source_sha256": "1ab7f5888009c962a968fda582495c88a99a7bf0c8188826b19c63cc1409b0b3"
+    },
+    {
+      "path": "katakana/png/wrong/pa_red.png",
+      "status": "error",
+      "source_sha256": "0ef9d41e3d9f56d2c65646217839c2111645a9166cb322b43a4a13cec315cea4"
+    },
+    {
+      "path": "katakana/png/wrong/pe_mark_red.png",
+      "status": "partial",
+      "source_sha256": "2a116c060b6cb019941897db11654dbbff98c81ad4e92e4f582f3a85af5ac675"
+    },
+    {
+      "path": "katakana/png/wrong/pe_red.png",
+      "status": "error",
+      "source_sha256": "d9295394e7f442a55a5be307b70f8efac6e61c6b955a5feddb5721ae47b96e73"
+    },
+    {
+      "path": "katakana/png/wrong/pi_mark_red.png",
+      "status": "partial",
+      "source_sha256": "e9cada0864b8830d0e4eb24df97841aa6f44f7e1e2ca55f836c0ce1f128ab7b5"
+    },
+    {
+      "path": "katakana/png/wrong/pi_red.png",
+      "status": "error",
+      "source_sha256": "0159c06c1fe16b726af1460d73abd58cd0336e44621ad4bbb0d3466d4154d200"
+    },
+    {
+      "path": "katakana/png/wrong/po_mark_red.png",
+      "status": "partial",
+      "source_sha256": "92239878c4c11e1bcde4441a93521a7c92f813ac75f946a0044865adf5e71341"
+    },
+    {
+      "path": "katakana/png/wrong/po_red.png",
+      "status": "error",
+      "source_sha256": "33558f3e517547e90510b9435d0d7f5abb55bc91ef0eb8821e6f8869319541ba"
+    },
+    {
+      "path": "katakana/png/wrong/pu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "c0274cdd2cd615bc918f69f8216a5bceb35dd9097fc730eb51ba498ddd0c6d5c"
+    },
+    {
+      "path": "katakana/png/wrong/pu_red.png",
+      "status": "error",
+      "source_sha256": "45e004c20bbf5db6b2d3121320535a08d3a86c2af8e98252f258a297674ad1c8"
+    },
+    {
+      "path": "katakana/png/wrong/ra_red.png",
+      "status": "error",
+      "source_sha256": "521720db1c97844533be9174f066266c8d12b507b35d4b732fe307501717ec4a"
+    },
+    {
+      "path": "katakana/png/wrong/re_red.png",
+      "status": "error",
+      "source_sha256": "7f7ac5b48f177b08bb3757fca639c5c4ce93162ec3c20ffa1111c01068c4a845"
+    },
+    {
+      "path": "katakana/png/wrong/ri_red.png",
+      "status": "error",
+      "source_sha256": "c5d73304e64993f64205775ea2822deb162754f96e372a9786b15706f4ec9eea"
+    },
+    {
+      "path": "katakana/png/wrong/ro_red.png",
+      "status": "error",
+      "source_sha256": "a4e56d0d86af598ae734b172257530d58b5bf6f524fcb8a87a2fafebf19f80c7"
+    },
+    {
+      "path": "katakana/png/wrong/ru_red.png",
+      "status": "error",
+      "source_sha256": "6d1de0b483a2908ca7885514c753a0852d6a4d06c601cc415076e092c8c2f2c6"
+    },
+    {
+      "path": "katakana/png/wrong/sa_red.png",
+      "status": "error",
+      "source_sha256": "c12192c2047d11e0eadad518174e468cd4245cad9dbeffc9acda698d1778fb48"
+    },
+    {
+      "path": "katakana/png/wrong/se_red.png",
+      "status": "error",
+      "source_sha256": "19415b4f1e37998ae367dfe2a016778d586d5a9ffcc33d1168dc7007227545c7"
+    },
+    {
+      "path": "katakana/png/wrong/shi_red.png",
+      "status": "error",
+      "source_sha256": "a524e04a5255f155957ef204daf551f1407f0d8e94b14e441b83ba9a73a01a9f"
+    },
+    {
+      "path": "katakana/png/wrong/so_red.png",
+      "status": "error",
+      "source_sha256": "0a61a091778ad353e44e53d7e9693b6ac804465e1783af1ad78ec34adbee29fb"
+    },
+    {
+      "path": "katakana/png/wrong/special_red.png",
+      "status": "error",
+      "source_sha256": "f1df80a2471e483d2b371f311e43912722cb8048b89e4f1db76644b1a2913546"
+    },
+    {
+      "path": "katakana/png/wrong/su_red.png",
+      "status": "error",
+      "source_sha256": "5d82c1ffbcb83eca9b28393665601e27fc5edf934ffbefe0e3cf6e0b7249070d"
+    },
+    {
+      "path": "katakana/png/wrong/ta_red.png",
+      "status": "error",
+      "source_sha256": "f5a090a043b0752906df5a33b5bdf4f7ea1a4aa9352ac675dce7bb9c11f2c5cf"
+    },
+    {
+      "path": "katakana/png/wrong/te_red.png",
+      "status": "error",
+      "source_sha256": "ff5a11f560892658df8ffa9c17d658db67409b09e007ed0493cd3f646b22e485"
+    },
+    {
+      "path": "katakana/png/wrong/to_red.png",
+      "status": "error",
+      "source_sha256": "8efd58e1df0ef10e160a8e92418d5b516255f668e886b502770f35b85b6cdafc"
+    },
+    {
+      "path": "katakana/png/wrong/tsu_red.png",
+      "status": "error",
+      "source_sha256": "88911bc9f9087645be50364e5b9656b43f1e3b1b2683bdade4c64d3fdc449e0f"
+    },
+    {
+      "path": "katakana/png/wrong/u_red.png",
+      "status": "error",
+      "source_sha256": "1bf03802a983007967f42da44b91bc3ea0c6d015c348d1cff4386969c354ed8c"
+    },
+    {
+      "path": "katakana/png/wrong/vu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "10af2c1634626f5ad403327360cf2c6dfb0623cb190914c533001a5a56b5518c"
+    },
+    {
+      "path": "katakana/png/wrong/vu_red.png",
+      "status": "error",
+      "source_sha256": "147f6edbd7ca93a55b7df34f49ee4e709610c270dd731b3c0543b1447163b4eb"
+    },
+    {
+      "path": "katakana/png/wrong/wa_red.png",
+      "status": "error",
+      "source_sha256": "2f5907a145af9bc46fb4a1476e20141e6fdfc837ce236b78a66a878228b75462"
+    },
+    {
+      "path": "katakana/png/wrong/wo_red.png",
+      "status": "error",
+      "source_sha256": "478a7abd82a4f50a0869131917f8e730e5a527608e700428faeba7df853e96a1"
+    },
+    {
+      "path": "katakana/png/wrong/xa_red.png",
+      "status": "error",
+      "source_sha256": "076427ab1a55ca469b20f5df865b4f3debf6995d4df53f34de48b27844e44a67"
+    },
+    {
+      "path": "katakana/png/wrong/xe_red.png",
+      "status": "error",
+      "source_sha256": "81d25366ac5dbc8dff49cdc2795c64b70d9da28a35b5e111e4d497c7f74377ce"
+    },
+    {
+      "path": "katakana/png/wrong/xi_red.png",
+      "status": "error",
+      "source_sha256": "e3f60b4ca4875cda736da2cc8cc003f0b0032d4daf2e32a4e32e246c810ee0b4"
+    },
+    {
+      "path": "katakana/png/wrong/xka_red.png",
+      "status": "error",
+      "source_sha256": "4360f8ea79de1326d1d331b56a6c5d3da185d89413485429a4166e7fe0e854e2"
+    },
+    {
+      "path": "katakana/png/wrong/xke_red.png",
+      "status": "error",
+      "source_sha256": "ee8939bb352b5f16b50c560b3203aad5a5b9f429d9c0839ad51bf606ee53bee5"
+    },
+    {
+      "path": "katakana/png/wrong/xo_red.png",
+      "status": "error",
+      "source_sha256": "a0ecc4f1f3af1f0e1d8cf162ea44ee8c59fdc9b76777a93c2a7c9dc82d0286b8"
+    },
+    {
+      "path": "katakana/png/wrong/xtsu_red.png",
+      "status": "error",
+      "source_sha256": "51c6c1cd560d1816c375478fef7225e8d9e1ff98e2e305ed48aabbdfe03e4ac3"
+    },
+    {
+      "path": "katakana/png/wrong/xu_red.png",
+      "status": "error",
+      "source_sha256": "0638f5c7fa491e92310d416bbedb2502e621991da71ad7c135979e2e4b567277"
+    },
+    {
+      "path": "katakana/png/wrong/xwa_red.png",
+      "status": "error",
+      "source_sha256": "435d35ce6cdca123908a0ef6c4a46187ac8310644992c2dd746f83814ed25f32"
+    },
+    {
+      "path": "katakana/png/wrong/xya_red.png",
+      "status": "error",
+      "source_sha256": "ff1850efafedad429ddd4dc8a3d2a7fc2525c2462f4c87d9d5483940c7fc58bd"
+    },
+    {
+      "path": "katakana/png/wrong/xyo_red.png",
+      "status": "error",
+      "source_sha256": "7a58f26fbcb90935672486834e5237a88e2bdda13f799490d0ed183b32176046"
+    },
+    {
+      "path": "katakana/png/wrong/xyu_red.png",
+      "status": "error",
+      "source_sha256": "c243ed6efad3ccd2a1ac8828b6b3bc92a628fa78958947cf814405ec1d4da1c2"
+    },
+    {
+      "path": "katakana/png/wrong/ya_red.png",
+      "status": "error",
+      "source_sha256": "c6e71a39a59804bb3171f9df5d88dba256a15f82015def0b7837a17c4c5f330e"
+    },
+    {
+      "path": "katakana/png/wrong/yo_red.png",
+      "status": "error",
+      "source_sha256": "663af7aad4b20e692db4273f1f497ba7ef1cf022325adb8ca36e465f8afd65b2"
+    },
+    {
+      "path": "katakana/png/wrong/yu_red.png",
+      "status": "error",
+      "source_sha256": "9aea8c95a131f1bba537cb92fecd09c7099e8c9237c979023fa30b3ea7280b24"
+    },
+    {
+      "path": "katakana/png/wrong/za_mark_red.png",
+      "status": "partial",
+      "source_sha256": "8bda787b1f230213eabad4684b3191fca3ae3682280924b8569f63a6b668d365"
+    },
+    {
+      "path": "katakana/png/wrong/za_red.png",
+      "status": "error",
+      "source_sha256": "6324bd36069762551cc44a8527cdd2489309f87f8ee16cf1f9534255701ceb33"
+    },
+    {
+      "path": "katakana/png/wrong/ze_mark_red.png",
+      "status": "partial",
+      "source_sha256": "99c62955deaa254fa4297429508c056d7878ec54da0c33cfb16992d918f560b0"
+    },
+    {
+      "path": "katakana/png/wrong/ze_red.png",
+      "status": "error",
+      "source_sha256": "e8fa3df47bb1ebf3c026a088f83c4786fc8a91cb1b84f9680f0ca6ae17b47277"
+    },
+    {
+      "path": "katakana/png/wrong/zo_mark_red.png",
+      "status": "partial",
+      "source_sha256": "2e9e11d4d98d16a3ba634727aa7305baf24068ad610c9979df5893742597f647"
+    },
+    {
+      "path": "katakana/png/wrong/zo_red.png",
+      "status": "error",
+      "source_sha256": "6da6b7e7a9b10d9d50fadf96b35a44783ddb81d6e810fbdcf9bb5a9dae998173"
+    },
+    {
+      "path": "katakana/png/wrong/zu_mark_red.png",
+      "status": "partial",
+      "source_sha256": "b3ae8a7e732393a9aa0fbfbcc94ce907d8c8d5ababea888d0a6743dda0d2954f"
+    },
+    {
+      "path": "katakana/png/wrong/zu_red.png",
+      "status": "error",
+      "source_sha256": "95dbcaf0473e6eb9a32333e7d6b04ce19c89bdfc2e78a61e9a46088ace44107c"
+    },
+    {
+      "path": "others/png/extra_mark_big.png",
+      "status": "error",
+      "source_sha256": "5d5d19c879416c0056b32858c5367cd782b9f8170109b62b007611419cacf6ef"
+    },
+    {
+      "path": "others/png/extra_mark_small.png",
+      "status": "error",
+      "source_sha256": "367001c368fc48d697aec63a71fa466e61578473d1b86e2723b7c8d023e249ba"
+    },
+    {
+      "path": "others/png/missing_mark_big.png",
+      "status": "error",
+      "source_sha256": "fc532252d0737aa73a37ad0ce92399f60281adcec6e05ab65f38da417b9366fb"
+    },
+    {
+      "path": "others/png/missing_mark_small.png",
+      "status": "error",
+      "source_sha256": "e5bf4ded574ddaa431402e3bd78ff6edf536ccba691a23971088b6ce83807c64"
+    }
+  ]
+}
