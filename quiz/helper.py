@@ -25,7 +25,7 @@ def get_question_pool(*, request):
         vocab_type=quiz_settings["vocab_type"],
         level=quiz_settings["level"],
         categories=quiz_settings["categories"],
-        use_full_pool=quiz_settings.get("use_full_pool", False),
+        use_full_pool=request.session.get("quiz_use_full_pool", False)
     )
     return question_pool_qs
 
@@ -135,6 +135,7 @@ def build_quiz_summary_payload(*, request, end_reason=None, ended_early=False):
         request=request,
     )
 
+    request.session.pop("quiz_use_full_pool", None)
     request.session.pop("quiz_session", None)
     return {
         "success":True,

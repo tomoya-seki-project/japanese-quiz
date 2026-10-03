@@ -5,6 +5,9 @@
     {{ feedback.get_type_display }}
     {{ feedback.context }}
     {% if feedback.status != "closed" %}
-        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}" class="btn btn-primary">返信</a>
+        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary">返信</a>
     {% endif %}
+    <a href="{{ return_url }}" class="btn btn-primary">
+        一覧に戻る
+    </a>
 {% endblock %}

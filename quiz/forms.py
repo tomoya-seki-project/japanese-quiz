@@ -10,9 +10,10 @@ from dictionary.models import (
 
 class QuizSettingForm(forms.Form):
     quiz_num = forms.TypedChoiceField(label="問題数",
-        choices=[(-1,"無制限"), (10,"10"), (20,"20"), (30, "30")],
+        choices=[(10,"10"), (20,"20"), (30, "30")],
         coerce=int,
-        required=True,
+        required=False,
+        empty_value=-1,
     )
     vocab_type = forms.MultipleChoiceField(
         choices=VocabType.choices,
@@ -30,7 +31,6 @@ class QuizSettingForm(forms.Form):
         required=False,
         widget = forms.CheckboxSelectMultiple,
     )
-    use_last_setting = forms.BooleanField(label="前回の設定を使用", required=False)
 
 class QuizForm(forms.Form):
     user_vocab_id = forms.IntegerField(widget=forms.HiddenInput)
@@ -40,3 +40,4 @@ class QuizForm(forms.Form):
 
 class QuizAttemptForm(forms.Form):
     attempt_token = forms.UUIDField(widget=forms.HiddenInput)
+    tips_count = forms.IntegerField(min_value=0, max_value=50, widget=forms.HiddenInput)

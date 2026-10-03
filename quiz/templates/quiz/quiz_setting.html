@@ -1,6 +1,8 @@
 {% extends "core/base.html" %}
 {% block content %}
     <h1>クイズ設定</h1>
+    <a href="{% url "quiz:quiz_setting" %}?use_last=1" class="btn btn-primary">前回設定</a>
+    <a href="{% url "quiz:quiz_setting" %}" class="btn btn-primary">清除設定</a>
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}

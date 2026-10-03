@@ -1,4 +1,7 @@
 {% extends "core/base.html" %}
 {% block content %}
     <h1>ログアウトしました。</h1>
+    <a href="{% url 'accounts:user_login' %}" class="btn btn-primary">
+        ログイン
+    </a>
 {% endblock %}

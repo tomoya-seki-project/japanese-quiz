@@ -19,6 +19,14 @@ class UserEventIsReadedUpdateForm(forms.Form):
             self.fields["selectable_ids"].queryset = user_event_queryset
             self.fields["selected_ids"].queryset = user_event_queryset
 
+class UserEventReadStatusUpdateForm(forms.Form):
+    action = forms.ChoiceField(
+        choices=[
+            ("mark_read", "既読にする"),
+            ("mark_unread", "未読に戻す"),
+        ]
+    )
+
 class FeedbackCreateForm(forms.Form):
     feedback_type = forms.ChoiceField(label="種類", choices=FeedbackType.choices)
     context = forms.CharField(label="内容", max_length=255, widget=forms.Textarea)

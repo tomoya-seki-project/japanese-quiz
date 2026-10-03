@@ -14,7 +14,7 @@
                 <td>{{ feedback.get_type_display }}</td>
                 <td>{{ feedback.context }}</td>
                 <td>
-                    <a href="{% url "core:feedback_detail" pk=feedback.pk %}" class="btn btn-primary">
+                    <a href="{% url "core:feedback_detail" pk=feedback.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary">
                         詳細を見る
                     </a>
                 </td>

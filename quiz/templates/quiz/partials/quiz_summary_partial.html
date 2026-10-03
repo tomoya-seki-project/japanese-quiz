@@ -6,7 +6,7 @@
         <p>出題できる問題がなくなったため、クイズを終了しました。</p>
     {% endif %}
 {% endif %}
-<div id="quiz-count">回答・スキップした問題数：{{ correct_count|add:wrong_count|add:skipped_count }}問</div>
+<div id="quiz-count">回答した問題数：{{ correct_count|add:wrong_count }}問</div>
 正解数： {{ correct_count }}
 不正解数： {{ wrong_count }}
 スキップ数： {{ skipped_count }}

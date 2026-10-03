@@ -15,9 +15,14 @@ function quizAreaHandler(){
         }
         on_handling = true
         const form = e.target;
+        const formData = new FormData(form);
+        const tipsCounter = document.getElementById("tips-count");
+        if(tipsCounter && !formData.has("tips_count")){
+            formData.set("tips_count", tipsCounter.value);
+        }
         fetch(form.action, {
             method: form.method,
-            body: new FormData(form),
+            body: formData,
             headers:{
                 'X-Requested-With': "XMLHttpRequest"
             }

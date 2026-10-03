@@ -24,7 +24,7 @@
                         value="{{ user_event.id }}"
                         {% if user_event.is_read %}checked{% endif %}>
                 </td>
-                <td>{{ user_event.event.event_type|event_label }}</td>
+                <td><a href="{% url "core:user_event_detail" user_event_pk=user_event.pk %}?next={{ request.get_full_path|urlencode }}">{{ user_event.event.event_type|event_label }}</a></td>
                 <td>{{ user_event.event.title }}</td>
             </tr>
             {% endfor %}

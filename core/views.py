@@ -3,6 +3,7 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from django.core.exceptions import ValidationError
 
@@ -15,7 +16,7 @@ from django.views.generic import ListView, FormView, View
 from django.views.generic.base import RedirectView
 from django.views.generic.detail import DetailView
 
-from .forms import UserEventIsReadedUpdateForm, FeedbackCreateForm, FeedbackReplyForm
+from .forms import UserEventIsReadedUpdateForm, UserEventReadStatusUpdateForm, FeedbackCreateForm, FeedbackReplyForm
 
 from .models import Event, EventType, UserEvent, Feedback, FeedbackType, FeedbackStatus
 
@@ -91,6 +92,63 @@ class UserEventDetailView(LoginRequiredMixin, DetailView):
     model = UserEvent
     template_name = 'core/event/user_event_detail.html'
     context_object_name = 'user_event'
+    pk_url_kwarg = "user_event_pk"
+
+    def get_return_url(self):
+        next_url = self.request.GET.get("next")
+
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+
+        return reverse("core:user_event_list")
+
+    def post(self, request, *args, **kwargs):
+
+        form = UserEventReadStatusUpdateForm(
+            request.POST
+        )
+        if not form.is_valid():
+            self.object = self.get_object()
+            context = self.get_context_data(object=self.object)
+            context["read_status_form"] = form
+
+            return self.render_to_response(
+                context,
+                status=400
+            )
+
+        action = form.cleaned_data["action"]
+        user_event = self.get_queryset().filter(
+            pk=self.kwargs["user_event_pk"],
+        )
+        if action == "mark_read":
+            updated_count = user_event.filter(is_read=False).update(
+                                is_read=True,
+                                read_at=timezone.now(),
+                            )
+            success_message = "既読にしました"
+        else:
+            updated_count = user_event.filter(is_read=True).update(
+                                is_read=False,
+                                read_at=None,
+                            )
+            success_message = "未読に戻しました"
+
+        if updated_count == 0:
+            self.get_object()
+
+        messages.success(request, success_message)
+        return redirect(request.get_full_path())
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["return_url"] = self.get_return_url()
+        return context
 
     def get_queryset(self):
         return UserEvent.objects.filter(user=self.request.user).select_related('event')
@@ -146,7 +204,7 @@ class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Feedback
     context_object_name = "feedbacks"
     ordering = ["-create_at"]
-    paginate_by = 10
+    paginate_by = 5
 
     def test_func(self):
         return self.request.user.is_superuser
@@ -172,6 +230,23 @@ class FeedbackDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     model = Feedback
     context_object_name = "feedback"
 
+    def get_return_url(self):
+        next_url = self.request.GET.get("next")
+
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+
+        return reverse("core:feedback_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["return_url"] = self.get_return_url()
+        return context
+
     def test_func(self):
         return self.request.user.is_superuser
 
@@ -188,7 +263,29 @@ class FeedbackDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
 class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     template_name = "core/feedback/feedback_reply.html"
     form_class = FeedbackReplyForm
-    success_url = reverse_lazy("HomePage")
+
+    def get_return_url(self):
+        next_url = self.request.GET.get("next")
+
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+
+        return reverse(
+            "core:feedback_detail",
+            kwargs={"pk": self.kwargs["feedback_pk"]},
+        )
+
+    def get_success_url(self):
+        return self.get_return_url()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["return_url"] = self.get_return_url()
+        return context
 
     def test_func(self):
         return self.request.user.is_superuser

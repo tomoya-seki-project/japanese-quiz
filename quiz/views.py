@@ -72,6 +72,29 @@ class QuizSettingView(LoginRequiredMixin, FormView):
     template_name = "quiz/quiz_setting.html"
     form_class = QuizSettingForm
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["has_previous_settings"] = (
+            self.request.session.get("quiz_settings") is not None
+        )
+        return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+
+        if self.request.GET.get("use_last") == "1":
+            last_settings = self.request.session.get("quiz_settings")
+            if last_settings is not None:
+                initial.update({
+                    "quiz_num":last_settings.get("quiz_num", -1),
+                    "level":last_settings.get("level", []),
+                    "vocab_type":last_settings.get("vocab_type", []),
+                    "categories":last_settings.get("categories", [])
+                })
+
+        return initial
+
+
     def get(self, request, *args, **kwargs):
         quiz_session = self.request.session.get("quiz_session", None)
         if quiz_session is not None:
@@ -110,15 +133,6 @@ class QuizSettingView(LoginRequiredMixin, FormView):
         level = form.cleaned_data["level"]
         vocab_type = form.cleaned_data["vocab_type"]
         categories = list(form.cleaned_data["categories"].values_list("id", flat=True))
-        if form.cleaned_data["use_last_setting"] == True:
-            quiz_settings = self.request.session.get("quiz_settings")
-            if quiz_settings is None:
-                form.add_error("use_last_setting", "前回のクイズ設定が見つかりません。")
-                return self.form_invalid(form)
-            quiz_num=quiz_settings["quiz_num"]
-            level=quiz_settings["level"]
-            vocab_type=quiz_settings["vocab_type"]
-            categories=quiz_settings["categories"]
 
         self.request.session["quiz_settings"] = {
             "quiz_num": quiz_num,
@@ -126,6 +140,7 @@ class QuizSettingView(LoginRequiredMixin, FormView):
             "vocab_type": vocab_type,
             "categories": categories,
         }
+        self.request.session.pop("quiz_use_full_pool", None)
         logger.info(
             "Quiz settings saved: "
             "operation=%s user_id=%s quiz_num=%s level=%s vocab_type=%s categories=%s",
@@ -142,9 +157,7 @@ class QuizNoPoolConfirmView(LoginRequiredMixin, QuizSettingRequiredMixin, Templa
     template_name = "quiz/quiz_no_pool_confirm.html"
 
     def post(self, request, *args, **kwargs):
-        quiz_settings = self.request.session.get("quiz_settings")
-        quiz_settings["use_full_pool"] = True
-        self.request.session["quiz_settings"] = quiz_settings
+        request.session["quiz_use_full_pool"] = True
         return redirect("quiz:quiz_play")
 
 class QuizPlayView(LoginRequiredMixin, QuizSettingRequiredMixin, TemplateView):
@@ -381,6 +394,30 @@ class QuizSubmitAnswerView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSes
 
 class QuizNextView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
     def post(self, request, *args, **kwargs):
+        quiz_session = self.request.session.get("quiz_session")
+        answered_count = quiz_session["correct_count"] + quiz_session["wrong_count"]
+
+        target_count = quiz_session["aims_quiz_num"]
+
+        if target_count > 0 and answered_count >= target_count:
+            return JsonResponse(
+                build_quiz_summary_payload(request=request)
+            )
+
+        if quiz_session["question_user_vocab_id"] is not None:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "errors": {
+                        "__all__": [{
+                            "message": "現在の問題にまだ回答していません。",
+                            "code": "current_question_unanswered",
+                        }]
+                    }
+                },
+                status=409,
+            )
+
         payload = build_next_question_payload(request=self.request)
         if payload.get("quiz_ended"):
             summary_payload = build_quiz_summary_payload(
@@ -484,6 +521,7 @@ class QuizSkipView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequ
         quiz_session["question_user_vocab_id"] = None
         quiz_session["question_attempt_token"] = None
         quiz_session["skipped_count"] += 1
+        quiz_session["total_tips_count"] += form.cleaned_data["tips_count"]
         self.request.session["quiz_session"] = quiz_session
         logger.info(
             "Quiz question skipped: "
@@ -507,7 +545,17 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
     template_name = "quiz/quiz_play.html"
 
     def get(self, request, *args, **kwargs):
-        quiz_session = self.request.session.get("quiz_session", {})
+        quiz_session = self.request.session.get("quiz_session")
+        answered_count = quiz_session["correct_count"] + quiz_session["wrong_count"]
+
+        target_count = quiz_session["aims_quiz_num"]
+
+        if target_count > 0 and answered_count >= target_count:
+            messages.info(
+                request,
+                "このクイズはすでに終了しています。",
+            )
+            return redirect("quiz:quiz_setting")
         unfinished_question_user_vocab_id = quiz_session.get("question_user_vocab_id")
         if unfinished_question_user_vocab_id is not None:
             session_attempt_token = quiz_session.get("question_attempt_token")
@@ -601,7 +649,39 @@ class QuizUnfinishedView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessi
 
 class QuizSummaryView(LoginRequiredMixin, QuizSettingRequiredMixin, QuizSessionRequiredMixin, View):
     def post(self, request, *args, **kwargs):
-        quiz_session = self.request.session.get("quiz_session",{})
+        quiz_session = self.request.session.get("quiz_session")
+        answered_count = quiz_session["correct_count"] + quiz_session["wrong_count"]
+
+        target_count = quiz_session["aims_quiz_num"]
+
+        if quiz_session["question_user_vocab_id"] is not None:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "errors": {
+                        "__all__": [{
+                            "message": "現在の問題にまだ回答していません。",
+                            "code": "current_question_unanswered",
+                        }]
+                    }
+                },
+                status=409,
+            )
+
+        if target_count > 0 and answered_count < target_count:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "errors": {
+                        "__all__": [{
+                            "message": "設定した問題数にまだ達していません。",
+                            "code": "target_not_reached",
+                        }]
+                    }
+                },
+                status=409,
+            )
+
         payload = build_quiz_summary_payload(request=self.request)
         logger.info(
             "Quiz completed: "

@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI-design.md 所需 Django 後端改動報告</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #26343d;
+      --muted: #607783;
+      --line: #bfd4df;
+      --paper: #f8fcff;
+      --wash: #edf7fb;
+      --blue: #8bc9e6;
+      --blue-deep: #477a99;
+      --green: #39765b;
+      --amber: #a76811;
+      --red: #ad4b55;
+      --violet: #73528d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eaf4f8;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 32px auto 64px;
+    }
+
+    header,
+    section {
+      margin-bottom: 24px;
+      padding: 28px;
+      border: 1px solid rgba(71, 122, 153, 0.2);
+      border-radius: 18px;
+      background: var(--paper);
+      box-shadow: 0 8px 24px rgba(38, 52, 61, 0.08);
+    }
+
+    h1, h2, h3 { line-height: 1.3; }
+    h1 { margin: 0 0 10px; font-size: clamp(1.8rem, 4vw, 2.7rem); }
+    h2 { margin: 0 0 18px; font-size: 1.55rem; }
+    h3 { margin: 26px 0 8px; font-size: 1.15rem; }
+    p { margin: 8px 0 14px; }
+    ul, ol { padding-left: 1.4rem; }
+    li + li { margin-top: 7px; }
+    code {
+      padding: 0.12em 0.35em;
+      border-radius: 5px;
+      background: #e8f1f5;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    .meta,
+    .note { color: var(--muted); }
+
+    .scope {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .scope article,
+    .summary-card {
+      padding: 16px;
+      border-radius: 12px;
+      background: var(--wash);
+    }
+
+    .scope strong,
+    .summary-card strong { display: block; margin-bottom: 5px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card .number {
+      display: block;
+      font-size: 1.9rem;
+      font-weight: 750;
+      color: var(--blue-deep);
+    }
+
+    .callout {
+      margin: 18px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--blue-deep);
+      border-radius: 9px;
+      background: #e9f4fa;
+    }
+
+    .callout.risk {
+      border-left-color: var(--red);
+      background: #fff0f1;
+    }
+
+    .callout.decision {
+      border-left-color: var(--violet);
+      background: #f4eff8;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.94rem;
+    }
+
+    th, td {
+      padding: 12px 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #334d5a;
+      background: #e7f3f8;
+      white-space: nowrap;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .tag {
+      display: inline-block;
+      margin: 1px 4px 1px 0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .p0 { color: #fff; background: var(--red); }
+    .p1 { color: #fff; background: var(--amber); }
+    .p2 { color: #fff; background: var(--blue-deep); }
+    .future { color: #fff; background: var(--violet); }
+    .keep { color: #fff; background: var(--green); }
+
+    .item {
+      margin: 18px 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .item h3 { margin-top: 0; }
+
+    .files {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .checklist li { margin-bottom: 9px; }
+
+    footer {
+      padding: 12px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 640px) {
+      main { width: min(100% - 18px, 1120px); margin-top: 9px; }
+      header, section { padding: 20px 16px; border-radius: 12px; }
+      th, td { padding: 10px 8px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>實現 UI-design.md 所需嘅 Django 後端改動</h1>
+    <p class="meta">審查基準：<code>UI</code> branch，commit <code>e70c82a</code>｜報告日期：2026-09-30</p>
+    <p>
+      呢份報告只列出為咗令 <code>docs/reference/UI/UI-design.md</code> 所描述嘅頁面流程、資料、權限、驗證、redirect、message、session 同狀態轉換真正運作，Django 後端要做嘅修改。
+    </p>
+
+    <div class="scope">
+      <article>
+        <strong>包括</strong>
+        Python views、forms、models、services、URLs、session、messages、queryset、權限、migration 同後端測試。
+      </article>
+      <article>
+        <strong>刻意不包括</strong>
+        Application HTML templates、CSS、JavaScript、SVG、圖片 asset、字體接入同純視覺 responsive 實作。
+      </article>
+      <article>
+        <strong>文件性質</strong>
+        呢份係實作前差異分析，唔代表以下 application code 已經修改。
+      </article>
+    </div>
+  </header>
+
+  <section>
+    <h2>結論摘要</h2>
+    <div class="summary-grid">
+      <div class="summary-card"><span class="number">6</span><strong>P0 必須先修</strong>會影響核心流程或資料正確性。</div>
+      <div class="summary-card"><span class="number">10</span><strong>P1 正式 UI 必做</strong>頁面流程、redirect、filter 或 toast 所需。</div>
+      <div class="summary-card"><span class="number">4</span><strong>P2 建議改善</strong>效能、結構同狀態一致性。</div>
+      <div class="summary-card"><span class="number">3</span><strong>Future scope</strong>MC、學習紀錄、admin announcement。</div>
+    </div>
+
+    <div class="callout risk">
+      <strong>最高風險：Quiz 題數狀態。</strong>
+      現有後端冇喺產生下一題之前強制檢查固定題數上限，而 skip 後呼叫下一題時亦刻意唔增加 <code>quizzed_count</code>。只改畫面會令固定題數、題號同 Summary 統計有機會唔一致，亦可以繞過前端直接要求額外題目。
+    </div>
+
+    <div class="callout">
+      現有 schema 已經支援大部分 v1.0.0 UI：Vocab、UserVocab、MCSense、Event、UserEvent、Feedback、QuizAttempt 等核心資料都存在。v1.0.0 嘅主要工作集中喺 view/form/service 行為，唔需要為一般 UI styling 大改 database。
+    </div>
+  </section>
+
+  <section>
+    <h2>優先級與範圍</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>級別</th><th>定義</th><th>處理時機</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="tag p0">P0</span></td><td>如果唔改，正式 UI 嘅流程、資料或安全邊界會錯。</td><td>開始接正式頁面互動前。</td></tr>
+          <tr><td><span class="tag p1">P1</span></td><td>UI-design 已明確要求，現有後端未完整支援。</td><td>對應頁面交付時。</td></tr>
+          <tr><td><span class="tag p2">P2</span></td><td>唔一定即時令畫面壞，但會造成 N+1、重複邏輯或難測試狀態。</td><td>同相關頁面一齊整理。</td></tr>
+          <tr><td><span class="tag future">Future</span></td><td>文件已保留規格，但唔屬於 v1.0.0 發布阻塞。</td><td>獨立 milestone。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>P0：正式 UI 前必須修正</h2>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-1</span> 統一 Quiz 進度計算並由 server 強制停止</h3>
+      <p><strong>現況：</strong><code>build_next_question_payload()</code> 會直接揀下一題；只喺題庫空時結束。固定 10／20／30 題嘅上限冇喺 server 端檢查。Skip 流程傳入 <code>is_skip=True</code> 後，下一題亦唔會增加 <code>quizzed_count</code>。</p>
+      <p><strong>要改：</strong></p>
+      <ul>
+        <li>定義一個唯一進度來源，例如 <code>attempted_count = correct_count + wrong_count + skipped_count</code>，或者清楚重命名及維護 session counter。</li>
+        <li>Answer 同 Skip 完成後都算一題；建立下一題之前檢查 <code>quiz_num</code>，達上限直接回傳正常 Summary。</li>
+        <li>題庫耗盡先標記 <code>ended_early=True</code>；達到 user 選擇題數係正常完成，唔應顯示提早結束原因。</li>
+        <li>唔信任前端顯示嘅「次へ／結果へ」判斷；相關 POST endpoint 自己驗證目前進度。</li>
+        <li>Summary 總題數由三個結果 counter 計算，避免使用可能偏差嘅目前題號。</li>
+      </ul>
+      <p class="files">預計檔案：<code>quiz/helper.py</code>、<code>quiz/views.py</code>，必要時抽出 session state helper。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-2</span> 重做「前回の設定を読み込む」後端契約</h3>
+      <p><strong>現況：</strong><code>use_last_setting</code> 係 submit-time Boolean；一經選中，server 會忽略畫面目前值並即刻用 session 舊值開始 Quiz。呢個同 UI-design 要求「只載入欄位、仍可修改、之後先按開始」相反。</p>
+      <p><strong>要改：</strong></p>
+      <ul>
+        <li>移除 submit-time 覆蓋邏輯，<code>開始</code> 永遠驗證及保存當刻提交嘅設定。</li>
+        <li>GET Quiz Setting 時提供結構化嘅上一組設定同 <code>has_previous_settings</code>；可放 template context，或另設只讀 JSON endpoint。</li>
+        <li><code>問題数</code> 冇選擇時由 form/server 正規化成 <code>-1</code>，唔要求前端一定提交一個肉眼不可見嘅「無制限」選項。</li>
+        <li>將 user 選擇設定同 runtime flag（例如 no-pool 後嘅 <code>use_full_pool</code>）分開，避免「載入上次設定」意外帶入一次性執行狀態。</li>
+      </ul>
+      <p class="files">預計檔案：<code>quiz/forms.py</code>、<code>quiz/views.py</code>；如分拆 session 結構，可新增 quiz session helper。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-3</span> Event detail 加入安全、冪等嘅「既読にする」POST</h3>
+      <p><strong>現況：</strong>Event list 已有批量設為已讀；Event detail 只有 GET。<code>EventService.mark_as_read()</code> 雖然存在，但未接駁 detail action。</p>
+      <p><strong>要改：</strong></p>
+      <ul>
+        <li>喺 detail view 實作 POST，或新增專用 action URL；必須由 URL 嘅 <code>UserEvent.pk</code> 定位。</li>
+        <li>queryset 必須同時限制 <code>user=request.user</code>，唔可以只靠 pk。</li>
+        <li>用 transaction／條件 update 設定 <code>is_read=True</code> 同 <code>read_at</code>；已讀項目重複提交要安全成功。</li>
+        <li>成功後 redirect 回同一 detail page並加入 <code>既読にしました</code> success message。</li>
+      </ul>
+      <p class="files">預計檔案：<code>core/views.py</code>、<code>core/service/event.py</code>，如果採用獨立 action 則包括 <code>core/urls.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-4</span> 修正 Logout result 導航</h3>
+      <p><strong>現況：</strong><code>UserLogoutView</code> 設定 <code>next_page=accounts:user_home</code>，而 <code>user_home</code> 本身需要登入；logout 後會被再導去 login，未能穩定顯示獨立完成頁。</p>
+      <p><strong>要改：</strong>令 POST logout 後 render／redirect 到真正嘅 logout result route，而唔係 redirect 去受保護嘅 HomeView。保留 CSRF-protected POST logout，唔改成 GET mutation。</p>
+      <p class="files">預計檔案：<code>accounts/views.py</code>；視乎 route 設計可能調整 <code>accounts/urls.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-5</span> 所有 detail 返回連結保存並驗證 list context</h3>
+      <p><strong>現況：</strong>Vocab detail 同 UserVocab detail 已有 allowlisted <code>next</code> URL；Event detail 同 Feedback admin detail 未有同等後端處理。</p>
+      <p><strong>要改：</strong></p>
+      <ul>
+        <li>為 Event detail 建立安全 return URL，保留 event status filter 同 page。</li>
+        <li>為 Feedback admin detail 建立安全 return URL，保留 status filter 同 page。</li>
+        <li>Feedback reply 返回 detail 時亦要保留原本 list context，或者由 detail URL/session 統一管理。</li>
+        <li>繼續用 <code>url_has_allowed_host_and_scheme()</code>，唔可以直接 redirect 去未驗證嘅 query string。</li>
+      </ul>
+      <p class="files">預計檔案：<code>core/views.py</code>；建議抽出共用 safe-next helper，減少 dictionary/core 重複。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p0">P0-6</span> 補齊核心流程測試，先鎖定 server contract</h3>
+      <p><strong>現況：</strong><code>accounts/tests.py</code>、<code>dictionary/tests.py</code>、<code>quiz/tests.py</code> 同 <code>errorHandler/tests.py</code> 幾乎係空白；現有主要測試集中喺 <code>core/tests.py</code> 嘅語言與 template smoke test。</p>
+      <p><strong>要改：</strong>先為 Quiz 題數／skip、Event ownership、logout result、safe-next、雙提交 action 寫後端測試，再接正式 UI。否則 template/JS 改動會掩蓋 server state bug。</p>
+      <p class="files">預計檔案：各 app <code>tests.py</code>，或拆成 <code>tests/</code> package。</p>
+    </article>
+  </section>
+
+  <section>
+    <h2>P1：按頁面完成正式 UI 所需後端改動</h2>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-1</span> 補齊 success toast 對應嘅 Django messages</h3>
+      <p>Toast 外觀係 frontend，但訊息來源及 redirect 後保留屬於 Django 後端責任。應只喺實際有成功 mutation 時加入 <code>messages.success()</code>。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>流程</th><th>現況</th><th>後端改動</th></tr></thead>
+          <tbody>
+            <tr><td>Login</td><td>冇 success message</td><td>登入、同步成功後加入訊息。</td></tr>
+            <tr><td>User vocab detail 保存</td><td>redirect 同頁，但冇訊息</td><td>值真係改變後加入訊息；no-op 可保持安靜。</td></tr>
+            <tr><td>Vocab create request</td><td>已有 success/info</td><td><span class="tag keep">保留</span>統一文案即可。</td></tr>
+            <tr><td>Vocab update/delete request</td><td>冇 success message</td><td>建立申請後加入訊息；pending duplicate 用 info/warning。</td></tr>
+            <tr><td>Feedback create</td><td>成功時冇訊息</td><td>加入送出成功訊息。</td></tr>
+            <tr><td>User vocab 批量保存</td><td>只寫 log</td><td>實際 update count &gt; 0 時加入訊息。</td></tr>
+            <tr><td>Event list 批量已讀</td><td>只寫 log</td><td>實際 update count &gt; 0 時加入訊息。</td></tr>
+            <tr><td>Event detail 已讀</td><td>流程未有</td><td>由 P0-3 action 加入。</td></tr>
+            <tr><td>Admin Feedback reply</td><td>已有 success</td><td><span class="tag keep">保留</span>但 redirect 目的地要改。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="files">預計檔案：<code>accounts/views.py</code>、<code>dictionary/views.py</code>、<code>core/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-2</span> Vocab create request 支援兩種成功目的地</h3>
+      <p><strong>現況：</strong>成功後固定返回 Homepage。UI-design 需要「申請→ホームへ」同「続けて→次の単語」兩個 submit intent。</p>
+      <p><strong>要改：</strong>後端讀取並 allowlist 一個 action 值；兩個 action 都先完成同一套 validation、duplicate handling 同 transaction。<code>home</code> redirect Homepage；<code>continue</code> redirect 回 create page，靠 PRG 清空 form，同時保留 success message。未知 action 必須當 invalid request，唔接受任意 redirect target。</p>
+      <p class="files">預計檔案：<code>dictionary/views.py</code>；可選擇喺 <code>dictionary/forms.py</code> 加隱藏 action field 作 validation。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-3</span> Vocab update/delete 成功後返回原本 detail</h3>
+      <p><strong>現況：</strong>兩個 view 都固定去 <code>dictionary:vocab_home</code>。UI-design 要返回被申請單語嘅 Vocab detail，並顯示 toast。</p>
+      <p><strong>要改：</strong>用目標 vocab pk reverse detail URL；成功建立先發 success message。若已存在 pending request，使用清楚嘅 info/warning 狀態，唔可以假裝今次新建成功。</p>
+      <p class="files">預計檔案：<code>dictionary/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-4</span> Delete request 移除可見 checkbox 所綁定嘅後端要求</h3>
+      <p><strong>現況：</strong><code>VocabDeleteRequestForm</code> 要求 <code>confirm=True</code>，否則 validation error。新規格係按紅色按鈕後由 modal 確認，頁面冇 checkbox。</p>
+      <p><strong>要改：</strong>將 form 縮成只驗證可選理由；正式提交仍然係 CSRF-protected POST。Modal 係互動確認，唔應令 server 依賴一個 UI 已經唔存在嘅 checkbox。若保留 confirm token，必須係固定 allowlisted hidden action，而唔係當安全措施。</p>
+      <p class="files">預計檔案：<code>dictionary/forms.py</code>、<code>dictionary/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-5</span> Vocab detail 保證 MCSense 次序及完整資料</h3>
+      <p><strong>現況：</strong>MCSense model 同 reverse relation 已存在，但 model 冇 default ordering，detail queryset 亦冇預取。</p>
+      <p><strong>要改：</strong>以 <code>sense_no</code> 穩定排序；可以加 <code>Meta.ordering</code>（會產生 migration state change）或喺 detail queryset 用 ordered <code>Prefetch</code>。同時 <code>select_related('katakana_detail')</code>、<code>prefetch_related('categories', 'mc_senses')</code>，確保頁面唔靠偶然 database order。</p>
+      <p class="files">預計檔案：<code>dictionary/views.py</code>；若使用 model ordering，亦包括 <code>dictionary/models.py</code> 同 migration。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-6</span> User vocab detail 只提供規格需要嘅 last answer</h3>
+      <p><strong>現況：</strong>view 會為 <code>last_answer</code> 重新做逐字 DP 比較及產生圖片資料；新規格明確只顯示上次實際輸入文字，唔顯示逐字圖片或正誤比較。</p>
+      <p><strong>要改：</strong>移除 detail view 嘅比較運算與 <code>compared_result</code> context；保留原始 <code>last_answer</code>。同時 queryset 預載 <code>vocab</code>、categories、katakana detail，保存 <code>in_use</code> 後加入 success message。</p>
+      <p class="files">預計檔案：<code>dictionary/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-7</span> Feedback admin list 改為每頁 5 筆及加入 status filter</h3>
+      <p><strong>現況：</strong><code>paginate_by=10</code>，未有 queryset filter；UI-design 指定每頁 5 筆、預設 <code>pending</code>，選項包括 all/pending/replied/closed。</p>
+      <p><strong>要改：</strong></p>
+      <ul>
+        <li>改成每頁 5 筆。</li>
+        <li>allowlist <code>status</code> query parameter；缺少或非法值時使用 <code>pending</code>。</li>
+        <li>切換 filter 時自然回到第 1 頁；pagination context 保留已驗證 filter。</li>
+        <li>queryset <code>select_related('user', 'reply_by')</code>，維持 <code>-create_at</code> 次序。</li>
+      </ul>
+      <p class="files">預計檔案：<code>core/views.py</code>；建議加入細小 filter form/class，避免手寫散落字串。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-8</span> Feedback reply redirect 回原本 detail</h3>
+      <p><strong>現況：</strong>成功 reply 後固定返 Homepage，而且 GET reply view 未集中載入／暴露目標 Feedback context。</p>
+      <p><strong>要改：</strong>以 <code>feedback_pk</code> 取得目標、檢查未 closed、提供原 feedback 資料，成功後 reverse 到該 Feedback detail。Service 目前已有 transaction、row lock、closed guard 同 reply metadata 更新，可以保留。</p>
+      <p class="files">預計檔案：<code>core/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-9</span> 日文狀態 label 保持單一可信來源</h3>
+      <p><strong>現況：</strong>site 已有 <code>core/ui.py</code> 日文 mapping，但 <code>FeedbackStatus</code> model choice labels 仍然係 English，Event type 亦有一個 English model label。公開/custom admin page 唔應直接跌返 English。</p>
+      <p><strong>要改：</strong>將 site-facing label 集中為日文，並清楚區分 Django <code>/admin/</code> 所需語言。可以沿用 <code>core/ui.py</code> 作公開 UI mapping；如果修改 TextChoices labels，要產生對應 migration state，並更新 label tests。</p>
+      <p class="files">預計檔案：<code>core/ui.py</code>、<code>core/models.py</code>、<code>core/templatetags/ui_labels.py</code>、tests；視乎策略可能有 migration。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p1">P1-10</span> Form requiredness 同 UI 規格保持一致</h3>
+      <p>現有 create form 已將 meaning/level 設為 optional，category/reason/native Japanese 亦 optional；update form 繼承後令 meaning/level required，方向大致正確。正式接 UI 前仍要加測試鎖定：</p>
+      <ul>
+        <li>Create：種類、単語、読み方必填；意味、JLPT、category、理由、katakana native Japanese 可選。</li>
+        <li>Update：word、kana、meaning、level 必填；type 不可修改；category、理由、native Japanese 可選。</li>
+        <li>Category 最多 3 個要繼續由 server 驗證，唔只靠 disabled button。</li>
+        <li>Katakana 專用欄位喺一般語彙提交時唔應保存，避免藏起咗嘅舊值污染 request。</li>
+        <li>Feedback/Admin announcement 必填內容由 Django form 驗證，唔只靠 browser attributes。</li>
+      </ul>
+      <p class="files">預計檔案：<code>dictionary/forms.py</code>、相關 service tests；admin announcement 見 Future-3。</p>
+    </article>
+  </section>
+
+  <section>
+    <h2>P2：建議同頁面一齊整理</h2>
+
+    <article class="item">
+      <h3><span class="tag p2">P2-1</span> List/detail queryset 預載關聯資料</h3>
+      <p>Event list/detail、Feedback list/detail、Vocab detail 同 UserVocab detail 會顯示多個 foreign key／many-to-many 欄位。應按頁面使用 <code>select_related</code>／<code>prefetch_related</code>，避免正式 card/list render 後出現 N+1 query。</p>
+      <p class="files">預計檔案：<code>core/views.py</code>、<code>dictionary/views.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p2">P2-2</span> 批量 mutation 移入 service 並回傳 update count</h3>
+      <p>User vocab 批量保存同 Event 批量已讀而家直接寫喺 view。建議移入 transaction-aware service，回傳 activated/deactivated/read count，由 view 決定 message。呢個會令權限限制、queryset scope 同測試更清楚。</p>
+      <p class="files">預計檔案：<code>dictionary/service/user_vocab_action.py</code>、<code>core/service/event.py</code>、兩邊 views。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p2">P2-3</span> 限制 admin-only 全域 count query</h3>
+      <p><code>unreply_feedback_count</code> 目前對所有已登入 user 都查全站 pending feedback 數量。呢個 context 只對 admin 有用；應先檢查 superuser/staff 權限，普通 user 直接回 0，減少不必要 query，亦避免將管理資訊暴露到 template context。</p>
+      <p class="files">預計檔案：<code>core/context_processors.py</code>。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag p2">P2-4</span> 統一 POST/Redirect/GET 同 message 語意</h3>
+      <p>對一般 Django form mutation，成功後一律 redirect；validation error 先原頁 render。對 Quiz AJAX mutation，固定 JSON schema：<code>success</code>、<code>errors</code>、<code>main_html</code>、<code>input_panel_html</code>、結束原因。咁可以避免新 UI 接入時每頁自行猜 response。</p>
+      <p class="files">預計檔案：相關 views/helper；唔一定需要新 model。</p>
+    </article>
+  </section>
+
+  <section>
+    <h2>Future scope：唔應混入 v1.0.0 必做</h2>
+
+    <article class="item">
+      <h3><span class="tag future">Future-1</span> Multiple Choice Quiz 完整後端</h3>
+      <p>UI-design 已明確話 MC 唔係 v1.0.0 release blocker。現有 <code>MCSense</code> 只提供資料結構；目前 Quiz 流程仍以 kana answer 為主，而 <code>check_mc_answer()</code> 未形成可用嘅完整結果／weight／attempt contract。</p>
+      <p>將來需要獨立完成：</p>
+      <ul>
+        <li>MC 題目選取與 sense 選取、四個答案生成及穩定隨機排序。</li>
+        <li>每題 selected answer、已排除 distractors、hint count 同 attempt token 狀態。</li>
+        <li>正解判定、weight、streak、last answer、QuizAttempt 結果資料同步更新。</li>
+        <li>防止 client 偽造 hint／選項狀態，以及重複提交冪等處理。</li>
+      </ul>
+      <p class="files">預計檔案：<code>quiz/models.py</code>、migration、<code>quiz/forms.py</code>、<code>quiz/service/quiz.py</code>、<code>quiz/views.py</code>、tests。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag future">Future-2</span> 學習數據與最近十題</h3>
+      <p>Homepage/User profile 目前按規格應先用「工事進行中」遮罩，所以 v1.0.0 唔需要即刻提供 backend data。真正開放時，現有 <code>UserVocab</code> 可以提供每個詞嘅累積資料，但「最近十題」同可靠 hint/答案歷史最好由 <code>QuizAttempt</code> 保存 snapshot。</p>
+      <p>建議將來加入：submitted answer、is_correct、hint count、question snapshot／sense、完成時間，並建立 user + processed time index。否則只靠 <code>UserVocab.last_answer</code> 無法重建十題歷史。</p>
+      <p class="files">預計檔案：<code>quiz/models.py</code>、migration、answer/skip service、profile query service、tests。</p>
+    </article>
+
+    <article class="item">
+      <h3><span class="tag future">Future-3</span> Admin event create page</h3>
+      <p>UI-design 將頁面列為 future，但要求第一次整體 UI 預留共用 pattern。現時冇 custom event-create form/view/URL，而且 EventType 未有清楚嘅 system announcement 類型。</p>
+      <p>真正開發時需要：</p>
+      <ul>
+        <li>先決定可公開嘅 announcement type allowlist；如新增 enum value，要加 migration。</li>
+        <li>Superuser-only form/view/URL，種類、標題、內容全部 server-side required。</li>
+        <li>確認 POST 後 transaction 建立 Event，再為全體目標 user 建立 UserEvent。</li>
+        <li>大量 user 唔應逐個 <code>get_or_create</code>；改用分批 <code>bulk_create(ignore_conflicts=True)</code> 或等價安全方案。</li>
+        <li>記錄 publisher、target count、event id；成功後 Homepage redirect + success message。</li>
+      </ul>
+      <div class="callout decision">
+        <strong>未決產品決定：</strong>第一版「種類」實際可選值未喺 UI-design 定義。唔應喺寫 code 時隨意重用 <code>vocab</code> 或 <code>feedback_reply</code>；要先定義 system announcement 類型。
+      </div>
+      <p class="files">預計檔案：<code>core/models.py</code>、migration、<code>core/forms.py</code>、<code>core/views.py</code>、<code>core/urls.py</code>、<code>core/service/event.py</code>、tests。</p>
+    </article>
+
+    <div class="callout">
+      <strong>Feedback reply 內容關聯：</strong>UI-design 已接受目前限制：Feedback 本身只記錄 reply admin/time，reply 文字放喺獨立 Event，兩者冇 foreign key。因此「喺 Feedback detail 顯示歷次 reply 內容」唔列入今次必做；日後要做先新增關聯 model/migration。
+    </div>
+  </section>
+
+  <section>
+    <h2>現有後端可以直接保留嘅部分</h2>
+    <ul>
+      <li><span class="tag keep">保留</span> 全站 site UI 日文、Django admin 英文嘅 <code>InterfaceLanguageMiddleware</code>。</li>
+      <li><span class="tag keep">保留</span> Registration、activation、resend activation email 基本流程同 resend cooldown。</li>
+      <li><span class="tag keep">保留</span> Event list 每頁 5 筆、all/read/unread queryset 篩選基本行為。</li>
+      <li><span class="tag keep">保留</span> Vocab list/User vocab list filtering、pagination query string 保存、目前頁批量提交嘅基本資料驗證方向。</li>
+      <li><span class="tag keep">保留</span> Vocab/UserVocab detail 對 user ownership、active vocab 嘅 queryset 限制。</li>
+      <li><span class="tag keep">保留</span> Category 最多 3 個嘅 server validation。</li>
+      <li><span class="tag keep">保留</span> QuizAttempt token、row locking、duplicate answer/skip 防護、question unavailable 提早結束處理。</li>
+      <li><span class="tag keep">保留</span> Kana DP comparison 同 answer graphic metadata 生成；正式結果頁仍然需要。</li>
+      <li><span class="tag keep">保留</span> 400/403/404/500 handlers，尤其 500 使用獨立 template render 嘅低依賴方向。</li>
+      <li><span class="tag keep">保留</span> Feedback reply service 嘅 transaction、closed guard、reply metadata 同 Event 建立。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>建議實作次序</h2>
+    <ol>
+      <li><strong>先鎖定測試：</strong>Quiz 進度、skip、logout、Event ownership/safe POST、safe-next。</li>
+      <li><strong>修正共用流程：</strong>messages、safe return URL、PRG、queryset preload。</li>
+      <li><strong>完成 accounts/core：</strong>login/logout、Event detail、Feedback filter/reply。</li>
+      <li><strong>完成 dictionary：</strong>雙提交、update/delete redirect、detail ordering、batch message。</li>
+      <li><strong>完成 Quiz v1：</strong>上一組設定契約、無限制 default、固定題數、skip/summary consistency。</li>
+      <li><strong>最後先接 frontend：</strong>用已固定嘅 endpoint、context 同 message contract 實作 HTML/CSS/JS。</li>
+      <li><strong>Future 獨立排期：</strong>admin announcement、學習歷史、MC Quiz，避免擴大 v1 scope。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>後端驗收清單</h2>
+    <ul class="checklist">
+      <li>固定 10 題時，答題同 skip 合計第 10 題後一定進 Summary，直接打 Next endpoint 都唔會出第 11 題。</li>
+      <li>Summary 嘅總題數永遠等於正解 + 不正解 + skip。</li>
+      <li>載入上次設定唔會開始 Quiz；修改載入值再提交時，以修改後值為準。</li>
+      <li>Event detail 只能修改目前登入 user 擁有嘅 UserEvent；重複標記已讀唔報錯。</li>
+      <li>Logout 後到獨立完成頁，唔會因 LoginRequired 再跳 login。</li>
+      <li>Create request 兩種 action 都只建立一次 request，並分別去正確目的地。</li>
+      <li>Update/delete 成功後返原 Vocab detail；pending duplicate 唔顯示虛假 success。</li>
+      <li>Feedback admin list 預設 pending、每頁 5 筆；filter + pagination context 保留。</li>
+      <li>Feedback reply 成功後返回原 detail；closed feedback 再 reply 被 server 阻止。</li>
+      <li>MCSense 永遠按 <code>sense_no</code> 顯示；詳細頁 query 數量唔隨 category/sense 數量線性上升。</li>
+      <li>所有 mutation 使用 POST + CSRF；所有 next/return URL 經 host/scheme 驗證。</li>
+      <li>普通 user context 唔包含全站 pending feedback count。</li>
+      <li>Registration、resend activation、Quiz form/filter 唔會誤發 success toast message。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>可能涉及嘅非 frontend 檔案總覽</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>範圍</th><th>主要檔案</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>Accounts</td><td><code>accounts/views.py</code>、tests</td><td>Login message、logout result。</td></tr>
+          <tr><td>Core/Event</td><td><code>core/views.py</code>、<code>core/forms.py</code>、<code>core/urls.py</code>、<code>core/service/event.py</code></td><td>已讀 action、filter、admin announcement、messages。</td></tr>
+          <tr><td>Core/Feedback</td><td><code>core/views.py</code>、<code>core/service/feedback.py</code></td><td>5 筆 pagination、status filter、reply redirect/context。</td></tr>
+          <tr><td>Dictionary</td><td><code>dictionary/forms.py</code>、<code>dictionary/views.py</code>、services</td><td>申請 action、redirect、detail data、批量保存。</td></tr>
+          <tr><td>Quiz</td><td><code>quiz/forms.py</code>、<code>quiz/views.py</code>、<code>quiz/helper.py</code>、<code>quiz/service/quiz.py</code></td><td>設定載入、題數狀態、skip、summary。</td></tr>
+          <tr><td>Models</td><td><code>core/models.py</code>、<code>quiz/models.py</code>、可能 <code>dictionary/models.py</code></td><td>只限 label/order state 同 future features；大部分 v1 流程毋須改 schema。</td></tr>
+          <tr><td>Verification</td><td>各 app tests</td><td>權限、狀態轉換、redirect、messages、query count。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    本報告只新增文件；截至報告建立時，未修改任何 Django application code、template、CSS 或 JavaScript。
+  </footer>
+</main>
+</body>
+</html>

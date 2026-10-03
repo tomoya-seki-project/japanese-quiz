@@ -166,8 +166,10 @@ class UserLoginView(LoginView):
         return result
 
 class UserLogoutView(LoginRequiredMixin, LogoutView):
+    next_page = reverse_lazy('accounts:user_logout_result')
+
+class UserLogoutResultView(TemplateView):
     template_name = 'accounts/user_logout.html'
-    next_page = reverse_lazy('accounts:user_home')
 
 class UserView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_detail.html'
