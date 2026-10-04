@@ -156,6 +156,11 @@ class UserLoginView(LoginView):
         else:
             self.request.session.set_expiry(60 * 60)
 
+        messages.success(
+            self.request,
+            "ログインしました。",
+        )
+
         logger.info(
             "User login completed: "
             "operation=%s user_id=%s remember_me=%s",
@@ -231,22 +236,17 @@ class ActivateUserView(View):
             raise Http404
 
         if user.is_active:
-            return render(
-                request,
-                self.template_name,
-                context={
-                    "activation_status": "already_active"
-                },
+            return redirect(
+                "accounts:user_activate",
+                uidb64=uidb64,
+                token=token,
             )
 
         if not account_activation_token.check_token(user, token):
-            return render(
-                request,
-                self.template_name,
-                context={
-                    "activation_status": "invalid"
-                },
-                status=400,
+            return redirect(
+                "accounts:user_activate",
+                uidb64=uidb64,
+                token=token,
             )
 
         user.is_active = True
@@ -260,13 +260,14 @@ class ActivateUserView(View):
             user.pk,
         )
 
-        return render(
-            request,
-            self.template_name,
-            context={
-                "activation_status": "success"
-            },
-        )
+        return redirect("accounts:activation_success")
+
+class ActivationSuccessView(TemplateView):
+    template_name = "accounts/user_activate.html"
+    extra_context = {
+        "activation_status": "success",
+    }
+
 
 class ResendActivationEmailView(FormView):
     template_name = "accounts/resend_activation_email.html"

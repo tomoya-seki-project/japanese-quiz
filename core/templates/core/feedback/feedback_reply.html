@@ -1,6 +1,16 @@
 {% extends "core/base.html" %}
 {% block content %}
     <h1>フィードバックに返信</h1>
+    <dl>
+        <dt>ユーザー</dt>
+        <dd>{{ feedback.user }}</dd>
+        <dt>種類</dt>
+        <dd>{{ feedback.get_type_display }}</dd>
+        <dt>送信日時</dt>
+        <dd>{{ feedback.create_at|date:"Y年m月d日 H:i" }}</dd>
+        <dt>内容</dt>
+        <dd>{{ feedback.context|linebreaksbr }}</dd>
+    </dl>
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}

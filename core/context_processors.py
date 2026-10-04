@@ -6,17 +6,17 @@ def unread_event_count(request):
         return {
             "unread_event_count": 0,
         }
-    
+
     return {
         "unread_event_count": EventService.get_unread_events(user=request.user).count(),
     }
 
 def unreply_feedback_count(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated or not request.user.is_superuser:
         return {
             "unreply_feedback_count": 0,
         }
-    
+
     return {
         "unreply_feedback_count": Feedback.objects.filter(status=FeedbackStatus.PENDING).count(),
     }

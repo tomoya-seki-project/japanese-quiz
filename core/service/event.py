@@ -53,7 +53,7 @@ class EventService():
     @staticmethod
     def get_unread_events(*, user):
         return UserEvent.objects.filter(user=user, is_read=False).order_by("-event__create_at").select_related("event")
-    
+
     @staticmethod
     @transaction.atomic
     def gen_vocab_sync_event(*, user):
@@ -62,11 +62,11 @@ class EventService():
 
         if last_sync is not None:
             vocabs = Vocab.objects.filter(update_at__gt=last_sync)
-        else:    
+        else:
             user.profile.last_vocab_sync_at = now
             user.profile.save(update_fields=["last_vocab_sync_at", "update_at"])
             return
-        
+
         create_count = 0
         created_word = []
         update_count = 0
@@ -75,7 +75,7 @@ class EventService():
         restored_word = []
         delete_count = 0
         deleted_word = []
-        
+
         for vocab in vocabs:
             create_vocab_request = VocabRequest.objects.filter(
                 request_type = VocabRequestType.CREATE,
@@ -100,7 +100,7 @@ class EventService():
             elif create_vocab_request is not None:
                 create_count += 1
                 created_word.append(str(vocab))
-            if other_vocab_request is not None:   
+            if other_vocab_request is not None:
                 match(other_vocab_request.request_type):
                     case VocabRequestType.UPDATE:
                         update_count += 1
@@ -121,7 +121,7 @@ class EventService():
             EventService.assign_event_to_user(
                 event=create_event,
                 user=user,
-            )        
+            )
         if update_count != 0:
             update_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
@@ -131,7 +131,7 @@ class EventService():
             EventService.assign_event_to_user(
                 event=update_event,
                 user=user,
-            )   
+            )
         if restore_count != 0:
             restore_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
@@ -141,7 +141,7 @@ class EventService():
             EventService.assign_event_to_user(
                 event=restore_event,
                 user=user,
-            ) 
+            )
         if delete_count != 0:
             delete_event = EventService.create_event(
                                 event_type=EventType.VOCAB,
@@ -151,7 +151,21 @@ class EventService():
             EventService.assign_event_to_user(
                 event=delete_event,
                 user=user,
-            ) 
-        
+            )
+
         user.profile.last_vocab_sync_at = now
         user.profile.save(update_fields=["last_vocab_sync_at", "update_at"])
+
+    @staticmethod
+    @transaction.atomic
+    def set_user_event_status(*, user, selected_ids, selectable_ids):
+        get_select_qs = UserEvent.objects.filter(
+            user=user,
+            is_read=False,
+            id__in=selectable_ids,
+        ).filter(
+            id__in=selected_ids,
+        )
+        now = timezone.now()
+        updated_count = get_select_qs.update(is_read=True, read_at=now)
+        return updated_count

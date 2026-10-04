@@ -16,7 +16,13 @@ from django.views.generic import ListView, FormView, View
 from django.views.generic.base import RedirectView
 from django.views.generic.detail import DetailView
 
-from .forms import UserEventIsReadedUpdateForm, UserEventReadStatusUpdateForm, FeedbackCreateForm, FeedbackReplyForm
+from .forms import (
+    UserEventIsReadedUpdateForm,
+    UserEventReadStatusUpdateForm,
+    FeedbackCreateForm,
+    FeedbackReplyForm,
+    FeedbackListFilterForm,
+)
 
 from .models import Event, EventType, UserEvent, Feedback, FeedbackType, FeedbackStatus
 
@@ -40,28 +46,39 @@ class UserEventListView(LoginRequiredMixin, ListView):
             request.POST,
             user_event_queryset=user_event_queryset,
         )
-        if form.is_valid():
-            selectable_ids = form.cleaned_data["selectable_ids"]
-            selected_ids = form.cleaned_data["selected_ids"]
+        if not form.is_valid():
+            logger.warning(
+                "User event selection rejected: "
+                "operation=%s user_id=%s errors=%s",
+                "user_event_mark_read",
+                request.user.pk,
+                form.errors.as_json(),
+            )
+            messages.error(
+                request,
+                "お知らせの選択内容を確認できませんでした。ページを再読み込みして、もう一度お試しください。",
+            )
+            return redirect(request.get_full_path())
 
-            selectable_qs = UserEvent.objects.filter(
-                user=request.user,
-                is_read=False,
-                id__in=selectable_ids,
+        selectable_ids = form.cleaned_data["selectable_ids"]
+        selected_ids = form.cleaned_data["selected_ids"]
+        updated_count = EventService.set_user_event_status(
+            user=request.user,
+            selected_ids=selected_ids,
+            selectable_ids=selectable_ids,
+        )
+        if updated_count > 0:
+            logger.info(
+                "User events marked as read: "
+                "operation=%s user_id=%s updated_count=%s",
+                "user_event_mark_read",
+                request.user.pk,
+                updated_count,
             )
-            get_select_qs = selectable_qs.filter(
-                id__in=selected_ids,
+            messages.success(
+                request,
+                "選択したお知らせを既読にしました。",
             )
-            now = timezone.now()
-            updated_count = get_select_qs.update(is_read=True, read_at=now)
-            if updated_count > 0:
-                logger.info(
-                    "User events marked as read: "
-                    "operation=%s user_id=%s updated_count=%s",
-                    "user_event_mark_read",
-                    request.user.pk,
-                    updated_count,
-                )
         return redirect(request.get_full_path())
 
     def get_context_data(self, **kwargs):
@@ -86,7 +103,7 @@ class UserEventListView(LoginRequiredMixin, ListView):
         elif status == "unread":
             qs = qs.filter(is_read=False)
 
-        return qs
+        return qs.select_related("event")
 
 class UserEventDetailView(LoginRequiredMixin, DetailView):
     model = UserEvent
@@ -197,6 +214,10 @@ class FeedbackCreateView(LoginRequiredMixin, FormView):
             user_feedback.pk,
             feedback_type,
         )
+        messages.success(
+            self.request,
+            "フィードバックを送信しました。",
+        )
         return super().form_valid(form)
 
 class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -205,6 +226,48 @@ class FeedbackListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     context_object_name = "feedbacks"
     ordering = ["-create_at"]
     paginate_by = 5
+
+    def get_filter_form(self):
+        if hasattr(self, "_feedback_filter_form"):
+            return self._feedback_filter_form
+
+        raw_status = self.request.GET.get("status", FeedbackStatus.PENDING)
+
+        form = FeedbackListFilterForm({
+            "status": raw_status,
+        })
+
+        if form.is_valid() and form.cleaned_data["status"]:
+            selected_status = form.cleaned_data["status"]
+        else:
+            selected_status = FeedbackStatus.PENDING
+            form = FeedbackListFilterForm({
+                "status": selected_status,
+            })
+
+        self._selected_status = selected_status
+        self._feedback_filter_form = form
+        return form
+
+    def get_selected_status(self):
+        self.get_filter_form()
+        return self._selected_status
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("user", "reply_by")
+
+        selected_status = self.get_selected_status()
+
+        if selected_status != "all":
+            queryset = queryset.filter(status=selected_status)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["filter_form"] = self.get_filter_form()
+        context["selected_status"] = self.get_selected_status()
+        return context
 
     def test_func(self):
         return self.request.user.is_superuser
@@ -260,9 +323,32 @@ class FeedbackDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         )
         return redirect("HomePage")
 
+    def get_queryset(self):
+        return super().get_queryset().select_related("user","reply_by")
+
 class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     template_name = "core/feedback/feedback_reply.html"
     form_class = FeedbackReplyForm
+
+    def get_feedback(self):
+        if not hasattr(self, "_feedback"):
+            self._feedback = get_object_or_404(
+                Feedback.objects.select_related("user"),
+                pk=self.kwargs["feedback_pk"],
+            )
+        return self._feedback
+
+    def get(self, request, *args, **kwargs):
+        if self.get_feedback().status == FeedbackStatus.CLOSED:
+            messages.info(request, "このフィードバックはすでに終了しています。")
+            return redirect(self.get_return_url())
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if self.get_feedback().status == FeedbackStatus.CLOSED:
+            messages.info(request, "このフィードバックはすでに終了しています。")
+            return redirect(self.get_return_url())
+        return super().post(request, *args, **kwargs)
 
     def get_return_url(self):
         next_url = self.request.GET.get("next")
@@ -284,6 +370,7 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["feedback"] = self.get_feedback()
         context["return_url"] = self.get_return_url()
         return context
 
@@ -306,7 +393,7 @@ class FeedbackReplyView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         try:
             reply_event = FeedbackService.reply_feedback(
                 admin_user=self.request.user,
-                target_feedback=get_object_or_404(Feedback, pk=self.kwargs["feedback_pk"]),
+                target_feedback=self.get_feedback(),
                 reply_context=context,
                 is_close=is_close
             )

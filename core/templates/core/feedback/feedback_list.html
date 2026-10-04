@@ -1,6 +1,10 @@
 {% extends "core/base.html" %}
 {% block content %}
     <h1>フィードバック一覧</h1>
+    <form method="get" id="feedback-filter-form">
+        {{ filter_form.status.label_tag }}
+        {{ filter_form.status }}
+    </form>
     <div id="feedback-list-container">
         {% include "core/feedback/partials/feedback_list_partial.html" %}
     </div>
@@ -8,6 +12,13 @@
 {% block javascript %}
     <script>
         document.addEventListener("DOMContentLoaded", function(){
+            const filterForm = document.getElementById("feedback-filter-form");
+            const statusSelect = filterForm.querySelector('[name="status"]');
+
+            statusSelect.addEventListener("change", function () {
+                filterForm.submit();
+            });
+
             const feedbackListContainer = document.getElementById('feedback-list-container');
             feedbackListContainer.addEventListener('click', function(e){
                 if(e.target.classList.contains('page-change')){

@@ -123,13 +123,6 @@ class VocabDeleteRequestForm(forms.Form):
                                              "cols":20
                                          }
                                      ))
-    confirm = forms.BooleanField(label="削除申請を確認しました", required=False)
-
-    def clean_confirm(self):
-        confirm = self.cleaned_data.get("confirm")
-        if confirm == False:
-            raise ValidationError("この単語の削除を申請する場合は、確認欄にチェックを入れてください。")
-        return confirm
 
 class VocabSearchForm(forms.Form):
     word = forms.CharField(label="単語", max_length=50, required=False)

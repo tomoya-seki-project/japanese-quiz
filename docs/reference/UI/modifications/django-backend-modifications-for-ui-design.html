@@ -360,13 +360,6 @@
     </article>
 
     <article class="item">
-      <h3><span class="tag p1">P1-5</span> Vocab detail 保證 MCSense 次序及完整資料</h3>
-      <p><strong>現況：</strong>MCSense model 同 reverse relation 已存在，但 model 冇 default ordering，detail queryset 亦冇預取。</p>
-      <p><strong>要改：</strong>以 <code>sense_no</code> 穩定排序；可以加 <code>Meta.ordering</code>（會產生 migration state change）或喺 detail queryset 用 ordered <code>Prefetch</code>。同時 <code>select_related('katakana_detail')</code>、<code>prefetch_related('categories', 'mc_senses')</code>，確保頁面唔靠偶然 database order。</p>
-      <p class="files">預計檔案：<code>dictionary/views.py</code>；若使用 model ordering，亦包括 <code>dictionary/models.py</code> 同 migration。</p>
-    </article>
-
-    <article class="item">
       <h3><span class="tag p1">P1-6</span> User vocab detail 只提供規格需要嘅 last answer</h3>
       <p><strong>現況：</strong>view 會為 <code>last_answer</code> 重新做逐字 DP 比較及產生圖片資料；新規格明確只顯示上次實際輸入文字，唔顯示逐字圖片或正誤比較。</p>
       <p><strong>要改：</strong>移除 detail view 嘅比較運算與 <code>compared_result</code> context；保留原始 <code>last_answer</code>。同時 queryset 預載 <code>vocab</code>、categories、katakana detail，保存 <code>in_use</code> 後加入 success message。</p>
@@ -454,8 +447,9 @@
         <li>每題 selected answer、已排除 distractors、hint count 同 attempt token 狀態。</li>
         <li>正解判定、weight、streak、last answer、QuizAttempt 結果資料同步更新。</li>
         <li>防止 client 偽造 hint／選項狀態，以及重複提交冪等處理。</li>
+        <li>正式顯示 MC Vocab detail 時，按 <code>sense_no</code> 穩定排列 <code>MCSense</code>，並預載 katakana detail、categories 同 ordered senses；暫定使用 view-scoped ordered <code>Prefetch</code>，v1.0.0 不處理。</li>
       </ul>
-      <p class="files">預計檔案：<code>quiz/models.py</code>、migration、<code>quiz/forms.py</code>、<code>quiz/service/quiz.py</code>、<code>quiz/views.py</code>、tests。</p>
+      <p class="files">預計檔案：<code>dictionary/views.py</code>、<code>quiz/models.py</code>、migration、<code>quiz/forms.py</code>、<code>quiz/service/quiz.py</code>、<code>quiz/views.py</code>、tests。</p>
     </article>
 
     <article class="item">

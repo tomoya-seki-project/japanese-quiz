@@ -4,6 +4,8 @@
         <p>現在の問題が出題対象から外れたため、クイズを終了しました。</p>
     {% elif end_reason == "no_question_pool" %}
         <p>出題できる問題がなくなったため、クイズを終了しました。</p>
+    {% elif end_reason == "invalid_quiz_session" %}
+        <p>クイズ情報が無効になったため、クイズを終了しました。</p>
     {% endif %}
 {% endif %}
 <div id="quiz-count">回答した問題数：{{ correct_count|add:wrong_count }}問</div>

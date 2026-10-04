@@ -2,6 +2,7 @@ from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from django.urls import path, reverse
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 import logging
 
@@ -98,3 +99,25 @@ class UserVocabService():
                 "user_vocab_sync_event_generation",
                 user.pk,
             )
+
+    @staticmethod
+    @transaction.atomic
+    def set_user_vocabs_in_use_status(*, user, selected_ids, selectable_ids):
+        selectable_qs = UserVocab.objects.filter(
+            user=user,
+            id__in=selectable_ids,
+        )
+
+        get_unselect_qs = selectable_qs.filter(
+            in_use=True,
+        ).exclude(
+            id__in=selected_ids,
+        )
+        get_select_qs = selectable_qs.filter(
+            in_use=False,
+            id__in=selected_ids,
+        )
+        now = timezone.now()
+        deactivated_count = get_unselect_qs.update(in_use=False, update_at=now)
+        activated_count = get_select_qs.update(in_use=True, update_at=now)
+        return activated_count, deactivated_count

@@ -118,7 +118,7 @@ def build_next_question_payload(*, request, is_skip=False):
         "input_panel_html": input_panel_html,
     }
 
-def build_quiz_summary_payload(*, request, end_reason=None, ended_early=False):
+def build_quiz_summary_payload(*, request, end_reason="completed", ended_early=False):
     quiz_session = request.session.get("quiz_session",{})
     main_html = render_to_string(
         "quiz/partials/quiz_summary_partial.html",
@@ -141,6 +141,8 @@ def build_quiz_summary_payload(*, request, end_reason=None, ended_early=False):
         "success":True,
         "main_html": main_html,
         "input_panel_html": "",
+        "end_reason": end_reason,
+        "ended_early": ended_early,
     }
 
 

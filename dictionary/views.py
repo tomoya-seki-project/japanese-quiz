@@ -5,6 +5,8 @@ from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from django.db.models import Prefetch
+
 from django.core.exceptions import ValidationError
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -43,6 +45,7 @@ from .models import (
     VocabDetail,
     KatakanaDetail,
     VocabRequest,
+    MCSense,
 )
 
 from .service.vocab_request import VocabRequestService
@@ -57,12 +60,18 @@ class VocabHomeView(TemplateView):
 class VocabCreateRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/vocab_create.html"
     form_class = VocabCreateRequestForm
-    success_url = reverse_lazy("HomePage")
 
     def form_valid(self, form):
-        self.has_restore_vocab = False
+        submit_action = self.request.POST.get("submit_action")
+        if submit_action not in {"home", "continue"}:
+            form.add_error(
+                None,
+                "送信方法が正しくありません。もう一度お試しください。",
+            )
+            return self.form_invalid(form)
+
+        self.submit_action = submit_action
         if hasattr(form, "deactived_vocab"):
-            self.has_restore_vocab = True
             try:
                 created = VocabRequestService.gen_restore_vocab_request(
                     user=self.request.user,
@@ -142,14 +151,14 @@ class VocabCreateRequestView(LoginRequiredMixin, FormView):
             return redirect(self.get_success_url())
 
     def get_success_url(self):
-        if getattr(self, "has_restore_vocab", False):
-            return reverse_lazy("dictionary:vocab_home")
-        return super().get_success_url()
+        if self.submit_action == "continue":
+            return reverse("dictionary:vocab_create")
+
+        return reverse("HomePage")
 
 class VocabUpdateRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/vocab_update.html"
     form_class = VocabUpdateRequestForm
-    success_url = reverse_lazy("dictionary:vocab_home")
 
     @property
     def target_vocab(self):
@@ -213,6 +222,10 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
                 self.request.user.pk,
                 self.target_vocab.pk,
             )
+            messages.success(
+                self.request,
+                "単語の変更申請を送信しました。",
+            )
         else:
             logger.info(
                 "Vocab update request skipped: "
@@ -222,12 +235,21 @@ class VocabUpdateRequestView(LoginRequiredMixin, FormView):
                 self.target_vocab.pk,
                 "pending_request_exists",
             )
+            messages.info(
+                self.request,
+                "この単語には、すでに審査待ちの申請があります。",
+            )
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse(
+            "dictionary:vocab_detail",
+            kwargs={"pk": self.target_vocab.pk},
+        )
 
 class VocabDeleteRequestView(LoginRequiredMixin, FormView):
     template_name = "dictionary/vocab_delete.html"
     form_class = VocabDeleteRequestForm
-    success_url = reverse_lazy("dictionary:vocab_home")
 
     @property
     def target_vocab(self):
@@ -270,6 +292,10 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
                 self.request.user.pk,
                 self.target_vocab.pk,
             )
+            messages.success(
+                self.request,
+                "単語の削除申請を送信しました。",
+            )
         else:
             logger.info(
                 "Vocab deletion request skipped: "
@@ -279,8 +305,17 @@ class VocabDeleteRequestView(LoginRequiredMixin, FormView):
                 self.target_vocab.pk,
                 "pending_request_exists",
             )
+            messages.info(
+                self.request,
+                "この単語には、すでに審査待ちの申請があります。",
+            )
         return super().form_valid(form)
 
+    def get_success_url(self):
+        return reverse(
+            "dictionary:vocab_detail",
+            kwargs={"pk": self.target_vocab.pk},
+        )
 
 class VocabDetailView(DetailView):
     model = Vocab
@@ -303,7 +338,22 @@ class VocabDetailView(DetailView):
         return context
 
     def get_queryset(self):
-        return super().get_queryset().filter(is_active=True)
+        return (
+            super().get_queryset()
+            .filter(is_active=True)
+            .select_related(
+                "vocab_detail",
+                "katakana_detail",
+            )
+            .prefetch_related(
+                "categories",
+                Prefetch(
+                    "mc_senses",
+                    queryset=MCSense.objects.order_by("sense_no"),
+                ),
+            )
+        )
+
 
 class VocabListFilterView(TemplateView):
     template_name = "dictionary/vocab_list_filter.html"
@@ -386,36 +436,42 @@ class UserVocabListView(LoginRequiredMixin, ListView):
             user_vocab_queryset=user_vocab_queryset,
         )
 
-        if form.is_valid():
-            selectable_ids = form.cleaned_data["selectable_ids"]
-            selected_ids = form.cleaned_data["selected_ids"]
+        if not form.is_valid():
+            logger.warning(
+                "User vocab selection rejected: "
+                "operation=%s user_id=%s errors=%s",
+                "user_vocab_in_use",
+                request.user.pk,
+                form.errors.as_json(),
+            )
+            messages.error(
+                request,
+                "単語の選択内容を確認できませんでした。ページを再読み込みして、もう一度お試しください。",
+            )
+            return redirect(request.get_full_path())
 
-            selectable_qs = UserVocab.objects.filter(
+        selectable_ids = form.cleaned_data["selectable_ids"]
+        selected_ids = form.cleaned_data["selected_ids"]
+        activated_count, deactivated_count = (
+            UserVocabService.set_user_vocabs_in_use_status(
                 user=request.user,
-                id__in=selectable_ids,
+                selected_ids=selected_ids,
+                selectable_ids=selectable_ids,
             )
-
-            get_unselect_qs = selectable_qs.filter(
-                in_use=True,
-            ).exclude(
-                id__in=selected_ids,
+        )
+        if (activated_count + deactivated_count) > 0:
+            logger.info(
+                "User vocab usage updated: "
+                "operation=%s user_id=%s activated_count=%s deactivated_count=%s",
+                "user_vocab_in_use",
+                request.user.pk,
+                activated_count,
+                deactivated_count,
             )
-            get_select_qs = selectable_qs.filter(
-                in_use=False,
-                id__in=selected_ids,
+            messages.success(
+                request,
+                "単語帳の出題設定を保存しました。",
             )
-            now = timezone.now()
-            deactivated_count = get_unselect_qs.update(in_use=False, update_at=now)
-            activated_count = get_select_qs.update(in_use=True, update_at=now)
-            if (activated_count + deactivated_count) > 0:
-                logger.info(
-                    "User vocab usage updated: "
-                    "operation=%s user_id=%s activated_count=%s deactivated_count=%s",
-                    "user_vocab_in_use",
-                    self.request.user.pk,
-                    activated_count,
-                    deactivated_count,
-                )
         return redirect(request.get_full_path())
 
     def render_to_response(self, context, **response_kwargs):
@@ -501,6 +557,10 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
                     user_vocab.vocab_id,
                     user_vocab.in_use,
                 )
+                messages.success(
+                    request,
+                    "出題設定を保存しました。",
+                )
 
             return redirect(request.get_full_path())
         self.object = user_vocab
@@ -511,19 +571,6 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        target_user_vocab = context["user_vocab"]
-        if target_user_vocab.last_answer is not None:
-            if target_user_vocab.vocab.type == VocabType.VOCAB or target_user_vocab.vocab.type == VocabType.KATAKANA:
-                compared_data = QuizService.compare_kana_answer(
-                                    correct_answer=target_user_vocab.vocab.kana,
-                                    user_answer=target_user_vocab.last_answer
-                                )
-                compared_result = QuizService.gen_answer_image(compared_result=compared_data)
-            else:
-                compared_result = None
-
-            if compared_result:
-                context["compared_result"] = compared_result
         if "in_use_form" not in context:
             context["in_use_form"] = UserVocabInUseSingleUpdateForm(
                 initial={"in_use":self.object.in_use}
@@ -532,7 +579,15 @@ class UserVocabDetailView(LoginRequiredMixin, DetailView):
         return context
 
     def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user, vocab__is_active=True)
+        return (
+            super().get_queryset()
+            .filter(user=self.request.user, vocab__is_active=True)
+            .select_related(
+                "vocab",
+                "vocab__katakana_detail",
+            )
+            .prefetch_related("vocab__categories")
+        )
 
 class UserVocabSelectVocabView(LoginRequiredMixin, FormView):
     template_name = "dictionary/select_vocab.html"

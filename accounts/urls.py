@@ -12,6 +12,7 @@ from .views import (
     ActivateUserView,
     ActivationEmailSentView,
     ResendActivationEmailView,
+    ActivationSuccessView,
 )
 
 app_name = 'accounts'
@@ -26,4 +27,5 @@ urlpatterns = [
     path("activate/<uidb64>/<token>/", ActivateUserView.as_view(), name="user_activate"),
     path("activation-email-sent/", ActivationEmailSentView.as_view(), name="activation_email_sent"),
     path("resend-activation-email/", ResendActivationEmailView.as_view(), name="resend_activation_email"),
+    path("activation-success/", ActivationSuccessView.as_view(), name="activation_success"),
 ]

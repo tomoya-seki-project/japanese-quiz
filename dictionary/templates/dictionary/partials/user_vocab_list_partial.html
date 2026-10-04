@@ -36,7 +36,7 @@
 {% if is_paginated %}
 <div>
     {% if page_obj.has_previous %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
+        <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
     {% else %}
         前へ
     {% endif %}
@@ -45,12 +45,12 @@
         {% if page_obj.number == num %}
             {{ num }}
         {% else %}
-            <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
+            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
         {% endif %}
     {% endfor %}
 
     {% if page_obj.has_next %}
-        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
+        <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
     {% else %}
         次へ
     {% endif %}

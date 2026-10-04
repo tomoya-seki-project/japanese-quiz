@@ -16,4 +16,9 @@ EVENT_TYPES = {
     "weight_update_by_system": "出題優先度の自動更新",
     "feedback_reply": "フィードバックへの返信",
 }
+FEEDBACK_STATUSES = {
+    "pending": "未対応",
+    "replied": "返信済み",
+    "closed": "終了",
+}
 REQUEST_TYPES_JA = {"create": "追加", "update": "変更", "delete": "削除", "restore": "復元"}

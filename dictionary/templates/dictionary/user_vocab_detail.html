@@ -14,17 +14,9 @@
         <div>
             前回の回答：
             {% if user_vocab.last_answer %}
-                {% load static %}
-                <div class="compared-answer-result">
-                {% for result_image in compared_result %}
-                    <img src="{% static result_image.image_path %}" style="width:20px;height:20px;object-fit:contain;">
-                    {% if result_image.sub_image_path != ""%}
-                        <img src="{% static result_image.sub_image_path %}" style="width:20px;height:20px;object-fit:contain;">
-                    {% endif %}
-                {% endfor %}
-                </div>
+                {{ user_vocab.last_answer }}
             {% else %}
-                回答履歴はありません。
+                まだありませんよ
             {% endif %}
         </div>
         <button type="submit">保存</button>

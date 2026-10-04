@@ -28,6 +28,11 @@ function quizAreaHandler(){
             }
         })
         .then(async res => {
+            if (res.redirected){
+                window.location.assign(res.url);
+                return null;
+            }
+
             const contentType = res.headers.get("content-type") || "";
 
             if(!contentType.includes("application/json")){
@@ -39,6 +44,9 @@ function quizAreaHandler(){
             return res.json();
         })
         .then(data => {
+            if(data === null){
+                return;
+            }
             const errorContainer = document.getElementById("quiz-error-message");
 
             if(data.success === false){

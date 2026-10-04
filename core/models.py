@@ -17,9 +17,9 @@ class FeedbackType(models.TextChoices):
     OTHERS = "others", "その他"
 
 class FeedbackStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    REPLIED = "replied", "Replied"
-    CLOSED = "closed", "Closed"
+    PENDING = "pending", "未対応"
+    REPLIED = "replied", "返信済み"
+    CLOSED = "closed", "終了"
 
 class TimeStampedModel(models.Model):
     create_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)

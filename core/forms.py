@@ -1,6 +1,9 @@
 from django import forms
 
-from .models import UserEvent, FeedbackType
+from .models import UserEvent, FeedbackType, FeedbackStatus
+from .ui import FEEDBACK_STATUSES
+
+
 
 class UserEventIsReadedUpdateForm(forms.Form):
     selectable_ids = forms.ModelMultipleChoiceField(
@@ -34,3 +37,24 @@ class FeedbackCreateForm(forms.Form):
 class FeedbackReplyForm(forms.Form):
     is_close = forms.BooleanField(label="終了", required=False)
     context = forms.CharField(label="返信内容", max_length=255, widget=forms.Textarea)
+
+class FeedbackListFilterForm(forms.Form):
+    status = forms.ChoiceField(
+        label="状態",
+        choices=[
+            ("all", "すべて"),
+            (
+                FeedbackStatus.PENDING,
+                FEEDBACK_STATUSES[FeedbackStatus.PENDING],
+            ),
+            (
+                FeedbackStatus.REPLIED,
+                FEEDBACK_STATUSES[FeedbackStatus.REPLIED],
+            ),
+            (
+                FeedbackStatus.CLOSED,
+                FEEDBACK_STATUSES[FeedbackStatus.CLOSED],
+            ),
+        ],
+        required=False,
+    )

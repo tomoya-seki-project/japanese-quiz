@@ -4,6 +4,14 @@
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">申請</button>
+        <button type="submit" name="submit_action" value="home">
+            <span>申請</span>
+            <span>ホームへ</span>
+        </button>
+
+        <button type="submit" name="submit_action" value="continue">
+            <span>続けて</span>
+            <span>次の単語</span>
+        </button>
     </form>
 {% endblock %}
