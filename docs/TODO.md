@@ -4,9 +4,9 @@ This document tracks committed work in the current project scope. Completed mile
 
 ## Status
 
-- <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> (12): core workflows or decisions completed
-- <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> (1): implementation exists, but required work remains
-- <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> (2): committed work not yet started
+- <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> (14): core workflows or decisions completed
+- <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> (3): implementation exists, but required work remains
+- <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> (0): committed work not yet started
 
 ## Contents
 
@@ -20,8 +20,8 @@ This document tracks committed work in the current project scope. Completed mile
 
 Completed:
 
-- Ten UI and language regression tests pass on an isolated PostgreSQL test database.
-- Current coverage includes template compilation, public/admin language boundaries, built-in validation language, shared choices, kana keyboard values, output escaping, notification language, and key detail labels.
+- Eleven Django regression tests pass with isolated SQLite test settings; the earlier ten-test suite also passed on an isolated PostgreSQL test database.
+- Coverage includes template compilation, language boundaries, shared choices, kana keyboard values, escaping, notifications, key detail labels, and a guard that hides the answer-judgement debug dialog from regular users. Fourteen Playwright browser cases are present, but could not be run in this environment because the CLI is not installed.
 - Django system checks and migration drift checks pass.
 
 Remaining:
@@ -33,24 +33,23 @@ Remaining:
 - True multi-connection tests for `QuizAttempt` Answer/Skip concurrency and duplicate processing.
 - Event, feedback, logging, and management-command behaviour.
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Production settings and deployment hardening**
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Production settings and deployment hardening**
 
-Required before production:
+Completed:
 
-- Move `SECRET_KEY` and every environment-dependent secret out of source control.
-- Use `DEBUG=False` and configure `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`.
-- Enforce HTTPS and secure cookie/proxy settings for the chosen hosting architecture.
-- Configure production static-file handling.
-- Provision the production PostgreSQL role/database with least privilege.
-- Define backup, restore, migration, rollback, logging, and monitoring procedures.
-- Run `python manage.py check --deploy` against the production environment.
-- Verify real SMTP, domain DNS, sender identity, activation links, and error handling.
+- Application settings read secrets, PostgreSQL and SMTP credentials, hosts, and trusted origins from environment variables.
+- `DEBUG=False` enables HTTPS redirect and secure session/CSRF cookies; Zoho SMTP and the no-reply alias have sent a real activation email.
 
-> <span style="background:#0d47a1;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">TODO</span> **Quiz answer-comparison overlay**
+Remaining before production:
 
-- The result partial currently renders `image_path` and `sub_image_path` sequentially.
-- Use HTML/CSS positioning so missing/extra markers appear on the relevant kana image rather than occupying a separate layout position.
-- Verify keyboard, screen-reader, responsive, and browser behaviour after the visual redesign.
+- Supply separate production secrets, host/origin values, TLS proxy settings, and static-file serving.
+- Provision a least-privilege PostgreSQL role and database; document backup, restore, migration, rollback, logging, and monitoring.
+- Run `python manage.py check --deploy` in the production environment and verify DNS, SPF/DKIM/DMARC, activation links, and SMTP failure handling.
+
+> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Overdue UserVocab weight adjustment**
+
+- The `adjust_user_vocab_weight` management command has argument and logging scaffolding.
+- It does not yet select overdue records, apply a weight policy, or update database rows. Its dry run does not report candidates.
 
 ## Completed Foundations
 
@@ -142,6 +141,18 @@ Required before production:
 - Sensitive request content is excluded from logs.
 - Obsolete commented code was removed while intentional post-v1.0.0 placeholders were retained.
 
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Mobile UI and answer-comparison overlay**
+
+- Major account, dictionary, event, feedback, quiz, and HTTP error pages use shared Django components and Tailwind CSS.
+- The layout targets 320 CSS pixels, short viewports, safe areas, and a fixed action footer.
+- The result partial overlays missing/extra markers on the corresponding kana image. The detailed judgement dialog is limited to superusers.
+- Generated CSS, local Japanese fonts, background assets, and JavaScript interactions are committed; fourteen Playwright browser cases provide a verification foundation.
+
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **QuizAttempt retention command**
+
+- `clear_quiz_attempt` removes processed attempts older than a configurable number of days while retaining `PENDING` attempts.
+- It supports `--dry-run`, validates the retention period, and logs the result. Scheduling and candidate-data automated coverage remain future operational work.
+
 ## Verification Backlog
 
 The following checks belong to the test-expansion task rather than reopening completed features:
@@ -151,5 +162,5 @@ The following checks belong to the test-expansion task rather than reopening com
 - Concurrent vocabulary synchronisation and event generation.
 - Multi-connection Answer-versus-Answer and Answer-versus-Skip races.
 - Log routing, rotation, retention, and sensitive-data assertions.
-- Full browser coverage for Japanese UI, Ajax focus management, and the final result overlay.
+- Execute and extend the fourteen Playwright cases for responsive layouts, Ajax focus management, and the result overlay.
 

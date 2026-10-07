@@ -30,7 +30,12 @@ The architecture is guided by five principles:
 | [10](#phase-10-explicit-quiz-pool-choice-and-review-context) | 2026-09-07 to 2026-09-08 | Explicit pool fallback and request/review reasons |
 | [11](#phase-11-account-verification-and-email-identity-integrity) | 2026-09-09 to 2026-09-12 | Email activation and canonical identity |
 | [12](#phase-12-quiz-session-terminal-recovery) | 2026-09-12 | Invalid-question and empty-pool recovery |
-| [13](#phase-13-postgresql-and-quiz-attempt-idempotency) | 2026-09-15 | PostgreSQL and single-use quiz attempts |
+| [13](#phase-13-postgresql-and-quiz-attempt-idempotency) | 2026-09-15 to 2026-09-16 | PostgreSQL and single-use quiz attempts |
+| [14](#phase-14-production-settings-foundation) | 2026-09-17 | Environment-based security and SMTP configuration |
+| [15](#phase-15-mobile-vocabulary-navigation) | 2026-09-22 to 2026-09-25 | Filter/result navigation, multi-select filters, Japanese labels |
+| [16](#phase-16-maintenance-command-foundation) | 2026-09-30 | Kana asset tooling and QuizAttempt retention |
+| [17](#phase-17-workflow-navigation-and-state-refinement) | 2026-10-04 | Notification, feedback, vocabulary, and quiz controls |
+| [18](#phase-18-tailwind-mobile-ui) | 2026-10-07 | Tailwind UI, shared components, and browser-test foundation |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -328,12 +333,101 @@ Use a database with real row-level locking and give every Answer or Skip operati
 - Answer and Skip must share the same lock order to reduce deadlock risk.
 - `select_for_update(of=("self",))` avoids accidentally locking a read-only related vocabulary row.
 - A stale request must not clear a newer attempt from the session.
-- Attempt history remains available for audit; retention and scheduled cleanup are future work.
+- Attempt history remains available for audit; a retention command was added later, while scheduling remains future work.
+
+## Phase 14: Production Settings Foundation
+
+**Period:** 2026-09-17
+
+### Objective
+
+Make application settings configurable for deployment without storing credentials in source files.
+
+### Outcomes
+
+- Moved the Django secret, hosts, trusted origins, PostgreSQL connection, and SMTP settings to environment variables.
+- Added HTTPS redirect, secure cookies, and configurable HSTS when `DEBUG=False`.
+- The configured Zoho sender alias was subsequently verified with a real activation email.
+
+### Remaining work
+
+Hosting, TLS proxy configuration, static-file serving, least-privilege production database setup, backup, and `check --deploy` still require deployment-environment verification.
+
+## Phase 15: Mobile Vocabulary Navigation
+
+**Period:** 2026-09-22 to 2026-09-25
+
+### Objective
+
+Make vocabulary filtering and return navigation practical on narrow screens.
+
+### Outcomes
+
+- Separated vocabulary and personal-vocabulary filter pages from paginated results.
+- Preserved GET filters and page number when entering and returning from detail pages, with validated return URLs.
+- Added multi-select type, JLPT level, category, and applicable in-use filters.
+- Completed Japanese labels across project-owned user interfaces.
+
+### Key decision
+
+Filter state stays in the URL so pagination and detail navigation share one source of truth.
+
+## Phase 16: Maintenance Command Foundation
+
+**Period:** 2026-09-30
+
+### Objective
+
+Prepare repeatable kana asset conversion and safe QuizAttempt retention.
+
+### Outcomes
+
+- Added kana palette tooling and generated 389 preview assets with a conversion report.
+- Added `clear_quiz_attempt` with configurable retention, `--dry-run`, logging, and protection for `PENDING` attempts.
+- Created an `adjust_user_vocab_weight` command scaffold; overdue selection and weight mutation remain unfinished.
+
+## Phase 17: Workflow Navigation and State Refinement
+
+**Period:** 2026-10-04
+
+### Objective
+
+Clarify navigation and action guards before applying the new UI.
+
+### Outcomes
+
+- Added notification read/unread controls and service-backed bulk updates.
+- Added feedback status filtering and safer return paths.
+- Let quiz settings load the previous selection and blocked Next or Finish before answering.
+- Improved post-submit vocabulary-request navigation, vocabulary query loading, and bulk in-use feedback.
+
+### Key decision
+
+A validated return URL guides navigation; server-side checks remain responsible for workflow state changes.
+
+## Phase 18: Tailwind Mobile UI
+
+**Period:** 2026-10-07
+
+### Objective
+
+Apply the mobile design to actual Django pages.
+
+### Outcomes
+
+- Rebuilt account, dictionary, event, feedback, quiz, and HTTP error pages with Tailwind CSS and shared Django components.
+- Added local Japanese fonts, backgrounds, logo, UI JavaScript, mobile input states, and a kana answer overlay.
+- Committed generated CSS and added fourteen Playwright browser cases with isolated browser-test settings.
+- Increased the Django regression suite to eleven tests.
+
+### Verification and limits
+
+System and migration checks and eleven Django tests passed. Browser cases were not run during the documentation sync because Playwright CLI was unavailable. Multiple-choice flows, core domain and concurrency tests, and production deployment remain unfinished.
 
 ## Current Architecture
 
 ```text
-Browser / Django Templates / Vanilla JavaScript
+Browser / Django Templates / Tailwind CSS / Vanilla JavaScript
                     |
              Forms and CBV Views
                     |
@@ -354,7 +448,7 @@ Responsibility boundaries:
 - **Services:** domain rules, multi-model orchestration, transactions, and side effects.
 - **Models and constraints:** persistence, uniqueness, relationships, and basic integrity.
 - **Templates and JavaScript:** server-rendered UI, Ajax partial replacement, and kana input.
-- **Management commands:** bulk imports, category seeding, and development resets.
+- **Management commands:** bulk imports, category seeding, QuizAttempt retention, and development resets.
 
 ## Engineering Themes Demonstrated
 
@@ -373,9 +467,9 @@ Responsibility boundaries:
 The dictionary, reviewed vocabulary workflow, user vocabulary management, email activation, notification history, feedback, and kana quiz now form usable end-to-end paths. Important remaining work includes:
 
 - Expand automated coverage for accounts, domain services, multi-connection concurrency, answer correctness, and pool/session integration.
-- Complete production secrets, `DEBUG=False`, allowed hosts, trusted origins, static files, HTTPS, backup/restore, and deployment operations.
+- Supply production secrets, `DEBUG=False`, hosts and trusted origins; verify TLS/proxy and static files, database backup/restore, and deployment operations.
 - Finish multiple-choice import, admin, request, and quiz flows before re-enabling their vocabulary types.
-- Complete browser-level visual verification, layout work, and the answer-comparison overlay.
+- Run and expand browser-level visual checks for the implemented mobile layout and answer-comparison overlay.
 - Consider a durable outbox/retry design only if best-effort post-commit notifications later require guaranteed delivery.
 
 See [TODO](TODO.md) for committed work and [Future Ideas](FUTURE_IDEAS.md) for uncommitted directions.

@@ -6,9 +6,9 @@ WordLoop is a Django-based Japanese vocabulary learning application. It combines
 >
 > **Version:** v0.7.0
 >
-> **Milestone:** Core workflows are complete; UI/UX redesign and production hardening are still pending.
+> **Milestone:** Core workflows and the mobile UI are implemented; testing and production deployment remain in progress.
 
-The project is not yet production-ready. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. Multiple-choice quizzes, broader automated regression coverage, final UI work, and production deployment settings remain incomplete.
+The project is not yet production-ready. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. Multiple-choice quizzes, broader automated regression coverage, and production deployment remain incomplete.
 
 ## Current Features
 
@@ -23,10 +23,10 @@ The project is not yet production-ready. Core dictionary, review, account, notif
 
 ### Dictionary and Personal Vocabulary
 
-- The public dictionary lists active vocabulary and supports word, kana, JLPT level, and category filters.
+- The public dictionary lists active vocabulary and supports word, kana, multi-select type, JLPT level, and category filters.
 - General vocabulary and katakana-specific vocabulary are supported.
 - Each user has independent `UserVocab` learning state, including `in_use`, weight, answer counts, streak, and last quiz time.
-- Users can manage personal learning data without directly modifying shared vocabulary records.
+- Users can manage personal learning data without directly modifying shared vocabulary records. Vocabulary and personal-vocabulary filters have separate mobile pages; result links preserve the filtered page when returning from details.
 
 ### Reviewed Vocabulary Requests
 
@@ -55,12 +55,12 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - A custom kana keyboard and hint counter feed the normal backend validation flow.
 - Answer feedback distinguishes match, wrong, missing, and extra kana, including dakuten, handakuten, and small-kana subtypes.
 - Answer comparison uses an `O(m × n)` bottom-up dynamic-programming algorithm with deterministic tie-breaking.
-- The summary tracks answered, correct, incorrect, skipped, and hint counts.
+- The summary tracks answered, correct, incorrect, skipped, and hint counts. The result UI overlays missing and extra markers on the corresponding kana image.
 
 ### Interface Language
 
 - User-facing screens are in Japanese.
-- Django Admin and administrator-only review screens remain in English.
+- Django Admin remains in English; project-built pages, including staff feedback screens, use Japanese.
 - Request-level middleware selects `ja` or `en-us` by page responsibility and restores the previous language after the response.
 - Stored values, keyboard data attributes, and JavaScript event contracts remain language-independent.
 
@@ -70,7 +70,7 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - Vocabulary request results, vocabulary synchronisation summaries, and feedback replies generate events.
 - Authenticated users can submit vocabulary suggestions, bulk requests, bug reports, and feature requests.
 - Superusers can review and reply to feedback; replies notify the submitter.
-- Follow-up replies are permitted until feedback reaches its terminal `CLOSED` state.
+- Follow-up replies are permitted until feedback reaches its terminal `CLOSED` state. Staff can filter feedback by status, and notification details support read/unread controls.
 
 ### Error Handling and Logging
 
@@ -81,11 +81,18 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - File logs rotate daily and retain seven days.
 - Domain workflows log outcomes and identifiers without recording credentials, feedback bodies, sessions, or complete POST payloads.
 
+### Mobile Interface
+
+- Account, dictionary, event, feedback, quiz, and HTTP error pages use Tailwind CSS and reusable Django components.
+- The layout supports widths from 320 CSS pixels, short viewports, safe areas, and fixed action footers.
+- Local Japanese fonts, kana backgrounds, and shared JavaScript support the interface. Generated CSS is committed so Node is unnecessary at runtime.
+- Fourteen Playwright browser cases cover routes, responsive overflow, forms, notifications, and quiz interaction; they require a separate browser-test setup.
+
 ## Current Priorities
 
 - Expand account, domain, quiz integration, and `QuizAttempt` concurrency tests.
 - Complete production settings, secret management, deployment, and database-operation hardening.
-- Finish the v1.0.0 UI/UX pass.
+- Run and extend browser UI verification across supported viewport sizes and Ajax states.
 - Keep unfinished multiple-choice functionality outside the active user flow until its full vertical slice is complete.
 
 See [the project TODO](docs/TODO.md) for current work and [Future Ideas](docs/FUTURE_IDEAS.md) for work outside the current scope.
@@ -97,7 +104,7 @@ See [the project TODO](docs/TODO.md) for current work and [Future Ideas](docs/FU
 | Backend | Django 6.0.5 |
 | Language | Python |
 | Database | PostgreSQL 16 with Psycopg 3 |
-| Frontend | Django Templates and vanilla JavaScript |
+| Frontend | Django Templates, Tailwind CSS, and vanilla JavaScript |
 | Authentication | Django Auth with a custom `User` model |
 | Time zone | Asia/Tokyo |
 
@@ -141,6 +148,7 @@ docs/          Public project documentation
 errorHandler/  Global HTTP error handlers and templates
 log/           Generated runtime logs; log files are ignored by Git
 quiz/          Quiz settings, selection, attempts, and Ajax play flow
+frontend/      Tailwind CSS source and isolated browser-test setup
 ```
 
 Additional public documentation:
@@ -270,9 +278,15 @@ Generate reusable kana background tiles with:
 python devtools/image_generator/generate_kana_bg.py
 ```
 
+## Frontend Development
+
+Install the frontend tools with `npm ci`. Use `npm run css:watch` while developing and `npm run css:build` before reviewing or deploying changes. Edit `frontend/css/app.css`; `static/css/app.css` is generated and committed.
+
+Browser-test setup and isolated fixtures are documented in [frontend/README.md](frontend/README.md).
+
 ## Testing
 
-The current suite contains ten UI and language regression tests covering template compilation, public/admin language boundaries, built-in validation language, shared choices, kana keyboard event values, output escaping, notification language, and key detail labels.
+Eleven Django regression tests cover template compilation, language boundaries, built-in validation, shared choices, kana keyboard values, escaping, notifications, key detail labels, and the regular-user boundary for the answer-judgement debug dialog. All eleven passed on 7 October 2026 using isolated SQLite test settings. Ten earlier tests also passed on an isolated PostgreSQL test database.
 
 An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test database. Supply its credentials through the shell environment or local/CI secrets:
 
@@ -280,19 +294,19 @@ An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test 
 DB_USER=japanese_quiz_test DB_PASSWORD="<test-role-password>" python manage.py test
 ```
 
-High-priority missing coverage includes activation and email identity, reviewed vocabulary mutations, concurrent request handling, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
+Fourteen Playwright browser cases have been added; the CLI was unavailable during the latest documentation sync, so that run was not verified. High-priority missing Django coverage includes activation and email identity, reviewed vocabulary mutations, concurrent request handling, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
 
 ## Current Limitations
 
 - Multiple-choice import, review, administration, and quiz flows are not connected; their active vocabulary types remain disabled.
 - Automated tests do not yet cover the major domain and concurrency paths.
 - Full database export and restore are not implemented.
-- Browser-level visual verification, layout polish, and answer-overlay work remain incomplete.
-- Production deployment settings and operational procedures are not ready.
+- The mobile layout and answer overlay are implemented; browser verification needs to be run and expanded.
+- Settings read secrets, hosts, database, and SMTP values from the environment, but production infrastructure and operational procedures are not ready.
 
 ## Security Notes
 
-The current default settings are for local development. Before production deployment, move secrets and environment-dependent settings out of source control, use `DEBUG=False`, configure allowed hosts and trusted origins, enforce HTTPS, prepare static-file serving, provision and back up PostgreSQL, and run Django's deployment checks.
+Settings load secrets, database credentials, SMTP, allowed hosts, and trusted origins from environment variables. With `DEBUG=False`, HTTPS redirect and secure cookies are enabled. Production deployment still requires separate secrets and hosts, correctly configured TLS proxy and static-file serving, PostgreSQL backup and rollback procedures, and `python manage.py check --deploy` in the deployed environment.
 
 ## Development History
 

@@ -110,7 +110,11 @@ This document records significant implementation milestones, architectural decis
 | 2026-09-08 | `012ae67` | Added explicit full-pool confirmation and separate request/review context. |
 | 2026-09-09 | `9062a2e` | Added account email activation. |
 | 2026-09-12 | `89d3030` | Added canonical email identity and quiz terminal recovery. |
-| 2026-09-15 | Uncommitted; base `7a9b3c4` | Migrated development to PostgreSQL and added `QuizAttempt` idempotency. |
+| 2026-09-16 | `10f6dd2` | Migrated development to PostgreSQL and committed `QuizAttempt` idempotency. |
+| 2026-09-17 | `236784f` | Moved security and SMTP settings to the environment and added HTTPS defaults. |
+| 2026-09-22 | `e87ac95` | Split vocabulary filtering from results and preserved return navigation. |
+| 2026-09-25 | `7bc9b5e` | Added multi-select vocabulary filters and completed Japanese interface labels. |
+| 2026-09-30 | `69b3c87` | Added kana palette tooling, QuizAttempt retention, and weight-command scaffolding. |
 
 ## Detailed September Decisions
 
@@ -122,7 +126,7 @@ Verification compared the old and new algorithms across 24,336 input pairs of le
 
 ### Interface-language boundary
 
-User-facing pages use Japanese while Django Admin and administrator-only review screens use English. Request-level middleware activates the appropriate language and restores the previous language after the response. Database choice values and JavaScript contracts remain stable; only display labels change.
+Project-built pages, including staff feedback screens, use Japanese; Django Admin uses English. Request-level middleware activates the appropriate language and restores the previous language after the response. Database choice values and JavaScript contracts remain stable; only display labels change.
 
 The first ten regression tests cover template compilation, language routing, built-in validation language, shared choices, keyboard values, output escaping, notifications, and detail labels.
 
@@ -162,9 +166,25 @@ Concurrent duplicates wait at the row lock and then observe the completed state,
 
 PostgreSQL 16.15, the migration graph, 24 database tables, transactional rollback behaviour, Answer/Skip single-use smoke checks, and the ten existing regression tests were verified. A dedicated test role may create and delete isolated test databases; the application role remains `NOCREATEDB`.
 
-This milestone was still uncommitted when recorded and therefore is not represented as a committed release in this history.
+The PostgreSQL and QuizAttempt work was committed as `10f6dd2` on 16 September 2026.
+
+## 2026-10 — Workflow Refinement and Mobile UI
+
+| Date | Commit | Milestone |
+| --- | --- | --- |
+| 2026-10-04 | `8e77709` | Added notification return paths, quiz settings restore, and unanswered-question guards. |
+| 2026-10-04 | `314c866` | Refined feedback filtering, notification bulk updates, vocabulary requests, and query loading. |
+| 2026-10-07 | `a909a7e` | Applied Tailwind UI across the application and added browser-test scaffolding. |
+
+### Engineering direction
+
+- Navigation preserves a validated return URL, while state-changing actions keep server-side guards.
+- Quiz settings, full-pool choice, and active-session state have distinct responsibilities.
+- Shared Django components, Tailwind CSS, and vanilla JavaScript provide the mobile UI without introducing a separate frontend application.
+- The result view positions missing and extra markers over the relevant kana images.
+- Eleven Django tests passed with isolated SQLite settings on 7 October 2026. Fourteen Playwright cases exist, but the CLI was unavailable for this documentation sync.
 
 ## Current Position
 
-By September 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes. The most important remaining work is broader automated testing, production configuration and operations, final UI/UX work, and a complete multiple-choice vertical slice.
+By October 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes. The most important remaining work is broader automated testing, production deployment and operations, and a complete multiple-choice vertical slice.
 
