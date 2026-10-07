@@ -36,4 +36,85 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        path(
+            'ui-confirm/',
+            TemplateView.as_view(template_name='config/ui_confirm.html'),
+            name='ui_confirm',
+        ),
+        path(
+            'ui-confirm/account-activation/confirm/',
+            TemplateView.as_view(
+                template_name='accounts/user_activate.html',
+                extra_context={
+                    'activation_status': 'confirm',
+                    'ui_preview': True,
+                },
+            ),
+            name='ui_confirm_activation_confirm',
+        ),
+        path(
+            'ui-confirm/account-activation/success/',
+            TemplateView.as_view(
+                template_name='accounts/user_activate.html',
+                extra_context={
+                    'activation_status': 'success',
+                    'ui_preview': True,
+                },
+            ),
+            name='ui_confirm_activation_success',
+        ),
+        path(
+            'ui-confirm/account-activation/already-active/',
+            TemplateView.as_view(
+                template_name='accounts/user_activate.html',
+                extra_context={
+                    'activation_status': 'already_active',
+                    'ui_preview': True,
+                },
+            ),
+            name='ui_confirm_activation_already_active',
+        ),
+        path(
+            'ui-confirm/account-activation/invalid/',
+            TemplateView.as_view(
+                template_name='accounts/user_activate.html',
+                extra_context={
+                    'activation_status': 'invalid',
+                    'ui_preview': True,
+                },
+            ),
+            name='ui_confirm_activation_invalid',
+        ),
+        path(
+            'ui-confirm/quiz/no-question/',
+            TemplateView.as_view(
+                template_name='config/ui_confirm_no_question.html',
+            ),
+            name='ui_confirm_quiz_no_question',
+        ),
+        path(
+            'ui-confirm/error/400/',
+            TemplateView.as_view(template_name='errorHandler/error400.html'),
+            name='ui_confirm_error400',
+        ),
+        path(
+            'ui-confirm/error/403/',
+            TemplateView.as_view(template_name='errorHandler/error403.html'),
+            name='ui_confirm_error403',
+        ),
+        path(
+            'ui-confirm/error/404/',
+            TemplateView.as_view(template_name='errorHandler/error404.html'),
+            name='ui_confirm_error404',
+        ),
+        path(
+            'ui-confirm/error/500/',
+            TemplateView.as_view(template_name='errorHandler/error500.html'),
+            name='ui_confirm_error500',
+        ),
+    ]
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT,
+    )

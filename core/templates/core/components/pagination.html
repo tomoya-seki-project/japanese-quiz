@@ -1,0 +1,40 @@
+{% load ui_components %}
+{% if page_obj %}
+    {% pagination_data page_obj request as pages %}
+    <nav class="pagination"
+         aria-label="ページ選択"
+         data-pagination
+         data-current="{{ page_obj.number }}"
+         data-total="{{ paginator.num_pages }}">
+        <div class="pagination-group">
+            {% if paginator.num_pages > 1 %}
+                {% if page_obj.has_previous %}
+                    <a class="page-link" href="{{ pages.first }}" aria-label="最初のページ">«</a>
+                    <a class="page-link" href="{{ pages.previous }}" aria-label="前のページ">‹</a>
+                {% else %}
+                    <span class="page-link" aria-disabled="true">«</span>
+                    <span class="page-link" aria-disabled="true">‹</span>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="pagination-group" data-page-numbers>
+            {% for p in pages.numbers %}
+                <a class="page-link"
+                   href="{{ p.url }}"
+                   data-page="{{ p.number }}"
+                   {% if p.number == page_obj.number %}aria-current="page"{% endif %}>{{ p.number }}</a>
+            {% endfor %}
+        </div>
+        <div class="pagination-group justify-end">
+            {% if paginator.num_pages > 1 %}
+                {% if page_obj.has_next %}
+                    <a class="page-link" href="{{ pages.next }}" aria-label="次のページ">›</a>
+                    <a class="page-link" href="{{ pages.last }}" aria-label="最後のページ">»</a>
+                {% else %}
+                    <span class="page-link" aria-disabled="true">›</span>
+                    <span class="page-link" aria-disabled="true">»</span>
+                {% endif %}
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}

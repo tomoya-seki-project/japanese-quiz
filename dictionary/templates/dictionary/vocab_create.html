@@ -1,17 +1,38 @@
 {% extends "core/base.html" %}
+{% block page_title %}単語の追加{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with history=True %}
+{% endblock %}
 {% block content %}
-    <h1>単語の追加</h1>
-    <form method="POST">
+    <form class="ui-stack"
+          id="request-form"
+          method="post"
+          data-dirty
+          data-vocab-request
+          novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" name="submit_action" value="home">
-            <span>申請</span>
-            <span>ホームへ</span>
-        </button>
-
-        <button type="submit" name="submit_action" value="continue">
-            <span>続けて</span>
-            <span>次の単語</span>
-        </button>
+        {% include "dictionary/partials/request_fields.html" %}
     </form>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <div class="grid grid-cols-2 gap-3">
+            <button type="submit"
+                    form="request-form"
+                    name="submit_action"
+                    value="home"
+                    class="ui-button flex-col">
+                <span>申請</span>
+                <span class="text-sm">ホームへ</span>
+            </button>
+            <button type="submit"
+                    form="request-form"
+                    name="submit_action"
+                    value="continue"
+                    class="ui-button flex-col">
+                <span>続けて</span>
+                <span class="text-sm">次の単語</span>
+            </button>
+        </div>
+    </footer>
 {% endblock %}

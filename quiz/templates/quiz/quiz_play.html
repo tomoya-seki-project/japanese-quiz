@@ -1,27 +1,26 @@
-{% extends "core/base_clear.html" %}
+{% extends "core/base.html" %}
 {% load static %}
+{% block page_title %}クイズ{% endblock %}
 {% block content %}
-    <h1>クイズ</h1>
-    <div id="quiz-error-message" role="alert" aria-live="assertive"></div>
-    <div id="quiz-area-container" aria-live="polite" aria-atomic="true">
-        {% include "quiz/partials/quiz_question_partial.html" %}
+    <div id="quiz-area-container" data-static-base="{% static '' %}">
+        {% if question_vocab %}
+            {% include "quiz/partials/quiz_question_partial.html" %}
+        {% else %}
+            {% include "quiz/partials/quiz_no_question_partial.html" %}
+        {% endif %}
     </div>
-    <button type="button" id="show-input-panel-button">
-        キーボード表示
-    </button>
-    <div id="quiz-input-panel-container" hidden>
-        {% include "quiz/partials/quiz_input_panel_partial.html" %}
-    </div>
-    {% endblock %}
-    {% block javascript %}
+{% endblock %}
+{% block javascript %}
+    <dialog class="keyboard-dialog" id="quiz-keyboard" aria-label="回答を入力">
+        <div class="keyboard-layout">
+            <div class="keyboard-answer" data-keyboard-backdrop>
+                <div id="keyboard-answer-display" class="kana-display" aria-live="polite"></div>
+            </div>
+            <div id="quiz-input-panel-container" class="keyboard-panel">
+                {% include "quiz/partials/quiz_input_panel_partial.html" %}
+            </div>
+        </div>
+    </dialog>
     <script src="{% static 'js/quiz/kana_input.js' %}"></script>
     <script src="{% static 'js/quiz/quiz_play.js' %}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function(){
-            quizAreaHandler();
-            answerAreaReactionHandler();
-            inputPanelToggleHandler();
-            tipsHandler();
-        })
-    </script>
 {% endblock %}

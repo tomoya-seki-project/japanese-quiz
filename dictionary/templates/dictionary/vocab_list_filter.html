@@ -1,11 +1,20 @@
 {% extends "core/base.html" %}
+{% block page_title %}単語帳{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with history=True %}
+{% endblock %}
 {% block content %}
-    <h1>単語帳</h1>
-    <form
-        method="GET"
-        action="{% url "dictionary:vocab_list" %}"
-    >
-        {{ search_form.as_p }}
-        <button type="submit">検索</button>
+    <form id="filter-form"
+          method="get"
+          action="{% url 'dictionary:vocab_list' %}"
+          class="ui-stack">
+        {% include "core/components/selection.html" with field=search_form.vocab_type %}
+        {% include "core/components/selection.html" with field=search_form.level %}
+        {% include "core/components/selection.html" with field=search_form.category %}
     </form>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button class="ui-button" form="filter-form" type="submit">検索</button>
+    </footer>
 {% endblock %}

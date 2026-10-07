@@ -1,8 +1,74 @@
 {% extends "core/base.html" %}
-{% block content %}
-    <h1>言葉の輪へようこそ！</h1>
+{% load static %}
+{% block header %}
     {% if user.is_authenticated %}
-        <a href="{% url "quiz:quiz_setting" %}" class="btn btn-primary">クイズ</a>
-        <a href="{% url "dictionary:vocab_create" %}" class="btn btn-primary">単語の追加</a>
+        <div class="absolute inset-x-0 top-0 flex justify-between px-3 z-10 pointer-events-none">
+            <form method="post"
+                  action="{% url 'accounts:user_logout' %}"
+                  class="pointer-events-auto">
+                {% csrf_token %}
+                <button class="icon-button home-corner" type="submit" aria-label="ログアウト">
+                    {% include "core/components/icon.html" with name="logout" %}
+                </button>
+            </form>
+            <a class="icon-button home-corner home-corner-right pointer-events-auto"
+               href="{% url 'core:user_event_list' %}"
+               aria-label="お知らせ{% if unread_event_count %}・未読{{ unread_event_count }}件{% endif %}">
+                {% include "core/components/icon.html" with name="bell" %}
+                {% if unread_event_count %}
+                    <span class="h-2 w-2 rounded-full bg-danger"></span>
+                {% endif %}
+            </a>
+        </div>
+    {% endif %}
+{% endblock %}
+{% block content %}
+    <div class="ui-stack">
+        <div class="home-brand">
+            <h1 class="home-logo-heading">
+                <img class="home-logo"
+                     src="{% static 'rec/logo/wordloop_logo.png' %}"
+                     alt="言葉の輪">
+            </h1>
+            <div class="ui-card home-identity text-center font-bold mx-auto">
+                {% if user.is_authenticated %}
+                    {{ user.username }}
+                {% else %}
+                    ゲスト
+                {% endif %}
+            </div>
+        </div>
+        {% if user.is_authenticated %}
+            {% include "core/components/learning.html" %}
+            <div class="home-actions flex flex-col items-center gap-5 py-5">
+                <a class="ui-button" href="{% url 'quiz:quiz_setting' %}">クイズ</a>
+                <a class="ui-button ui-button-secondary"
+                   href="{% url 'dictionary:vocab_create' %}">単語の追加</a>
+            </div>
+        {% else %}
+            <div class="home-actions flex flex-col items-center gap-5 py-5">
+                <a class="ui-button ui-button-secondary"
+                   href="{% url 'accounts:user_regist' %}">登録</a>
+                <a class="ui-button" href="{% url 'accounts:user_login' %}">ログイン</a>
+                <a class="ui-button ui-button-secondary"
+                   href="{% url 'dictionary:vocab_list_filter' %}">単語帳</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+{% block footer %}
+    {% if user.is_authenticated %}
+        <footer class="app-footer">
+            <nav class="home-navigation">
+                <a class="ui-button" href="{% url 'accounts:user_detail' %}">プロフィール</a>
+                <a class="ui-button"
+                   href="{% url 'dictionary:user_vocab_list_filter' %}">単語帳</a>
+                <a class="ui-button" href="{% url 'core:feedback' %}">フィードバック
+                    {% if user.is_superuser and unreply_feedback_count %}
+                        <span class="sr-only">未対応{{ unreply_feedback_count }}件</span>
+                    {% endif %}
+                </a>
+            </nav>
+        </footer>
     {% endif %}
 {% endblock %}

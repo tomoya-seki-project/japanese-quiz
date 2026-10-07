@@ -1,7 +1,10 @@
 {% extends "core/base.html" %}
+{% block page_title %}ログアウト{% endblock %}
+{% block main_class %}flex flex-col{% endblock %}
 {% block content %}
-    <h1>ログアウトしました。</h1>
-    <a href="{% url 'accounts:user_login' %}" class="btn btn-primary">
-        ログイン
-    </a>
+    <section class="state-card">
+        <div class="state-icon flex justify-center">{% include "core/components/icon.html" with name="logout" %}</div>
+        <h2>ログアウトしました。</h2>
+        <a class="ui-button ui-button-action" href="{% url 'accounts:user_login' %}">ログイン</a>
+    </section>
 {% endblock %}

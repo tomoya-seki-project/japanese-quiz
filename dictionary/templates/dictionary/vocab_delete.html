@@ -1,9 +1,24 @@
 {% extends "core/base.html" %}
+{% block page_title %}削除申請{% endblock %}
+{% block back %}
+    {% url 'dictionary:vocab_detail' pk=vocab.pk as detail_url %}
+    {% include "core/components/back.html" with href=detail_url %}
+{% endblock %}
 {% block content %}
-    <h1>単語の削除申請</h1>
-    <form method="POST">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">削除申請</button>
-    </form>
+    <div class="ui-stack">
+        {% include "dictionary/partials/vocab_data.html" %}
+        <form id="request-form"
+              method="post"
+              data-dirty
+              data-confirm-delete
+              novalidate>
+            {% csrf_token %}
+            {% include "core/components/field.html" with field=form.request_reason optional=True %}
+        </form>
+    </div>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button type="submit" form="request-form" class="ui-button ui-button-danger">削除申請</button>
+    </footer>
 {% endblock %}

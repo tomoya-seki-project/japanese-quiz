@@ -1,9 +1,22 @@
 {% extends "core/base.html" %}
+{% block page_title %}変更申請{% endblock %}
+{% block back %}
+    {% url 'dictionary:vocab_detail' pk=view.kwargs.vocab_id as detail_url %}
+    {% include "core/components/back.html" with href=detail_url %}
+{% endblock %}
 {% block content %}
-    <h1>単語の変更申請</h1>
-    <form method="POST">
+    <form class="ui-stack"
+          id="request-form"
+          method="post"
+          data-dirty
+          data-vocab-request
+          novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">変更申請</button>
+        {% include "dictionary/partials/request_fields.html" %}
     </form>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button type="submit" form="request-form" class="ui-button">変更申請</button>
+    </footer>
 {% endblock %}

@@ -1,0 +1,29 @@
+{% load ui_components %}
+<fieldset class="field-card selection-field {% if field.errors %}field-invalid{% endif %}"
+          data-selection
+          {% if limit %}data-limit="{{ limit }}"{% endif %}
+          {% if deselect %}data-deselect{% endif %}>
+    <legend class="sr-only">{{ field.label }}</legend>
+    <div class="field-label" aria-hidden="true">
+        {{ field.label }}
+        {% if optional and not field.field.required %}
+            <span class="field-optional">任意</span>
+        {% endif %}
+    </div>
+    <div class="selection-grid {% if field.name == 'level' %}level-options{% endif %} {% if field.name == 'category' or field.name == 'categories' %}categories{% endif %}">
+        {% selection_options field as options %}
+        {% for option in options %}
+            <label class="selection-option">
+                <input type="{{ option.type }}"
+                       name="{{ field.html_name }}"
+                       value="{{ option.value }}"
+                       {% if option.selected %}checked{% endif %}
+                       {% if field.field.disabled %}disabled{% endif %}>
+                <span>{{ option.label }}</span>
+            </label>
+        {% endfor %}
+    </div>
+    {% if field.errors %}
+        <div class="field-errors">{{ field.errors }}</div>
+    {% endif %}
+</fieldset>

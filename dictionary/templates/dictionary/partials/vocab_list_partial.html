@@ -1,43 +1,12 @@
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>単語</th>
-            <th>読み方</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for vocab in vocabs %}
-        <tr>
-            <td>{{ vocab.pk }}</td>
-            <td><a href="{% url "dictionary:vocab_detail" pk=vocab.pk %}?next={{ request.get_full_path|urlencode }}">{{ vocab.word }}</a></td>
-            <td>{{ vocab.kana }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-{% if is_paginated %}
-<div>
-    {% if page_obj.has_previous %}
-        <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
-    {% else %}
-        前へ
-    {% endif %}
-
-    {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-            {{ num }}
-        {% else %}
-            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
-       {% endif %}
-    {% endfor %}
-
-    {% if page_obj.has_next %}
-        <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
-    {% else %}
-        次へ
-    {% endif %}
-</div>
-
-{% endif %}
+{% for vocab in vocabs %}
+    <article class="ui-list-item">
+        <a href="{% url 'dictionary:vocab_detail' pk=vocab.pk %}?next={{ request.get_full_path|urlencode }}">
+            <div class="vocab-columns">
+                <span>{{ vocab.word }}</span>
+                <span>{{ vocab.kana }}</span>
+            </div>
+        </a>
+    </article>
+{% empty %}
+    <p class="ui-card text-center">該当する単語はありません。</p>
+{% endfor %}

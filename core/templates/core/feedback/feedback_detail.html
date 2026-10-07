@@ -1,13 +1,25 @@
 {% extends "core/base.html" %}
+{% block page_title %}フィードバック詳細{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with href=return_url %}
+{% endblock %}
 {% block content %}
-    <h1>フィードバック詳細</h1>
-    {{ feedback.user }}
-    {{ feedback.get_type_display }}
-    {{ feedback.context }}
-    {% if feedback.status != "closed" %}
-        <a href="{% url "core:feedback_reply" feedback_pk=feedback.pk%}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary">返信</a>
+    {% include "core/feedback/partials/feedback_data.html" with show_status=True %}
+    {% if feedback.reply_at %}
+        <hr class="section-rule">
+        <dl class="ui-card">
+            {% include "core/components/row.html" with label="返信者" value=feedback.reply_by.username|default:"—" %}
+            {% include "core/components/row.html" with label="返信日時" value=feedback.reply_at|date:"Y年m月d日 H:i" %}
+        </dl>
     {% endif %}
-    <a href="{{ return_url }}" class="btn btn-primary">
-        一覧に戻る
-    </a>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        {% if feedback.status == "closed" %}
+            <button class="ui-button" disabled>終了</button>
+        {% else %}
+            <a class="ui-button"
+               href="{% url 'core:feedback_reply' feedback_pk=feedback.pk %}?next={{ request.get_full_path|urlencode }}">返信</a>
+        {% endif %}
+    </footer>
 {% endblock %}

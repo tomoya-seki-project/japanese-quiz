@@ -1,18 +1,44 @@
-<h2 class="quiz-content-heading" tabindex="-1">クイズ結果</h2>
-{% if ended_early %}
-    {% if end_reason == "question_unavailable" %}
-        <p>現在の問題が出題対象から外れたため、クイズを終了しました。</p>
-    {% elif end_reason == "no_question_pool" %}
-        <p>出題できる問題がなくなったため、クイズを終了しました。</p>
-    {% elif end_reason == "invalid_quiz_session" %}
-        <p>クイズ情報が無効になったため、クイズを終了しました。</p>
+<div class="quiz-scroll ui-stack" data-quiz-state="summary">
+    <h2 class="quiz-content-heading sr-only" tabindex="-1">結果</h2>
+    <div class="w-32 mx-auto">{% include "core/components/construction.html" %}</div>
+    {% if ended_early %}
+        <p class="ui-card text-center">
+            {% if end_reason == "question_unavailable" %}現在の問題が出題対象から外れたため、クイズを終了しました。{% elif end_reason == "no_question_pool" %}出題できる問題がなくなったため、クイズを終了しました。{% else %}クイズ情報が無効になったため、クイズを終了しました。{% endif %}
+        </p>
     {% endif %}
-{% endif %}
-<div id="quiz-count">回答した問題数：{{ correct_count|add:wrong_count }}問</div>
-正解数： {{ correct_count }}
-不正解数： {{ wrong_count }}
-スキップ数： {{ skipped_count }}
-ヒント使用回数： {{ total_tips_count }}
-
-
-<a href="{% url "HomePage" %}" class="btn btn-primary">ホームに戻る</a>
+    <dl class="summary-grid">
+        <div class="summary-card summary-total">
+            <dt>回答した問題</dt>
+            <dd>
+                {{ correct_count|add:wrong_count }}問
+            </dd>
+        </div>
+        <div class="summary-card">
+            <dt class="text-success">正解</dt>
+            <dd>
+                {{ correct_count }}問
+            </dd>
+        </div>
+        <div class="summary-card">
+            <dt class="text-danger">不正解</dt>
+            <dd>
+                {{ wrong_count }}問
+            </dd>
+        </div>
+        <div class="summary-card">
+            <dt class="text-icon">スキップ</dt>
+            <dd>
+                {{ skipped_count }}問
+            </dd>
+        </div>
+        <div class="summary-card">
+            <dt class="text-[#E6B85C]">ヒント</dt>
+            <dd>
+                {{ total_tips_count }}回
+            </dd>
+        </div>
+    </dl>
+</div>
+<footer class="app-footer">
+    <a class="ui-button" href="{% url 'quiz:quiz_setting' %}">クイズ設定へ</a>
+</footer>

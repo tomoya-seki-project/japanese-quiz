@@ -1,59 +1,119 @@
-<h2 class="quiz-content-heading" tabindex="-1">結果</h2>
-<div id="quiz-count">
-    {% if total_quiz_num > 0 %}
-        第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
-    {% else %}
-        第{{ current_quiz_num }}問
+{% load static %}
+<div class="quiz-scroll ui-stack"
+     data-quiz-state="result"
+     data-vocab-type="{{ question_vocab.vocab.type }}">
+    <h2 class="quiz-content-heading sr-only" tabindex="-1">回答結果</h2>
+    <div class="grid grid-cols-3 items-center gap-2">
+        <span class="ui-card quiz-result-status quiz-result-count text-sm">第{{ current_quiz_num }}問</span>
+        <span class="quiz-result-status text-center font-bold text-paper {% if is_correct %}bg-success{% else %}bg-danger{% endif %}">
+            {% if is_correct %}正解{% else %}不正解{% endif %}
+        </span>
+        <div class="text-right">
+            {% if user.is_superuser %}
+                <button type="button"
+                        class="ui-button ui-button-secondary !min-h-11 !rounded-lg"
+                        data-open-dialog="judgement-dialog">
+                    判定
+                </button>
+            {% endif %}
+        </div>
+    </div>
+    <section class="ui-card text-center quiz-result-word-card">
+        <div class="quiz-word">{{ question_vocab.vocab.word }}</div>
+        <p class="text-xl">({{ question_vocab.vocab.kana }})</p>
+    </section>
+    <div class="w-40 mx-auto">{% include "core/components/construction.html" %}</div>
+    <section class="ui-card">
+        <dl>
+            <div class="data-row">
+                <dt>あなたの回答</dt>
+                <dd>
+                    {{ question_vocab.last_answer }}
+                </dd>
+            </div>
+        </dl>
+        <div class="kana-display compared-answer-result border-t border-dashed border-line"
+             aria-label="回答の比較">
+            {% for item in compared_result %}
+                <span class="kana-unit"
+                      data-comparison="{{ item.type }}"
+                      title="正解：{{ item.correct }}／回答：{{ item.answer }}">
+                    <img src="{% static item.image_path %}"
+                         alt="{{ item.answer|default:item.correct }}">
+                    {% if item.sub_image_path %}
+                        <img class="kana-overlay"
+                             src="{% static item.sub_image_path %}"
+                             alt="{% if item.type == 'MISSING' %}不足{% elif item.type == 'EXTRA' %}余分{% else %}相違{% endif %}">
+                    {% endif %}
+                </span>
+            {% endfor %}
+        </div>
+    </section>
+    {% if user.is_superuser %}
+        <dialog class="ui-modal"
+                id="judgement-dialog"
+                aria-labelledby="judgement-title">
+            <div class="modal-layout">
+                <h2 class="modal-title" id="judgement-title">判定詳細</h2>
+                <div class="modal-body">
+                    {% for item in compared_result %}
+                        <dl class="grid grid-cols-2 gap-3 py-3 border-b border-dashed border-line">
+                            <div class="judgement-cell">
+                                <dt class="font-bold">正解</dt>
+                                <dd>
+                                    {{ item.correct|default:"—" }}
+                                </dd>
+                            </div>
+                            <div class="judgement-cell">
+                                <dt class="font-bold">回答</dt>
+                                <dd>
+                                    {{ item.answer|default:"—" }}
+                                </dd>
+                            </div>
+                            <div class="judgement-cell">
+                                <dt class="font-bold">種類</dt>
+                                <dd class="comparison-type" data-type="{{ item.type }}">
+                                    {{ item.type }}
+                                </dd>
+                            </div>
+                            <div class="judgement-cell">
+                                <dt class="font-bold">詳細種類</dt>
+                                <dd>
+                                    {{ item.sub_type|default:"—" }}
+                                </dd>
+                            </div>
+                        </dl>
+                    {% endfor %}
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="ui-button" data-close-dialog>完了</button>
+                </div>
+            </div>
+        </dialog>
     {% endif %}
 </div>
-{{ question_vocab.vocab.word }}
-{{ question_vocab.vocab.kana }}
-{% if is_correct %}
-    <div>{{ question_vocab.last_answer }}</div>
-    正解
-{% else %}
-    <div>{{ question_vocab.last_answer }}</div>
-    不正解
-{% endif %}
-{% if total_quiz_num < 0 or total_quiz_num == current_quiz_num %}
-    <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_summary" %}">
-        {% csrf_token %}
-            <button type="submit">結果へ</button>
-    </form>
-{% endif %}
-{% if total_quiz_num < 0 or total_quiz_num > current_quiz_num %}
-    <form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_next" %}">
-        {% csrf_token %}
-            <button type="submit">次へ</button>
-    </form>
-{% endif %}
-
-{% load static %}
-<div class="compared-answer-result">
-    {% for result_image in compared_result %}
-        <img src="{% static result_image.image_path %}" style="width:100px;height:100px;object-fit:contain;">
-        {% if result_image.sub_image_path != ""%}
-            <img src="{% static result_image.sub_image_path %}" style="width:100px;height:100px;object-fit:contain;">
+<footer class="app-footer quiz-result-actions">
+    {% if total_quiz_num > 0 and current_quiz_num >= total_quiz_num %}
+        <form class="quiz-ajax-form"
+              method="post"
+              action="{% url 'quiz:quiz_summary' %}">
+            {% csrf_token %}
+            <button type="submit" class="ui-button w-full">結果へ</button>
+        </form>
+    {% else %}
+        <form class="quiz-ajax-form"
+              method="post"
+              action="{% url 'quiz:quiz_next' %}">
+            {% csrf_token %}
+            <button type="submit" class="ui-button w-full">次へ</button>
+        </form>
+        {% if total_quiz_num < 0 %}
+            <form class="quiz-ajax-form"
+                  method="post"
+                  action="{% url 'quiz:quiz_summary' %}">
+                {% csrf_token %}
+                <button class="ui-button ui-button-secondary w-full" type="submit">結果へ</button>
+            </form>
         {% endif %}
-    {% endfor %}
-</div>
-<table class="table table-bordered table-sm">
-    <thead>
-        <tr>
-            <th scope="col">type</th>
-            <th scope="col">correct</th>
-            <th scope="col">user</th>
-            <th scope="col">sub_stype</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in compared_result %}
-            <tr>
-                <td>{{ item.type }}</td>
-                <td>{{ item.correct }}</td>
-                <td>{{ item.answer }}</td>
-                <td>{{ item.sub_type }}</td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    {% endif %}
+</footer>

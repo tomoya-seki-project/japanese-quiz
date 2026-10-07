@@ -1,0 +1,17 @@
+<dl class="ui-card">
+    {% if show_status %}
+        <div class="data-row">
+            <dt>状態</dt>
+            <dd class="flex items-center gap-2 {% if feedback.status == 'pending' %}text-danger font-bold{% elif feedback.status == 'replied' %}text-success{% endif %}">
+            {% include "core/components/icon.html" with name=feedback.status %}{{ feedback.get_status_display }}</dd>
+        </div>
+    {% endif %}
+    {% include "core/components/row.html" with label="ユーザー" value=feedback.user.username %}
+    {% include "core/components/row.html" with label="種類" value=feedback.get_type_display %}
+    {% include "core/components/row.html" with label="送信日時" value=feedback.create_at|date:"Y年m月d日 H:i" %}
+</dl>
+<hr class="section-rule">
+<section class="ui-card">
+    <h2 class="field-label mb-3">内容</h2>
+    <p class="whitespace-pre-wrap">{{ feedback.context }}</p>
+</section>

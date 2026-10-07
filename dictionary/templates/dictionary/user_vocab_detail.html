@@ -1,40 +1,89 @@
 {% extends "core/base.html" %}
+{% load ui_components %}
+{% block page_title %}マイ単語帳の詳細{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with href=return_url %}
+{% endblock %}
 {% block content %}
-    {% load ui_labels %}
-    <h1>マイ単語帳の詳細</h1>
-    <form method="POST">
+    <form id="in-use-form" method="post" data-dirty data-save-on-change>
         {% csrf_token %}
-        <div>出題対象： {{ in_use_form.in_use }}</div>
-        <div>出題優先度： {{ user_vocab.weight }}</div>
-        <div>正解数： {{ user_vocab.correct_count }}</div>
-        <div>不正解数： {{ user_vocab.incorrect_count }}</div>
-        <div>連続正解・不正解数： {{ user_vocab.streak }}</div>
-        <small>正の数は連続正解、負の数は連続不正解を表します。</small>
-        <div>最終出題日時： {{ user_vocab.last_quiz_at|default_if_none:"未出題" }}</div>
-        <div>
-            前回の回答：
-            {% if user_vocab.last_answer %}
-                {{ user_vocab.last_answer }}
-            {% else %}
-                まだありませんよ
-            {% endif %}
-        </div>
-        <button type="submit">保存</button>
+        <section class="ui-card">
+            <fieldset class="selection-field">
+                <legend class="field-label w-full">出題対象</legend>
+                <div class="selection-grid grid-cols-2">
+                    <label class="selection-option">
+                        <input type="radio"
+                               name="in_use"
+                               value="True"
+                               {% if user_vocab.in_use %}checked{% endif %}>
+                        <span>出題する</span>
+                    </label>
+                    <label class="selection-option">
+                        <input type="radio"
+                               name="in_use"
+                               value="False"
+                               {% if not user_vocab.in_use %}checked{% endif %}>
+                        <span>出題しない</span>
+                    </label>
+                </div>
+            </fieldset>
+            <dl class="user-vocab-stats">
+                <div class="data-row block">
+                    <dt class="mb-3">出題優先度</dt>
+                    <dd class="!ml-0">
+                        <div class="weight-track">
+                            <div class="weight-fill"
+                                 style="width:{{ user_vocab.weight|weight_width }}%;
+                                        background:{{ user_vocab.weight|weight_color }}"></div>
+                            <span class="weight-number"
+                                  style="{% if user_vocab.weight < 10 %}right:12px{% else %}right:calc(100% - {{ user_vocab.weight|weight_width }}% + 12px){% endif %};
+                                         {% if user_vocab.weight >= 200 %}color:#F8FCFF{% endif %}">{{ user_vocab.weight }}</span>
+                        </div>
+                    </dd>
+                </div>
+                {% include "core/components/row.html" with label="正解数" value=user_vocab.correct_count tone="text-success" %}
+                {% include "core/components/row.html" with label="不正解数" value=user_vocab.incorrect_count tone="text-danger" %}
+                <div class="data-row">
+                    <dt>連続記録</dt>
+                    <dd>
+                        {% if user_vocab.streak > 0 %}
+                            <span class="text-success">{{ user_vocab.streak }}問連続正解</span>
+                        {% elif user_vocab.streak < 0 %}
+                            <span class="text-danger">{{ user_vocab.streak|absolute }}問連続不正解</span>
+                        {% else %}
+                            連続記録なし
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="data-row">
+                    <dt>最後出題時間</dt>
+                    <dd>
+                        <button type="button"
+                                class="time-toggle"
+                                data-time-toggle="{{ user_vocab.last_quiz_at|actual_quiz_time }}">
+                            {{ user_vocab.last_quiz_at|relative_quiz_time }}
+                        </button>
+                    </dd>
+                </div>
+                {% include "core/components/row.html" with label="前回回答" value=user_vocab.last_answer|default:"まだありませんよ" %}
+            </dl>
+        </section>
     </form>
-    <hr>
-    <h3>単語の詳細</h3>
-    <div>単語： {{ user_vocab.vocab.word }}</div>
-    <div>意味： {{ user_vocab.vocab.meaning }}</div>
-    <div>読み方（かな）： {{ user_vocab.vocab.kana }}</div>
-    <div>JLPTレベル： {{ user_vocab.vocab.level|vocab_level_label }}</div>
-    <div>種類： {{ user_vocab.vocab.type|vocab_type_label }}</div>
-    <div>
-        カテゴリー：
-        {% for category in user_vocab.vocab.categories.all %}
-            <div>{{ category }}</div>
-        {% endfor %}
-    </div>
-    <a href="{% url "dictionary:vocab_update" vocab_id=user_vocab.vocab.pk %}" class="btn btn-primary">変更申請</a>
-    <a href="{% url "dictionary:vocab_delete" vocab_id=user_vocab.vocab.pk %}" class="btn btn-primary">削除申請</a>
-    <a href="{{ return_url }}" class="btn btn-primary">一覧に戻る</a>
+    <hr class="section-rule">
+    {% include "dictionary/partials/vocab_data.html" with vocab=user_vocab.vocab %}
+    {% if user_vocab.vocab.type == "katakana" %}
+        <hr class="section-rule">
+        <dl class="ui-card">
+            {% include "core/components/row.html" with label="対応する日本語表現" value=user_vocab.vocab.katakana_detail.native_japanese|default:"—" %}
+        </dl>
+    {% endif %}
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <div class="grid grid-cols-2 gap-3">
+            <button class="ui-button" form="in-use-form" type="submit" disabled>保存</button>
+            <a class="ui-button ui-button-secondary"
+               href="{% url 'dictionary:vocab_detail' pk=user_vocab.vocab.pk %}?next={{ request.get_full_path|urlencode }}">単語の詳細</a>
+        </div>
+    </footer>
 {% endblock %}

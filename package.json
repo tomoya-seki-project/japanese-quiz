@@ -1,0 +1,19 @@
+{
+  "name": "kotoba-no-wa-ui",
+  "private": true,
+  "scripts": {
+    "css:watch": "tailwindcss -i frontend/css/app.css -o static/css/app.css --watch",
+    "css:build": "tailwindcss -i frontend/css/app.css -o static/css/app.css --minify",
+    "test:ui": "playwright test frontend/tests/ --workers=1 --reporter=list"
+  },
+  "overrides": {
+    "@tailwindcss/cli": {
+      "@parcel/watcher": "2.6.0"
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

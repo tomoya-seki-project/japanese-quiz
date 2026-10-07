@@ -1,0 +1,24 @@
+{% load ui_labels %}
+<dl class="ui-card">
+    {% include "core/components/row.html" with label="単語" value=vocab.word %}
+    {% if not hide_meaning %}
+        {% include "core/components/row.html" with label="意味" value=vocab.meaning %}
+    {% endif %}
+    {% include "core/components/row.html" with label="読み方（かな）" value=vocab.kana %}
+    {% include "core/components/row.html" with label="JLPTレベル" value=vocab.level|vocab_level_label %}
+    {% include "core/components/row.html" with label="種類" value=vocab.type|vocab_type_label %}
+    <div class="data-row block">
+        <dt class="border-b border-dashed border-line pb-3">カテゴリー</dt>
+        <dd class="!text-left !ml-0">
+            <div class="category-tags">
+                {% for category in vocab.categories.all %}
+                    <span class="category-tag">
+                        <span>{{ category }}</span>
+                    </span>
+                {% empty %}
+                    <span class="text-muted">—</span>
+                {% endfor %}
+            </div>
+        </dd>
+    </div>
+</dl>

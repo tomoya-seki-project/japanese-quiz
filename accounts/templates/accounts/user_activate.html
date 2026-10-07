@@ -1,32 +1,39 @@
 {% extends "core/base.html" %}
-
+{% block page_title %}メールアドレス認証{% endblock %}
+{% block main_class %}flex flex-col{% endblock %}
 {% block content %}
-    <h1>メールアドレス認証</h1>
-
-    {% if activation_status == "confirm" %}
-        <p>メールアドレスを認証して、アカウントを有効にします。</p>
-
-        <form method="post">
-            {% csrf_token %}
-            <button type="submit">アカウントを有効にする</button>
-        </form>
-
-    {% elif activation_status == "success" %}
-        <p>メールアドレスの認証が完了しました。</p>
-        <p>アカウントが有効になりました。</p>
-
-        <a href="{% url 'accounts:user_login' %}">ログインする</a>
-
-    {% elif activation_status == "already_active" %}
-        <p>このアカウントはすでに有効です。</p>
-
-        <a href="{% url 'accounts:user_login' %}">ログインする</a>
-
-    {% elif activation_status == "invalid" %}
-        <p>認証リンクが無効か、有効期限が切れています。</p>
-        <p>もう一度認証メールを送信してください。</p>
-        <a href="{% url 'accounts:resend_activation_email' %}">
-            認証メールを再送する
-        </a>
-    {% endif %}
+    <section class="state-card">
+        {% if activation_status == "confirm" %}
+            <span class="state-icon" aria-hidden="true">✉</span>
+            <h2>アカウントの認証</h2>
+            <p>メールアドレスを認証して、アカウントを有効にします。</p>
+            {% if ui_preview %}
+                <button class="ui-button ui-button-action w-full" type="button">アカウントを有効にする</button>
+            {% else %}
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="ui-button ui-button-action w-full" type="submit">アカウントを有効にする</button>
+                </form>
+            {% endif %}
+        {% elif activation_status == "success" %}
+            <span class="state-icon" aria-hidden="true">✓</span>
+            <h2>認証が完了しました</h2>
+            <p>アカウントが有効になりました。</p>
+            <a class="ui-button ui-button-action" href="{% url 'accounts:user_login' %}">ログイン</a>
+        {% elif activation_status == "already_active" %}
+            <span class="state-icon" aria-hidden="true">✓</span>
+            <h2>認証済みです</h2>
+            <p>このアカウントはすでに有効です。</p>
+            <a class="ui-button ui-button-action" href="{% url 'accounts:user_login' %}">ログイン</a>
+        {% else %}
+            <span class="state-icon" aria-hidden="true">!</span>
+            <h2>
+                認証リンクを
+                <br>
+                確認してください
+            </h2>
+            <p>認証リンクが無効か、有効期限が切れています。もう一度認証メールを送信してください。</p>
+            <a class="ui-button ui-button-action" href="{% url 'accounts:resend_activation_email' %}">認証メールを再送する</a>
+        {% endif %}
+    </section>
 {% endblock %}

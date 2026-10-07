@@ -1,9 +1,13 @@
-{% if messages %}
-    {% for message in messages %}
-        <div class="message {{ message.tags }}">
-            {{ message }}
-        </div>
-    {% endfor %}
-{% endif %}
-出題できる問題がありません。
-<a href="{% url "quiz:quiz_setting" %}">設定に戻る</a>
+<div class="quiz-scroll flex flex-col" data-quiz-state="empty">
+    <section class="state-card">
+        <div class="w-40 mx-auto">{% include "core/components/construction.html" %}</div>
+        <p>
+            問題が見つからないよ。
+            <br>
+            設定を確認してみてね。
+        </p>
+    </section>
+</div>
+<footer class="app-footer">
+    <a class="ui-button" href="{% url 'quiz:quiz_setting' %}">クイズ設定へ</a>
+</footer>

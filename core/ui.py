@@ -1,6 +1,6 @@
 """Japanese display labels for the public UI; stored values stay unchanged."""
 
-VOCAB_TYPES = {"vocab": "一般語彙", "katakana": "カタカナ語"}
+VOCAB_TYPES = {"vocab": "一般語彙", "katakana": "カタカナ"}
 VOCAB_LEVELS = {"0": "未設定", **{str(n): f"N{n}" for n in range(1, 6)}}
 FEEDBACK_TYPES = {
     "vocab_suggestion": "単語に関する提案",

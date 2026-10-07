@@ -12,6 +12,7 @@
 - [純通知與狀態資訊頁共用frame](#純通知與狀態資訊頁共用frame)
 - [Success toast](#success-toast)
 - [Page previews](#page-previews)
+- [UI confirm page](#ui-confirm-page)
 - [UI sample](#ui-sample-0104jpeg)
 - [可愛圖片與狀態插圖建議](#可愛圖片與狀態插圖建議)
 - [Homepage](#homepage)
@@ -32,6 +33,8 @@
 
 ## 畫面配置
 - 以方便mobile睇為標準，將全部items集中係畫面中間；中央frame只代表內容寬度範圍，不是一個實際可見的大框
+- 中央內容範圍正式稱為app shell；寬度最多為`540px`並在viewport水平置中，viewport再闊時外圍只顯示背景
+- App shell扣除page左右留白後的範圍正式稱為active area；所有以百分比計算的element寬度以active area為基準，不以整個browser viewport為基準
 - 不使用一個大frame包住整頁所有內容
 - 參考UI-sample-01的「今月／收入／支出」：每組`field name + data`各自使用一個獨立小frame／card包住
 - 不同資料組使用不同小frame／card，card之間保留間距並讓page background顯示出來
@@ -46,8 +49,11 @@
   - Header、固定底部操作區、modal同toast不跟field frame透明，保持完全不透明
   - Selection field統一使用`field name → 單虛線 → selection buttons`結構；包括Filter、Quiz Setting、Vocab Request及其他同級selection control
   - 單行input同dropdown縮短高度並保留至少44px可點擊／輸入高度；textarea按內容需要保留多行高度
-  - 單行input內的輸入文字靠右；textarea同dropdown文字靠左，dropdown右側固定保留獨立下箭嘴
+  - 單行input同dropdown內的文字靠右；textarea文字靠左，dropdown右側固定保留獨立下箭嘴
   - Field frame高度按內容加固定上下padding，不保留無用途的大面積底部空白
+  - 全站非button element按component type統一vertical padding：每個element自身的top／bottom padding相等，同一type在不同page使用相同數值
+  - 至少分開page header、field／card、單行data row、list header／toolbar、list row、badge／tag、modal section同footer；不同type可以使用不同數值
+  - Mobile safe area只額外加在footer bottom，不計入視覺top／bottom padding
 - `工事進行中`分成兩種用途；兩者可以沿用黃黑施工警示視覺，但行為、尺寸同取代方式不同
   - **未完成功能遮罩**
     - 用於已經準備好真實data／list架構、但功能尚未開放的section
@@ -65,7 +71,7 @@
   - Button、pagination或兩者一同放在同一個固定底欄內，不直接浮在kana背景上
   - 底欄內所有element按視覺高度垂直置中，上下留白相等；mobile safe area另行加在底部，不計入視覺留白
   - 同一底欄同時包含操作button同pagination時，兩行共用版面計算；只保留一組14px行間距，不疊加兩行各自的內側padding
-  - Pagination三組按鈕維持左組靠左、頁碼組置中、右組靠右；各組內按鈕統一保留6px間距
+  - Pagination button統一為`44 × 44px`；三組維持左組靠左、頁碼組置中、右組靠右，各組內按鈕統一保留6px間距
   - 可見頁碼數按viewport width調整，方向button保留原本三組位置
     - 480px或以上：中央最多顯示5個page number
     - 360px至479px：中央最多顯示3個page number
@@ -108,6 +114,14 @@
   - 內容區section heading維持較細字級，不套用page title的28px規則
 - 所有主要button使用`Zen Maru Gothic Bold`，避免只有Regular字重的`Hachi Maru Pop`在button上顯得太幼
   - Button文字按實際文字高度在button內水平及垂直置中，不使用固定baseline偏移作視覺補位
+  - Homepage主button保留目前比例：28px Bold、上下padding `.7em`、左右padding `2em`
+  - 一般主要button使用18px Bold；基本寬度為active area 50%，左右每邊至少`2em`
+  - 一般主要button單行所需寬度超過app shell 80%時改為兩行，再按較長一行文字寬度加左右各`2em`重新計算；button最少仍為active area 50%
+  - Footer同行只有一粒button時使用active area 50%並置中；同行多粒時扣除gap後平均分配整行，而且同一行等寬
+  - Selection同group所有button同尺寸；每個field獨立排版：Level六粒同一行，Type／in_use／問題數各按選項數排一行；只有Categories每行最多三粒，尾行一粒置中、兩粒靠左，而且不拉闊
+  - Pagination固定為`44 × 44px`
+  - Icon button保留現況：header icon `48 × 48px`、password visibility `44 × 44px`
+  - Quiz Tips／Skip、判定button同kana keyboard key尺寸保留目前實作
 - `Hachi Maru Pop`只保留作短裝飾文字或Homepage的暫定`言葉の輪`wordmark；wordmark將來會換成正式logo
 - Field name正式使用20px粗體；data同input文字使用16px，`任意`等輔助標記使用13px
 - Quiz輸入答案及答案比較繼續使用現有HGS創英角ポップ体風格PNG
@@ -186,6 +200,9 @@
   - 無border時使用淡霧藍灰`#EAF2F6`實色底，同`#F8FCFF` card區分輸入範圍
   - Keyboard focus使用`focus-visible`狀態顯示：內層使用深藍灰`#477A99`清晰輪廓，外層使用淡藍`#BFE8F7`光暈
   - Focus indicator只在keyboard navigation時顯示；mouse click不強制長期保留，亦不使用紅色以免同validation error混淆
+- Category tag同Feedback item內的user／type小frame統一使用Tag / Metadata BG `#D2E5ED`，文字使用`#26343D`
+  - 這類frame不使用Control `#EAF2F6`，確保同card背景有清楚層次
+  - 不使用Selected `#BFE8F7`，避免被誤會為可選或已選狀態
 - 同一table／field group內使用柔和藍灰`#91ADBC`幼單虛線；不同table／section之間使用更深的藍灰色較粗單實線並增加上下間距
   - Section實線第一版使用深藍灰`#477A99`，加強與背景kana及內部單虛線的區別
   - 分隔線只畫在近白內容frame內，避免直接與背景kana混在一起
@@ -270,6 +287,27 @@
   - Admin Event Create page：主要form fields同公開確認流程已定；返回目的地仍要等admin event管理入口確定
 - 預覽只記錄視覺方向，不代表已修改project template、CSS、JavaScript或Django code
 
+## UI confirm page
+
+- 已加入專用UI確認入口，方便直接開啟平時難以手動觸發的page／state。
+- 在project `config` URL設定加入index route：`/ui-confirm/`。
+- Index page提供以下直接link：
+  - Account activation
+    - 等待處理
+    - 成功
+    - 已認證
+    - Link無效／過期
+  - Quiz No-question state
+  - Error 400
+  - Error 403
+  - Error 404
+  - Error 500
+- Link用途只係render對應UI state，唔需要先製造真實email token、題庫條件或HTTP exception。
+- Account activation preview link不可執行真正account activation，亦不可修改account或其他application data。
+- 呢個page唔加入一般site navigation；實作時需要限制開發／UI確認用途，避免production公開內部檢查入口。
+- Routes只在`DEBUG=True`時註冊；Account activation preview不執行真正activation或修改資料。
+- 使用呢個page確認以上state同「純通知與狀態資訊頁共用frame」。
+
 ## UI-sample-01~04.jpeg
 
 - 這些圖片是我從其他apps中screen capture過黎的
@@ -298,11 +336,12 @@
 ### Homepage
 
 - 以UI-sample-01.jpeg為主要參考，background使用一般page的`mixed_tile`
-- Product name暫時顯示`言葉の輪`
-  - 暫定文字比上一版放大50%，使用`Hachi Maru Pop`
-  - 預留將來替換正式logo的空間
-  - Logo area額外增加相當於username frame高度的48px垂直空間
-  - Username／`ゲスト`frame以及其後所有非固定主要內容整體向下移48px；viewport底部固定footer及其button位置保持不變
+- Product name暫時使用`assets/export/logo/wordloop_logo.png`
+  - Homepage實際顯示使用同一圖片的static copy：`static/rec/logo/wordloop_logo.png`
+  - Logo width暫定為viewport width的80%，並受中央app shell可用闊度限制；高度保持原圖比例
+  - Logo仍屬暫用版本，之後更換正式asset時保留相同位置再重新確認尺寸
+  - Logo與username／`ゲスト`frame之間不加入額外48px spacer
+  - Logo圖片元素與已登入username／未登入`ゲスト`frame的layout間距先試16px；圖片透明邊緣不計入CSS padding
 - 已登入狀態
   - Product name下面的username使用獨立近白frame，避免與背景kana混在一起
   - 左上角使用門口加向外箭嘴vector icon執行logout；右上角使用鐘形vector icon進入Event List
@@ -340,22 +379,21 @@
     - 將來加了以上4種後，畫面闊度會唔夠，到時改成兩行
   - button為multi selection
 - マイ単語帳的話
-  - 下面加入`出題対象`的`はい`、`いいえ`兩個selection button
+  - 下面加入`出題対象`的`出題してる`、`出題してない`兩個selection button
     - button為multi selection，每個button可以獨立切換選取／未選取狀態
-    - 只選`はい`時顯示`in_use=True`的單語
-    - 只選`いいえ`時顯示`in_use=False`的單語
+    - 只選`出題してる`時顯示`in_use=True`的單語
+    - 只選`出題してない`時顯示`in_use=False`的單語
     - 兩個button都未選或兩個button都選中時顯示全部單語
 - 下面分別再係 JLPT lv selection
   - "未設定"、"N1"、"N2"、"N3"、"N4"、"N5"
   - 並以click左落去就係select左，無click落去就係無select為狀態
   - button為multi selection
-- 再下面就係catagories,以三個一列 6行方式
+- 再下面就係categories，每行最多三粒
   - 並以click左落去就係select左，無click落去就係無select為狀態
-  - 如果畫面寛度過窄，不足是三個一列時
-    - 自動改成2個一列
-    - 如果連2個一列都太窄，再改成1個一列
-  - 每個button的width and height一致
-    - 如果字數太多就自動係space位/.位換行
+  - 同一個category group全部button的width同height一致
+  - 完整行三粒排滿；最後一行只有一粒時保持單粒寬度並置中，有兩粒時保持單粒寬度並靠左
+  - 最後一行button不因數量較少而拉闊
+  - 字數太多時優先在space或`・`位置換行
   - button為multi selection
 - viewport最下面固定顯示`検索`button
   - Button在固定底欄內水平置中
@@ -371,8 +409,9 @@
 - 下面正式list部份(B行)
   - 最高位為table header部份左至右
     - マイ単語帳時
-      - すべて(checkbox)
+      - 全選checkbox
         - 只有效於當前頁面顯示中的items
+        - 不在checkbox下方顯示可見文字`すべて`；保留描述用途的accessible `aria-label`
       - 単語(word)
       - 読み方(kana)
     - 単語帳時
@@ -449,8 +488,9 @@
   - stick on screen 唔會跟畫面滑動，固定係viewport第二高位置，位於"お知らせ"個行下面
 - 下面正式list部份(C行)
   - 最高位為table header部份左至右
-    - 選択(checkbox)
+    - 全選checkbox
       - 只有效於當前頁面顯示中的items
+      - 不在checkbox下方顯示可見文字`選択`；保留描述用途的accessible `aria-label`
       - 每次進入或重新載入event list時，全部checkbox預設為未勾選
       - checkbox只代表今次批量設為已讀的選擇，不代表event本身的已讀狀態
     - 項目
@@ -545,8 +585,8 @@
 - header以下全部內容屬於同一個可捲動area，包括form、button同重發認證郵件area
 - 每個field name單獨顯示一行，input area顯示在field name下一行，避免橫向排列令input area太短
 - 單行input control縮短高度，輸入文字靠右；password亦靠右並為右側眼睛icon預留空間
-- Textarea內容保持靠左；dropdown文字保持靠左並在右側顯示獨立vector下箭嘴
-- input area設有最大闊度
+- Textarea內容保持靠左；dropdown文字保持靠右並在右側顯示獨立vector下箭嘴
+- Create／Update Request的word／kana input等闊，目標為首次提出增闊前約125%；Kana field name保持單行，同行放不下時label在上、input在下，input不得超出frame
   - viewport比input area最大闊度寬時，input area向右對齊內容範圍
   - viewport比input area最大闊度窄時，input area佔滿扣除左右padding後的可用內容闊度
 - password input預設隱藏輸入內容
@@ -717,7 +757,7 @@
 - 沿用Vocab detail page的左右排列、過長時轉兩行、單虛線同較粗單實線section分隔規則
 - 額外顯示user個人的資料
   - 出題対象設定
-    - 視覺沿用User Vocab List Filter的`はい`／`いいえ`兩個selection button，不使用左右滑動switch
+    - 使用`出題する`／`出題しない`兩個selection button，不使用左右滑動switch；尺寸與狀態視覺沿用全站selection規格
     - Detail page的值是單一Boolean設定，兩個button互斥並預先選中目前已保存值；Filter page仍按篩選規則容許兩者獨立選取，兩者只共用視覺樣式
     - 切換後先enable"保存"button
   - 出題優先度
@@ -816,7 +856,8 @@
   - 右邊顯示homepage icon
 - 中間form area可以捲動
 - Form field沿用全站responsive label／control規則，但不照搬Login／Registration固定上下兩行的排列
-  - 一般情況左邊顯示field name，右邊顯示input area
+  - 一般單行field左邊顯示field name，右邊顯示input area
+  - `意味`、`理由`等textarea field固定使用上下排列：field name在上方靠左，textarea在下一行
   - input太長或viewport可用闊度不足時，自動轉成上下兩行
     - 第一行顯示field name
     - 第二行顯示input area
@@ -843,10 +884,12 @@
   - 初始高度約三行
   - 內容超過可見高度時在textarea內捲動，不繼續自動增加欄位高度
 - `種類`、`JLPTレベル`同`カテゴリー`等selection field全部在field name下面加入單虛線，再留足間距顯示button，避免button貼住或蓋住field name
+  - Selection外框上下各16px，以原下方padding為準；field name頂部不再額外加12px。
+  - User Vocab Detail的正解数、不正解数、連続記録、最後出題時間及前回回答使用一致上下內距；時間切換button的touch target不額外撐高該行。
 - `カテゴリー`欄位沿用Vocab list filter page的多選button設計，不使用傳統checkbox或Detail page的純展示tag
   - 點擊整個button切換選取／未選取狀態
   - 預設全部未選取
-  - 預設三個button一行，viewport闊度不足時自動改成兩個一行；如果兩個一行仍然太窄，再改成一個一行
+  - 每行最多三粒，並沿用全站selection尾行排列：一粒置中、兩粒靠左，而且保持同group單粒尺寸
   - 每個button的width同height一致，文字太長時可以在空格或"・"位置換行
   - 最多可以選擇三個Category
   - 不顯示`2 / 3`等已選數量提示
@@ -931,8 +974,9 @@
 - event內容由上至下按以下順序顯示
   1. 完整event type，使用badge樣式，不使用Event list的短版名稱
   2. 完整title
-  3. message
-  4. event建立時間`create_at`
+  3. `内容`field name放在內容區最高一行左側；message由下一行開始
+  4. `日時`field name在左，event建立時間`create_at`在右
+- title與內容之間、內容與日期之間使用全站單虛線分隔
 - 建立時間固定顯示完整日本格式：`YYYY年MM月DD日 HH:mm`
   - 使用24小時制
   - 不提供相對時間切換
@@ -942,15 +986,17 @@
 - message使用一般字體並保留原本換行；長內容按可用闊度自然換行
 - 建立時間使用較細、較淡的文字
 - 打開Event detail page不會自動將通知設為已讀，單純查看內容不改變`is_read`
-- Event detail page提供`既読にする`button，由user手動將目前通知設為已讀
+- Event detail page提供切換目前通知已讀狀態的button，由user手動設定為已讀或改回未讀
   - button固定在viewport底部，不會跟event內容捲動
   - header同底部button固定，只有中間event內容area獨立捲動
-  - 通知已讀時仍保留底部操作列；button文字改為`既読`，顯示灰色並disable
+  - 通知未讀時，button文字顯示`既読にする`
+  - 通知已讀時仍保留底部操作列；button文字改為`未読に戻す`，並保持可點擊
   - 成功設為已讀後顯示全站統一的短暫成功toast：`既読にしました`
+  - 成功改回未讀後顯示全站統一的短暫成功toast：`未読に戻しました`
   - 這是database狀態修改，使用包含CSRF protection的HTML POST form，不使用GET link
+  - POST必須明確提交`mark_read`或`mark_unread` action，backend只接受這兩個固定值
   - POST以URL中的UserEvent `pk`識別目標，backend必須再限制為目前登入user擁有的UserEvent
-  - 不需要為沒有輸入欄位的固定action強制建立獨立Django `forms.Form` class
-  - 成功後redirect回同一Event detail page；重複提交保持安全，不因通知已讀而報錯
+  - 成功後redirect回同一Event detail page；重複提交同一狀態保持安全，不因狀態已經相同而報錯
 
 ## Admin event create page (future)
 
@@ -1020,6 +1066,7 @@
     - user name過長時仍保持單行並以`…`截斷
     - 相關preview圖已更新
   - 下行顯示內容預覽，只顯示一行，超出可用闊度的部分以`…`截斷
+  - 上行與下行之間使用全站單虛線分隔
   - 整個list item全行均可點擊，進入對應Feedback detail page
   - 不顯示獨立的`詳細を見る`button
 - 不直接顯示status文字；第一行由左至右顯示status icon、user同種類
@@ -1032,7 +1079,9 @@
 - 第一行排列時，status icon固定在最左，種類完整顯示在右邊，user使用中間剩餘空間
   - user過長時保持單行並以`…`截斷；Feedback detail page顯示完整user
 - 每頁顯示5筆feedback
-- header下面固定顯示status filter dropdown
+- header下面固定顯示status filter
+  - `状態`label與dropdown放在同一行，dropdown由10em增闊至15em（ver3時闊度150%），窄屏限制在label及gap以外的剩餘空間
+  - Dropdown文字靠右
   - 選項為`すべて`、`未対応`（pending）、`返信済み`（replied）、`終了`（closed）
   - 進入page時預設選擇`未対応`
   - Dropdown右側顯示獨立vector下箭嘴
@@ -1126,7 +1175,7 @@
   - 已選button使用active狀態顏色；未選button變灰但仍然可以點擊
   - `種類`目前顯示`一般語彙`同`カタカナ`
   - `JLPTレベル`顯示`未設定`、`N1`、`N2`、`N3`、`N4`、`N5`
-  - `カテゴリー`沿用Vocab Filter的3個一行、太窄時2個一行、再窄時1個一行排列
+  - `カテゴリー`沿用全站selection規格：每行最多三粒，尾行一粒置中、兩粒靠左，而且不拉闊
   - Quiz Setting的Category沒有三個選項上限，可以任意多選
 - 將現有`前回の設定を使用` checkbox改成`前回の設定を読み込む`button
   - button放在中間設定area最上方、`問題数`之前，並佔一整行
@@ -1174,7 +1223,19 @@
 - 非Multiple Choice題目的題目資料放在同一個大型frame內
   - 上半部顯示word，使用大字並水平置中
   - Word區預留兩行高度；只有一行時在預留區內垂直置中
-  - Word字級按字數調節，太長時換行；包含空格的長英文優先在space位置斷行，避免任意切開單字
+  - Word字級按字數使用以下正式分級；Question與Non-Multiple Choice Answer Result的word共用同一規格
+    - 1至2字：76px
+    - 3字：72px
+    - 4字：68px
+    - 5字：64px
+    - 6字：60px
+    - 7字：56px
+    - 8字：52px
+    - 9字：48px
+    - 10字：44px
+    - 11字或以上：42px
+    - 42px為最小值；到達最小值後仍放不下一行時才換行
+    - 包含空格的長英文優先在space位置斷行，避免任意切開單字
   - Word同meaning之間使用虛線分隔
   - 下半部顯示meaning，文字水平置中並使用固定字級；不在預留區域內垂直置中
   - Meaning第一行由虛線下方的全站標準間距開始，距離沿用其他page虛線與下方內容的間距
@@ -1206,7 +1267,7 @@
 - 答案frame下面顯示左右並排的兩個輔助button
   - 左邊button文字固定為`ヒント`，右邊button文字固定為`スキップ`
   - 兩個button的width同height一致
-  - 兩者都屬於同級次要操作，Question page使用相同的淡藍灰`#EAF2F6`實色底同深藍黑`#26343D`文字；不以Summary統計label的不同功能色區分兩個button，亦不使用與主要提交操作相同的`#8BC9E6`
+  - 兩者按quiz-question-state.png使用相同的`#8BC9E6`實色底同深藍黑`#26343D`文字；尺寸保留，不以Summary統計label的不同功能色區分
   - 這兩個button屬於可捲動Quiz內容區，不取代viewport底部固定的主要`回答`button
   - 點擊`スキップ`成功後不顯示Answer Result，直接載入下一題；如果已無下一題，則直接進入Summary
   - Skip流程不顯示`正解`／`不正解`、正確答案或`未回答`結果卡
@@ -1344,11 +1405,11 @@
   - Desktop按`Esc`亦會關閉modal
   - 三種關閉方式都保留目前Quiz Result畫面及所有資料不變
 - 保留Question state的題目大型frame及word位置
-  - word繼續顯示原本題目文字
+  - word繼續顯示原本題目文字，並使用與Question state相同的76px至42px字數分級
   - 原本meaning位置不再顯示meaning，改為顯示該題的正確答案
   - 正確答案使用一般`Zen Maru Gothic`文字，不使用Quiz kana圖片字
   - Quiz kana圖片字繼續只用於使用者輸入答案及逐字答案比較
-  - 題目frame內直接以上下兩行顯示`word`及括號包住的`(kana)`；兩行之間不使用虛線，垂直空白約為先前preview的一半
+  - 題目frame內直接以上下兩行顯示`word`及括號包住的`(kana)`；兩行之間不使用虛線，layout間距先試6px
   - `(kana)`區不預留額外高度；題目frame頂部至word與`(kana)`至frame底部使用相同的視覺留白，內容較長需要換行時才按內容增加高度
 - 原本答案輸入frame改為兩段式答案比較結果frame
   - 整體結構參考題目frame，但上下空間比例反轉

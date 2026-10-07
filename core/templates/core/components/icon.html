@@ -1,0 +1,31 @@
+<svg viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true"
+     class="h-6 w-6">
+    {% if name == "home" %}
+        <path d="M12 3 2 21h20L12 3Zm0 0v18m0-9-5 9m5-9 5 9" />
+    {% elif name == "back" %}
+        <path d="m15 5-7 7 7 7" />
+    {% elif name == "eye" %}
+        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" />
+        <circle cx="12" cy="12" r="3" />
+    {% elif name == "bell" %}
+        <path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5l-2 3Zm5 3h4" />
+    {% elif name == "logout" %}
+        <path d="M10 4H4v16h6m4-12 4 4-4 4m-6-4h12" />
+    {% elif name == "pending" %}
+        <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+    {% elif name == "replied" %}
+        <path d="m4 12 5 5L20 6" />
+    {% elif name == "closed" %}
+        <path d="M5 12h14" />
+    {% elif name == "backspace" %}
+        <path d="M9 5h12v14H9l-7-7 7-7Zm3 4 6 6m0-6-6 6" />
+    {% else %}
+        <path d="M12 4v10m0 4v1" />
+    {% endif %}
+</svg>

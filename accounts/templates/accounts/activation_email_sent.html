@@ -1,25 +1,18 @@
 {% extends "core/base.html" %}
-
+{% block page_title %}認証メール{% endblock %}
+{% block main_class %}flex flex-col{% endblock %}
 {% block content %}
-    <h1>認証メールの送信を受け付けました</h1>
-
-    <p>
-        入力されたメールアドレスに未認証のアカウントがある場合、
-        認証メールを送信しました。
-    </p>
-
-    <p>
-        メール内のリンクを開き、アカウントを有効にしてください。
-    </p>
-
-    <p>
-        メールが届かない場合は、迷惑メールフォルダもご確認ください。
-    </p>
-
-    <a href="{% url 'accounts:user_login' %}">
-        ログイン画面に戻る
-    </a>
-    <a href="{% url 'accounts:resend_activation_email' %}">
-        認証メールを再送する
-    </a>
+    <section class="state-card">
+        <span class="state-icon" aria-hidden="true">✉</span>
+        <h2>
+            認証メールの送信を
+            <br>
+            受け付けました
+        </h2>
+        <p>入力されたメールアドレスに未認証のアカウントがある場合、認証メールを送信しました。</p>
+        <p>メール内のリンクを開き、アカウントを有効にしてください。メールが届かない場合は、迷惑メールフォルダもご確認ください。</p>
+        <a class="ui-button ui-button-action" href="{% url 'accounts:user_login' %}">ログイン画面に戻る</a>
+        <a class="ui-button ui-button-action ui-button-secondary"
+           href="{% url 'accounts:resend_activation_email' %}">認証メールを再送する</a>
+    </section>
 {% endblock %}

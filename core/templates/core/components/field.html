@@ -1,0 +1,35 @@
+{% load ui_components %}
+{% if field.is_hidden %}{{ field }}{% else %}
+    <div class="field-card {% if field.errors %}field-invalid{% endif %}"
+         data-field="{{ field.name }}">
+        {% if field.field.widget.input_type == "checkbox" %}
+            <label class="switch field-label"
+                   for="{{ field.id_for_label }}">{{ label|default:field.label }}{{ field|ui_control }}</label>
+        {% else %}
+            <label class="field-label" for="{{ field.id_for_label }}">
+                {{ label|default:field.label }}
+                {% if not field.field.required and optional %}
+                    <span class="field-optional">任意</span>
+                {% endif %}
+            </label>
+            <div class="field-control {% if field.field.widget.input_type == 'password' %}password-control{% endif %}">
+                {{ field|ui_control }}
+                {% if field.field.widget.input_type == "password" %}
+                    <button type="button"
+                            class="icon-button"
+                            data-password="{{ field.id_for_label }}"
+                            aria-label="パスワードを表示"
+                            aria-pressed="false">
+                        {% include "core/components/icon.html" with name="eye" %}
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if field.errors %}
+            <div class="field-errors" id="{{ field.id_for_label }}_errors">{{ field.errors }}</div>
+        {% endif %}
+        {% if field.help_text %}
+            <div class="text-muted text-sm mt-2">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+{% endif %}

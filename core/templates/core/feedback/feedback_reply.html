@@ -1,20 +1,19 @@
 {% extends "core/base.html" %}
+{% block page_title %}フィードバックに返信{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with href=return_url %}
+{% endblock %}
 {% block content %}
-    <h1>フィードバックに返信</h1>
-    <dl>
-        <dt>ユーザー</dt>
-        <dd>{{ feedback.user }}</dd>
-        <dt>種類</dt>
-        <dd>{{ feedback.get_type_display }}</dd>
-        <dt>送信日時</dt>
-        <dd>{{ feedback.create_at|date:"Y年m月d日 H:i" }}</dd>
-        <dt>内容</dt>
-        <dd>{{ feedback.context|linebreaksbr }}</dd>
-    </dl>
-    <form method="POST">
+    {% include "core/feedback/partials/feedback_data.html" %}
+    <hr class="section-rule">
+    <form id="reply-form" method="post" class="ui-stack" data-dirty novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">返信</button>
+        {% include "core/components/field.html" with field=form.context %}
+        {% include "core/components/field.html" with field=form.is_close label="返信後に終了" %}
     </form>
-    <a href="{{ return_url }}">詳細に戻る</a>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button class="ui-button" type="submit" form="reply-form">返信</button>
+    </footer>
 {% endblock %}

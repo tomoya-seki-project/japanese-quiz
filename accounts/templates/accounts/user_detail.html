@@ -1,9 +1,37 @@
 {% extends "core/base.html" %}
+{% block page_title %}プロフィール{% endblock %}
 {% block content %}
-    <h1>プロフィール</h1>
-    {{ user.name }}
-    {{ user.email }}
-    {{ user.last_login }}
-
-    <a href="{% url "dictionary:user_vocab_list_filter" %}" class="btn btn-primary">マイ単語帳</a>
+    <div class="ui-stack">
+        <dl class="ui-card">
+            {% include "core/components/row.html" with label="ユーザー名" value=user.username %}
+        </dl>
+        <dl class="ui-card">
+            {% include "core/components/row.html" with label="メールアドレス" value=user.email %}
+        </dl>
+        <dl class="ui-card">
+            {% include "core/components/row.html" with label="最終ログイン" value=user.last_login|date:"Y年m月d日 H:i" %}
+        </dl>
+        {% include "core/components/learning.html" %}
+        <a class="ui-button ui-button-action"
+           href="{% url 'dictionary:user_vocab_list_filter' %}">マイ単語帳</a>
+        <section class="ui-card">
+            <h2 class="field-label mb-3">最近の回答</h2>
+            <div class="relative">
+                <div inert aria-hidden="true">
+                    <div class="data-row">
+                        単語<span>回答</span>
+                    </div>
+                    {% for i in "1234567890" %}
+                        <div class="data-row">
+                            <span>—</span>
+                            <span>—</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="construction absolute inset-0">
+                    <span class="h-full">工事進行中</span>
+                </div>
+            </div>
+        </section>
+    </div>
 {% endblock %}

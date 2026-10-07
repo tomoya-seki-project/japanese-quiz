@@ -1,18 +1,19 @@
 {% extends "core/base.html" %}
+{% block page_title %}ログイン{% endblock %}
 {% block content %}
-    <h1>ログイン</h1>
-
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">ログイン</button>
-    </form>
-    <p>
-        メールアドレス認証が完了していない場合は、
-        認証メールを再送してください。
-    </p>
-
-    <a href="{% url 'accounts:resend_activation_email' %}">
-        認証メールを再送する
-    </a>
+    <div class="ui-stack">
+        <form method="post" class="ui-stack" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+                {% include "core/components/field.html" %}
+            {% endfor %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <button class="ui-button ui-button-action w-full" type="submit">ログイン</button>
+        </form>
+        <section class="ui-card ui-stack">
+            <p class="text-center">メールアドレス認証が完了していない場合は、認証メールを再送してください。</p>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'accounts:resend_activation_email' %}">認証メールを再送する</a>
+        </section>
+    </div>
 {% endblock %}

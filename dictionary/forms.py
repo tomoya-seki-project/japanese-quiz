@@ -147,8 +147,8 @@ class VocabSearchForm(forms.Form):
     )
 class UserVocabInUse:
     choices = [
-        (True, "はい"),
-        (False, "いいえ"),
+        (True, "出題してる"),
+        (False, "出題してない"),
     ]
 
 class UserVocabSearchForm(forms.Form):

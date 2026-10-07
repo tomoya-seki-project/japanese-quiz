@@ -41,11 +41,11 @@ function handleHandakuten(currentAnswer){
 }
 function handleSmallKana(currentAnswer){
     const smallKanaTargets = ["や", "ゆ", "よ", "つ",
-                              "ヤ", "ユ", "ヨ",
+                              "ヤ", "ユ", "ヨ", "ツ",
                               "ア", "イ", "ウ", "エ", "オ",
                               "ケ",];
     const smallKanaResult = ["ゃ", "ゅ", "ょ", "っ",
-                              "ャ", "ュ", "ョ",
+                              "ャ", "ュ", "ョ", "ッ",
                               "ァ", "ィ", "ゥ", "ェ", "ォ",
                               "ヶ",];
     let lastChar = currentAnswer.slice(-1);

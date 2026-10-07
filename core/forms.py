@@ -31,7 +31,7 @@ class UserEventReadStatusUpdateForm(forms.Form):
     )
 
 class FeedbackCreateForm(forms.Form):
-    feedback_type = forms.ChoiceField(label="種類", choices=FeedbackType.choices)
+    feedback_type = forms.ChoiceField(label="種類", choices=[("", "選択してください"), *FeedbackType.choices])
     context = forms.CharField(label="内容", max_length=255, widget=forms.Textarea)
 
 class FeedbackReplyForm(forms.Form):

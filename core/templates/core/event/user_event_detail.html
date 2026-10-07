@@ -1,23 +1,36 @@
 {% extends "core/base.html" %}
+{% load ui_labels %}
+{% block page_title %}お知らせ{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with href=return_url %}
+{% endblock %}
 {% block content %}
-    {% load ui_labels %}
-    <h1>お知らせの詳細</h1>
-        {{ user_event.event.event_type|event_label }}
-        {{ user_event.event.title }}
-        {{ user_event.event.message }}
-
-    <form method="POST">
-        {% csrf_token %}
-        {% if user_event.is_read %}
-            <button type="submit" name="action" value="mark_unread">
-                未読に戻す
-            </button>
-        {% else %}
-            <button type="submit" name="action" value="mark_read">
-                既読にする
-            </button>
-        {% endif %}
-    </form>
-    <a href="{{ return_url }}" class="btn btn-primary">一覧に戻る</a>
-    {{ read_status_form.action.errors }}
+    <article class="ui-card ui-stack">
+        <div>
+            <span class="badge text-lg">{{ user_event.event.event_type|event_label }}</span>
+        </div>
+        <h2 class="text-2xl font-bold">{{ user_event.event.title }}</h2>
+        <section class="event-message">
+            <h2 class="field-label">内容</h2>
+            <p class="whitespace-pre-wrap mt-3">{{ user_event.event.message }}</p>
+        </section>
+        <dl class="data-row">
+            <dt>日時</dt>
+            <dd>
+                <time class="text-muted">{{ user_event.event.create_at|date:"Y年m月d日 H:i" }}</time>
+            </dd>
+        </dl>
+    </article>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <form method="post">
+            {% csrf_token %}
+            {% if user_event.is_read %}
+                <button class="ui-button w-full" name="action" value="mark_unread">未読に戻す</button>
+            {% else %}
+                <button class="ui-button w-full" name="action" value="mark_read">既読にする</button>
+            {% endif %}
+        </form>
+    </footer>
 {% endblock %}

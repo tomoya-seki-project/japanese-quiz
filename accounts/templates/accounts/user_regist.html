@@ -1,11 +1,11 @@
 {% extends "core/base.html" %}
+{% block page_title %}登録{% endblock %}
 {% block content %}
-    <h1>新規登録</h1>
-
-    <form method="post">
+    <form method="post" class="ui-stack" novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">登録</button>
+        {% for field in form %}
+            {% include "core/components/field.html" %}
+        {% endfor %}
+        <button class="ui-button ui-button-action w-full" type="submit">登録</button>
     </form>
-
 {% endblock %}

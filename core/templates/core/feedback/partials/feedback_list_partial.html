@@ -1,47 +1,16 @@
-<table>
-    <thead>
-        <tr>
-            <th>ユーザー</th>
-            <th>種類</th>
-            <th>内容</th>
-            <th>詳細</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for feedback in feedbacks %}
-            <tr>
-                <td>{{ feedback.user }}</td>
-                <td>{{ feedback.get_type_display }}</td>
-                <td>{{ feedback.context }}</td>
-                <td>
-                    <a href="{% url "core:feedback_detail" pk=feedback.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary">
-                        詳細を見る
-                    </a>
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% if is_paginated %}
-    <div>
-        {% if page_obj.has_previous %}
-            <a href="?status={{ selected_status }}&amp;page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
-        {% else %}
-            前へ
-        {% endif %}
-
-        {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-                {{ num }}
-            {% else %}
-                <a href="?status={{ selected_status }}&amp;page={{ num }}" class="page-change">{{ num }}</a>
-            {% endif %}
-        {% endfor %}
-
-        {% if page_obj.has_next %}
-            <a href="?status={{ selected_status }}&amp;page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
-        {% else %}
-            次へ
-        {% endif %}
-    </div>
-{% endif %}
+{% for feedback in feedbacks %}
+    <article class="ui-list-item">
+        <a href="{% url 'core:feedback_detail' pk=feedback.pk %}?next={{ request.get_full_path|urlencode }}">
+            <div class="flex items-center gap-2 {% if feedback.status == 'pending' %}text-danger font-bold{% elif feedback.status == 'replied' %}text-success{% endif %}">
+                <span class="shrink-0" aria-label="{{ feedback.get_status_display }}">
+                    {% include "core/components/icon.html" with name=feedback.status %}
+                </span>
+                <span class="min-w-0 flex-1 truncate bg-metadata text-ink rounded-lg p-2">{{ feedback.user.username }}</span>
+                <span class="bg-metadata text-ink rounded-lg p-2 text-[13px] shrink-0">{{ feedback.get_type_display }}</span>
+            </div>
+            <p class="truncate mt-3 border-t border-dashed border-line pt-3">{{ feedback.context }}</p>
+        </a>
+    </article>
+{% empty %}
+    <p class="ui-card text-center">該当するフィードバックはありません。</p>
+{% endfor %}

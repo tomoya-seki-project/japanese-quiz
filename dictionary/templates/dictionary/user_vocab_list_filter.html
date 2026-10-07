@@ -1,14 +1,21 @@
 {% extends "core/base.html" %}
+{% block page_title %}マイ単語帳{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with history=True %}
+{% endblock %}
 {% block content %}
-    <h1>マイ単語帳</h1>
-
-    <a href="{% url "dictionary:vocab_create" %}" class="btn btn-primary">単語の追加</a>
-    複数の単語をまとめて追加したい場合は、フィードバックフォームで「単語の一括追加申請」を選択してください。
-    <form
-        method="GET"
-        action="{% url "dictionary:user_vocab_list" %}"
-    >
-        {{ search_form.as_p }}
-        <button type="submit">検索</button>
+    <form id="filter-form"
+          method="get"
+          action="{% url 'dictionary:user_vocab_list' %}"
+          class="ui-stack">
+        {% include "core/components/selection.html" with field=search_form.vocab_type %}
+        {% include "core/components/selection.html" with field=search_form.in_use %}
+        {% include "core/components/selection.html" with field=search_form.level %}
+        {% include "core/components/selection.html" with field=search_form.category %}
     </form>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button class="ui-button" form="filter-form" type="submit">検索</button>
+    </footer>
 {% endblock %}

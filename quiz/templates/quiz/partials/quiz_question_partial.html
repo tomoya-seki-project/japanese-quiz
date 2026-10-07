@@ -1,32 +1,60 @@
-<h2 class="quiz-content-heading" tabindex="-1">問題</h2>
-<div id="quiz-count">
-    {% if total_quiz_num > 0 %}
-        第{{ current_quiz_num }}問／全{{ total_quiz_num }}問
-    {% else %}
-        第{{ current_quiz_num }}問
-    {% endif %}
-</div>
-<form class="quiz-ajax-form"
-    method="POST"
-    action="{% url "quiz:quiz_submit_answer" %}"
-    data-correct-answer="{{ question_vocab.vocab.kana }}">
-    {% csrf_token %}
-    <input type="hidden" name="user_vocab_id" value="{{ question_vocab.id }}">
-    <input type="hidden" name="tips_count" value="0" id="tips-count">
-    <input type="hidden" name="answer" id="answer-input">
-    <input type="hidden" name="attempt_token" value="{{ question_attempt_token }}">
-
-    {{ question_vocab.vocab.word }}
-    {{ question_vocab.vocab.meaning }}
-
-    <div id="answer-display"></div>
+<div class="quiz-scroll ui-stack"
+     data-quiz-state="question"
+     data-vocab-type="{{ question_vocab.vocab.type }}">
+    <h2 class="quiz-content-heading sr-only" tabindex="-1">問題</h2>
     <div>
-        <button type="button" class="tips-button">ヒント</button>
-        <button type="submit">回答</button>
+        <span class="ui-card inline-block py-2" id="quiz-count">第{{ current_quiz_num }}問
+            {% if total_quiz_num > 0 %}／全{{ total_quiz_num }}問{% endif %}
+        </span>
     </div>
-</form>
-<form class="quiz-ajax-form" method="POST" action="{% url "quiz:quiz_skip" %}">
-    {% csrf_token %}
-    <input type="hidden" name="attempt_token" value="{{ question_attempt_token }}">
-    <button type="submit">スキップ</button>
-</form>
+    <form class="quiz-ajax-form ui-stack"
+          id="answer-form"
+          method="post"
+          action="{% url 'quiz:quiz_submit_answer' %}"
+          data-correct-answer="{{ question_vocab.vocab.kana }}">
+        {% csrf_token %}
+        <input type="hidden" name="user_vocab_id" value="{{ question_vocab.pk }}">
+        <input type="hidden" name="tips_count" value="0" id="tips-count">
+        <input type="hidden" name="answer" id="answer-input">
+        <input type="hidden"
+               name="attempt_token"
+               value="{{ question_attempt_token }}">
+        <section class="ui-card">
+            <div class="quiz-word">{{ question_vocab.vocab.word }}</div>
+            <p class="border-t border-dashed border-line pt-4 text-center">{{ question_vocab.vocab.meaning }}</p>
+        </section>
+        <button class="ui-card w-full"
+                type="button"
+                data-show-keyboard
+                aria-label="回答を入力">
+            <span id="answer-display" class="kana-display">
+                <span class="text-muted">ここを押して回答を入力</span>
+            </span>
+        </button>
+    </form>
+    <div class="grid grid-cols-2 gap-3">
+        <button type="button"
+                class="ui-button tips-button"
+                data-hint>
+            ヒント
+        </button>
+        <form class="quiz-ajax-form"
+              method="post"
+              action="{% url 'quiz:quiz_skip' %}">
+            {% csrf_token %}
+            <input type="hidden"
+                   name="attempt_token"
+                   value="{{ question_attempt_token }}">
+            <button class="ui-button w-full" type="submit">スキップ</button>
+        </form>
+    </div>
+</div>
+<footer class="app-footer">
+    <button class="ui-button"
+            id="answer-submit"
+            form="answer-form"
+            type="submit"
+            aria-disabled="true">
+        回答
+    </button>
+</footer>

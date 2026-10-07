@@ -1,11 +1,50 @@
 {% extends "core/base.html" %}
+{% load ui_components %}
+{% block page_title %}単語の詳細{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with href=return_url %}
+{% endblock %}
 {% block content %}
-    <h1>単語の詳細</h1>
-    {{ vocab.word }}
-    {{ vocab.kana }}
+    {% with senses=vocab.mc_senses.all %}
+        {% include "dictionary/partials/vocab_data.html" with hide_meaning=senses %}
+        {% if vocab.type == "katakana" %}
+            <hr class="section-rule">
+            <dl class="ui-card">
+                {% include "core/components/row.html" with label="対応する日本語表現" value=vocab.katakana_detail.native_japanese|default:"—" %}
+            </dl>
+        {% endif %}
+        {% for sense in senses %}
+            <hr class="section-rule">
+            <section class="ui-card">
+                <h2 class="field-label pb-3 border-b border-dashed border-line">意味 {{ sense.sense_no }}</h2>
+                <p class="py-3">{{ sense.meaning }}</p>
+                <dl>
+                    <div class="data-row border-t border-dashed border-line">
+                        <dt>例文 1</dt>
+                        <dd>
+                            {{ sense.question_1|example_answer:vocab.word }}
+                        </dd>
+                    </div>
+                    <div class="data-row">
+                        <dt>例文 2</dt>
+                        <dd>
+                            {{ sense.question_2|example_answer:vocab.word }}
+                        </dd>
+                    </div>
+                </dl>
+            </section>
+        {% endfor %}
+    {% endwith %}
+{% endblock %}
+{% block footer %}
     {% if user.is_authenticated %}
-        <a href="{% url "dictionary:vocab_update" vocab_id=vocab.pk%}" class="btn btn-primary">変更申請</a>
-        <a href="{% url "dictionary:vocab_delete" vocab_id=vocab.pk%}" class="btn btn-primary">削除申請</a>
+        <footer class="app-footer">
+            <div class="grid grid-cols-2 gap-3">
+                <a class="ui-button"
+                   href="{% url 'dictionary:vocab_update' vocab_id=vocab.pk %}">変更申請</a>
+                <a class="ui-button ui-button-danger"
+                   href="{% url 'dictionary:vocab_delete' vocab_id=vocab.pk %}">削除申請</a>
+            </div>
+        </footer>
     {% endif %}
-    <a href="{{ return_url }}" class="btn btn-primary">一覧に戻る</a>
 {% endblock %}

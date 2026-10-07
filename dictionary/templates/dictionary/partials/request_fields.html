@@ -1,0 +1,20 @@
+{% load ui_labels %}
+{% if form.vocab_type.field.disabled %}
+    <div class="ui-card" data-fixed-type="{{ form.vocab_type.value }}">
+        <dl class="data-row">
+            <dt>種類</dt>
+            <dd>
+                {{ form.vocab_type.value|vocab_type_label }}
+            </dd>
+        </dl>
+    </div>
+{% else %}
+    {% include "core/components/selection.html" with field=form.vocab_type %}
+{% endif %}
+{% include "core/components/field.html" with field=form.word %}
+{% include "core/components/field.html" with field=form.kana %}
+{% include "core/components/selection.html" with field=form.level optional=True %}
+{% include "core/components/selection.html" with field=form.categories optional=True limit=3 %}
+{% include "core/components/field.html" with field=form.meaning optional=True %}
+{% include "core/components/field.html" with field=form.request_reason optional=True %}
+{% include "core/components/field.html" with field=form.native_japanese optional=True %}

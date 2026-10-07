@@ -1,57 +1,18 @@
-{% load ui_labels %}
-<form method="POST" action="{{ request.get_full_path }}">
-    {% csrf_token %}
-    <table>
-        <thead>
-            <tr>
-                <th>
-                    <input type="checkbox" id="select-all">
-                    <label for="select-all">すべて</label>
-                </th>
-                <th>種類</th>
-                <th>件名</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user_event in user_events %}
-            <tr>
-                <td>
-                    <input type="hidden" name="selectable_ids" value="{{ user_event.id }}">
-                    <input
-                        type="checkbox"
-                        name="selected_ids"
-                        class="is-read-checkbox"
-                        value="{{ user_event.id }}"
-                        {% if user_event.is_read %}checked{% endif %}>
-                </td>
-                <td><a href="{% url "core:user_event_detail" user_event_pk=user_event.pk %}?next={{ request.get_full_path|urlencode }}">{{ user_event.event.event_type|event_label }}</a></td>
-                <td>{{ user_event.event.title }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button type="submit">既読にする</button>
-</form>
-{% if is_paginated %}
-    <div>
-        {% if page_obj.has_previous %}
-            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" class="page-change">前へ</a>
-        {% else %}
-            前へ
-        {% endif %}
-
-        {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-                {{ num }}
-            {% else %}
-                <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ num }}" class="page-change">{{ num }}</a>
-            {% endif %}
-        {% endfor %}
-
-        {% if page_obj.has_next %}
-            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}" class="page-change">次へ</a>
-        {% else %}
-            次へ
-        {% endif %}
-    </div>
-{% endif %}
+{% load ui_components %}
+{% for user_event in user_events %}
+    <article class="ui-list-item selectable-row">
+        <label class="checkbox-cell">
+            <input type="hidden" name="selectable_ids" value="{{ user_event.pk }}">
+            <input type="checkbox"
+                   name="selected_ids"
+                   value="{{ user_event.pk }}"
+                   aria-label="{{ user_event.event.title }}を選択">
+        </label>
+        <a href="{% url 'core:user_event_detail' user_event_pk=user_event.pk %}?next={{ request.get_full_path|urlencode }}">
+            <span class="badge">{{ user_event.event.event_type|event_short_label }}</span>
+            <p class="border-t-2 border-dashed border-line mt-3 pt-3 line-clamp-2 {% if not user_event.is_read %}font-bold{% endif %}">{{ user_event.event.title }}</p>
+        </a>
+    </article>
+{% empty %}
+    {% include "core/event/no_unread_event.html" %}
+{% endfor %}

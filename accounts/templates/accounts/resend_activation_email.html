@@ -1,22 +1,11 @@
 {% extends "core/base.html" %}
-
+{% block page_title %}認証メールの再送{% endblock %}
 {% block content %}
-    <h1>認証メールの再送</h1>
-
-    <p>
-        ご登録いただいたメールアドレスを入力してください。
-    </p>
-
-    <form method="post">
+    <form method="post" class="ui-stack" novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-
-        <button type="submit">
-            認証メールを再送する
-        </button>
+        {% for field in form %}
+            {% include "core/components/field.html" %}
+        {% endfor %}
+        <button class="ui-button ui-button-action w-full" type="submit">認証メールを再送する</button>
     </form>
-
-    <a href="{% url 'accounts:user_login' %}">
-        ログイン画面に戻る
-    </a>
 {% endblock %}

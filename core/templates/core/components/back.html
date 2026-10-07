@@ -1,0 +1,6 @@
+<a class="icon-button"
+   href="{{ href|default:'/' }}"
+   {% if history %}data-back{% endif %}
+   aria-label="戻る">
+    {% include "core/components/icon.html" with name="back" %}
+</a>

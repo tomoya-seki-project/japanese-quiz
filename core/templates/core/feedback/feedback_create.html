@@ -1,9 +1,21 @@
 {% extends "core/base.html" %}
+{% block page_title %}フィードバック{% endblock %}
+{% block back %}
+    {% include "core/components/back.html" with history=True %}
+{% endblock %}
 {% block content %}
-    <h1>フィードバック</h1>
-    <form method="POST">
+    <form id="feedback-form"
+          class="ui-stack"
+          method="post"
+          data-dirty
+          novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">送信</button>
+        {% include "core/components/field.html" with field=form.feedback_type %}
+        {% include "core/components/field.html" with field=form.context %}
     </form>
+{% endblock %}
+{% block footer %}
+    <footer class="app-footer">
+        <button class="ui-button" type="submit" form="feedback-form">送信</button>
+    </footer>
 {% endblock %}

@@ -1,0 +1,39 @@
+<dialog class="ui-modal" id="ui-dialog" aria-labelledby="dialog-title">
+    <div class="modal-layout">
+        <h2 class="modal-title" id="dialog-title"></h2>
+        <div class="modal-body" id="dialog-body"></div>
+        <div class="modal-actions">
+            <button type="button"
+                    class="ui-button ui-button-secondary"
+                    data-dialog-cancel>
+                キャンセル
+            </button>
+            <button type="button" class="ui-button" data-dialog-confirm>確認</button>
+        </div>
+    </div>
+</dialog>
+{% if form.errors %}
+    <dialog class="ui-modal"
+            id="form-errors"
+            aria-labelledby="errors-title"
+            data-auto-open>
+        <div class="modal-layout">
+            <h2 class="modal-title" id="errors-title">入力内容を確認してください</h2>
+            <div class="modal-body">
+                <ul class="ui-stack">
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}：{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="ui-button" type="button" data-close-dialog>閉じる</button>
+            </div>
+        </div>
+    </dialog>
+{% endif %}

@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+{% block page_title %}UI確認{% endblock %}
+{% block content %}
+    <div class="ui-stack">
+        <section class="ui-card ui-stack">
+            <h2 class="field-label">アカウント認証</h2>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_activation_confirm' %}">認証待ち</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_activation_success' %}">認証成功</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_activation_already_active' %}">認証済み</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_activation_invalid' %}">リンク無効／期限切れ</a>
+        </section>
+        <section class="ui-card ui-stack">
+            <h2 class="field-label">クイズ</h2>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_quiz_no_question' %}">問題なし</a>
+        </section>
+        <section class="ui-card ui-stack">
+            <h2 class="field-label">エラーページ</h2>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_error400' %}">400エラー</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_error403' %}">403エラー</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_error404' %}">404エラー</a>
+            <a class="ui-button ui-button-action ui-button-secondary"
+               href="{% url 'ui_confirm_error500' %}">500エラー</a>
+        </section>
+    </div>
+{% endblock %}

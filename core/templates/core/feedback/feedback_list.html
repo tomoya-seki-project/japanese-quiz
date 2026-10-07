@@ -1,41 +1,26 @@
 {% extends "core/base.html" %}
+{% block page_title %}フィードバック一覧{% endblock %}
 {% block content %}
-    <h1>フィードバック一覧</h1>
-    <form method="get" id="feedback-filter-form">
-        {{ filter_form.status.label_tag }}
-        {{ filter_form.status }}
-    </form>
-    <div id="feedback-list-container">
-        {% include "core/feedback/partials/feedback_list_partial.html" %}
+    <div class="list-layout">
+        <form method="get" class="list-toolbar feedback-filter">
+            <label for="feedback-status" class="field-label">状態</label>
+            <select id="feedback-status" name="status" data-auto-submit>
+                {% for value,label in filter_form.fields.status.choices %}
+                    <option value="{{ value }}"
+                            {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <noscript>
+                <button class="ui-button" type="submit">検索</button>
+            </noscript>
+        </form>
+        <div class="list-scroll">{% include "core/feedback/partials/feedback_list_partial.html" %}</div>
     </div>
 {% endblock %}
-{% block javascript %}
-    <script>
-        document.addEventListener("DOMContentLoaded", function(){
-            const filterForm = document.getElementById("feedback-filter-form");
-            const statusSelect = filterForm.querySelector('[name="status"]');
-
-            statusSelect.addEventListener("change", function () {
-                filterForm.submit();
-            });
-
-            const feedbackListContainer = document.getElementById('feedback-list-container');
-            feedbackListContainer.addEventListener('click', function(e){
-                if(e.target.classList.contains('page-change')){
-                    e.preventDefault();
-                    const url = e.target.href;
-                    fetch(url, {
-                        headers:{
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(res => res.text())
-                    .then(html => {
-                        feedbackListContainer.innerHTML = html;
-                    })
-                    .catch(error => console.error('Error fetching filter feedback:', error));
-                }
-            });
-        });
-    </script>
+{% block footer %}
+    {% if feedbacks %}
+        <footer class="app-footer">
+            {% include "core/components/pagination.html" %}
+        </footer>
+    {% endif %}
 {% endblock %}

@@ -46,12 +46,21 @@ class TemplateLanguageTests(SimpleTestCase):
 
     def test_debug_result_codes_are_preserved_and_answers_escaped(self):
         html = render_to_string('quiz/partials/quiz_result_partial.html', {
+            'user': get_user_model()(is_superuser=True),
             'compared_result': [{'type': 'WRONG', 'sub_type': 'DAKUTEN', 'correct': 'が', 'answer': '<script>'}],
         })
         self.assertIn('WRONG', html)
         self.assertIn('DAKUTEN', html)
         self.assertIn('&lt;script&gt;', html)
         self.assertNotIn('<script>', html)
+
+    def test_debug_result_modal_is_not_available_to_regular_users(self):
+        html = render_to_string('quiz/partials/quiz_result_partial.html', {
+            'user': get_user_model()(is_staff=True, is_superuser=False),
+            'compared_result': [{'type': 'WRONG', 'sub_type': 'DAKUTEN', 'correct': 'が', 'answer': 'か'}],
+        })
+        self.assertNotIn('judgement-dialog', html)
+        self.assertNotIn('DAKUTEN', html)
 
 
 class InterfaceLanguageTests(TestCase):
