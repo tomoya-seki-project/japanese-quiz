@@ -87,7 +87,22 @@
         });
     }
 
+    function resizeKeyboardWord() {
+        if (!keyboard.open) return;
+        const word = document.getElementById("keyboard-word");
+        word.style.fontSize = "24px";
+        const available = word.clientWidth;
+        if (available > 0 && word.scrollWidth > available) {
+            word.style.fontSize = (24 * available / word.scrollWidth) + "px";
+            while (word.scrollWidth > word.clientWidth && parseFloat(word.style.fontSize) > 1) {
+                word.style.fontSize = (parseFloat(word.style.fontSize) - 0.1) + "px";
+            }
+        }
+    }
+
     function syncState() {
+        const questionWord = area.querySelector('[data-quiz-state="question"] .quiz-word')?.textContent.trim();
+        document.getElementById("keyboard-word").textContent = questionWord ? "問題：" + questionWord : "";
         const state = area.querySelector("[data-quiz-state]");
         document.body.dataset.background = state?.dataset.vocabType || "mixed";
         document.getElementById("page-title").textContent = state?.dataset.quizState === "summary" ? "結果" : "クイズ";
@@ -151,6 +166,7 @@
     document.addEventListener("click", e => {
         if (e.target.closest("[data-show-keyboard]")) {
             keyboard.showModal();
+            resizeKeyboardWord();
             renderAnswer();
             return;
         }
@@ -190,12 +206,16 @@
         }
     });
     window.addEventListener("resize", () => {
+        resizeKeyboardWord();
         renderAnswer();
         resizeWords();
         area.querySelectorAll(".kana-display").forEach(resizeKana);
     });
     syncState();
-    document.fonts.ready.then(resizeWords);
+    document.fonts.ready.then(() => {
+        resizeWords();
+        resizeKeyboardWord();
+    });
 })();
 
 function applyAnswerTips(correctAnswer, currentInput) {

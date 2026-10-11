@@ -831,6 +831,24 @@
         justify-content: center;
     }
 
+    .keyboard-word-tab {
+        align-self: flex-start;
+        flex-shrink: 0;
+        max-width: 80%;
+        margin-left: 0;
+        padding: 8px 16px 4px;
+        border-radius: 14px 14px 0 0;
+        background: var(--color-selected);
+        font-size: 24px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    #keyboard-word {
+        display: block;
+        transform: translateY(4px);
+    }
+
     .keyboard-panel {
         background: var(--color-selected);
         border-radius: 24px 24px 0 0;
@@ -838,6 +856,10 @@
         max-height: 80dvh;
         overflow-y: auto;
         flex-shrink: 0;
+    }
+
+    .keyboard-word-tab + .keyboard-panel {
+        border-top-left-radius: 0;
     }
 
     .kana-grid {
