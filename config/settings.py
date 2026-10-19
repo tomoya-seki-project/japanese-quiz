@@ -13,7 +13,15 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+
+import logging
+
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+from config.sentry import redact_sensitive_sentry_data
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,8 +54,56 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+SENTRY_ENVIRONMENT = (
+    os.getenv("SENTRY_ENVIRONMENT", "production").strip()
+    or "production"
+)
+SENTRY_RELEASE = os.getenv("SENTRY_RELEASE", "").strip() or None
+
+if not DEBUG and SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=SENTRY_ENVIRONMENT,
+        release=SENTRY_RELEASE,
+        before_send=redact_sensitive_sentry_data,
+        integrations=[
+            DjangoIntegration(),
+            LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.ERROR,
+            ),
+        ],
+        traces_sample_rate=0.0,
+        data_collection={
+            "user_info": False,
+            "cookies": {"mode": "off"},
+            "http_headers": {
+                "request": {"mode": "off"},
+            },
+            "http_bodies": [],
+            "url_query_params": {"mode": "off"},
+            "graphql": {
+                "document": False,
+                "variables": False,
+            },
+            "gen_ai": {
+                "inputs": False,
+                "outputs": False,
+            },
+            "database_query_data": False,
+            "queues": False,
+            "stack_frame_variables": False,
+            "frame_context_lines": 5,
+        },
+    )
+
 
 if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https"
+    )
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -166,6 +222,7 @@ FORMAT_MODULE_PATH = ["core.formats"]
 STATIC_URL = 'static/'
 STATIC_DIR = BASE_DIR / 'static'
 STATICFILES_DIRS = [STATIC_DIR]
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -184,7 +241,78 @@ EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL", "言葉の輪 <no-reply@silent-mori.com>")
 EMAIL_TIMEOUT=int(os.getenv("EMAIL_TIMEOUT", "15"))
 
+if not DEBUG:
+    required_email_settings = (
+        "EMAIL_BACKEND",
+        "EMAIL_HOST",
+        "EMAIL_HOST_USER",
+        "EMAIL_HOST_PASSWORD",
+        "DEFAULT_FROM_EMAIL",
+    )
+
+    missing_email_settings = [
+        name
+        for name in required_email_settings
+        if not os.getenv(name, "").strip()
+    ]
+
+    if missing_email_settings:
+        raise ImproperlyConfigured(
+            "Missing required production email settings: "
+            + ", ".join(missing_email_settings)
+        )
+
+    if EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
+        raise ImproperlyConfigured(
+            "Production EMAIL_BACKEND must use SMTP."
+        )
+
+    if EMAIL_PORT != 465 or not EMAIL_USE_SSL or EMAIL_USE_TLS:
+        raise ImproperlyConfigured(
+            "Production email must use implicit SSL on port 465 "
+            "with EMAIL_USE_TLS disabled."
+        )
+
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+
+if DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "wordloop-development",
+        }
+    }
+else:
+    if not REDIS_URL:
+        raise ImproperlyConfigured(
+            "Missing required production cache setting: REDIS_URL"
+        )
+
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "wordloop",
+            "OPTIONS": {
+                "socket_connect_timeout": 1,
+                "socket_timeout": 1,
+            },
+        }
+    }
+
 ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS = 60
+REGISTRATION_IP_RATE_LIMIT = 10
+REGISTRATION_IP_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
+
+ACTIVATION_RESEND_IP_RATE_LIMIT = 10
+ACTIVATION_RESEND_IP_RATE_LIMIT_WINDOW_SECONDS = 10 * 60
+
+RATE_LIMIT_CLIENT_IP_META_KEY = (
+    "REMOTE_ADDR"
+    if DEBUG
+    else "HTTP_X_REAL_IP"
+)
+
 LOGIN_URL = '/accounts/user_login/'
 
 LOGGING = {
@@ -276,3 +404,15 @@ LOGGING = {
         },
     }
 }
+
+if not DEBUG:
+    for handler_name in (
+        "debug_file",
+        "full_flow_file",
+        "error_file",
+    ):
+        del LOGGING["handlers"][handler_name]
+
+    for logger_config in LOGGING["loggers"].values():
+        logger_config["handlers"] = ["console"]
+        logger_config["level"] = "INFO"

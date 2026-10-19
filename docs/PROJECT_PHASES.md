@@ -36,6 +36,7 @@ The architecture is guided by five principles:
 | [16](#phase-16-maintenance-command-foundation) | 2026-09-30 | Kana asset tooling and QuizAttempt retention |
 | [17](#phase-17-workflow-navigation-and-state-refinement) | 2026-10-04 | Notification, feedback, vocabulary, and quiz controls |
 | [18](#phase-18-tailwind-mobile-ui) | 2026-10-07 | Tailwind UI, shared components, and browser-test foundation |
+| [19](#phase-19-production-readiness-and-application-preparation) | 2026-10-17 to 2026-10-20 | Readiness review, production hardening, and deployment-test foundation (in progress) |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -424,6 +425,38 @@ Apply the mobile design to actual Django pages.
 
 System and migration checks and eleven Django tests passed. Browser cases were not run during the documentation sync because Playwright CLI was unavailable. Multiple-choice flows, core domain and concurrency tests, and production deployment remain unfinished.
 
+## Phase 19: Production Readiness and Application Preparation
+
+**Period:** 2026-10-17 to 2026-10-20
+
+**Status:** In progress; the application-preparation changes remain uncommitted.
+
+### Objective
+
+Convert a repository-wide production-readiness review into the smallest application-side changes and repeatable checks required before provisioning a VPS.
+
+### Outcomes so far
+
+- Completed a read-only readiness review that classified six high-priority and four medium-priority findings into application work, local verification, VPS validation, and post-v1.0.0 work.
+- Added production dependencies, `STATIC_ROOT`, SMTP fail-fast validation, Redis-backed shared cache with fail-open handling, trusted-proxy HTTPS metadata, a PostgreSQL-backed `/health/` endpoint, console logging, and Sentry integration with privacy filtering.
+- Added permissive per-IP limits for registration and activation resend. Production uses only the `X-Real-IP` value overwritten by the controlled Nginx proxy; cache failure follows the documented fail-open availability policy.
+- Expanded the Django suite to 39 discovered tests. The isolated SQLite run passes 37 and skips two PostgreSQL-only cases; the two true multi-connection concurrency tests were subsequently confirmed passing with the dedicated PostgreSQL test role.
+- Completed migration-drift and whitespace checks, a production-like `check --deploy` review, and a two-worker Gunicorn Unix-socket request to `/health/` with graceful shutdown.
+
+### Key decisions
+
+- Redis shares cooldown and rate-limit state across Gunicorn workers. If Redis is unavailable, email flows remain available and errors are logged, accepting that both abuse-control layers pause during the outage.
+- `/health/` uses `SELECT 1` to verify the Django-to-PostgreSQL path; Redis is deliberately not a hard-fail health dependency.
+- Django's `HTTP_X_FORWARDED_PROTO` setting name represents the WSGI mapping of the incoming `X-Forwarded-Proto` header. Its safety still depends on the Cloudflare, Nginx, and Gunicorn trust boundary.
+- Sentry initialises only outside debug mode when a DSN exists, and strips activation tokens, cookies, headers, and request bodies before transmission.
+- Per-IP thresholds were adopted as a Phase 2 implementation decision on 20 October rather than retroactively treated as part of the original deployment plan.
+
+### Remaining before this phase is complete
+
+- Update release metadata, perform the final dependency/secret/diff inventory, and rerun the checks against the release-candidate state.
+- Produce the planned modification and verification reports, then record the release commit and tag decision.
+- Keep VPS provisioning, Nginx/systemd/TLS configuration, live Redis and PostgreSQL validation, monitoring, backup/restore, and public browser smoke tests in the later deployment phases.
+
 ## Current Architecture
 
 ```text
@@ -464,10 +497,10 @@ Responsibility boundaries:
 
 ## Current State and Remaining Work
 
-The dictionary, reviewed vocabulary workflow, user vocabulary management, email activation, notification history, feedback, and kana quiz now form usable end-to-end paths. Important remaining work includes:
+The dictionary, reviewed vocabulary workflow, user vocabulary management, email activation, notification history, feedback, and kana quiz now form usable end-to-end paths. The v1.0.0 production-readiness effort is near the end of application preparation, but those changes remain uncommitted. Important remaining work includes:
 
-- Expand automated coverage for accounts, domain services, multi-connection concurrency, answer correctness, and pool/session integration.
-- Supply production secrets, `DEBUG=False`, hosts and trusted origins; verify TLS/proxy and static files, database backup/restore, and deployment operations.
+- Expand browser and integration coverage for complete account, vocabulary-review, quiz-pool, answer, navigation, and operational flows. The current isolated suite discovers 39 tests, and the PostgreSQL-only `QuizAttempt` and `VocabRequest` concurrency cases have passed separately.
+- Finalise and commit the application-preparation release candidate, then supply production secrets, `DEBUG=False`, hosts and trusted origins; verify TLS/proxy trust, Redis sharing, static files, Sentry, database backup/restore, and deployment operations on the VPS.
 - Finish multiple-choice import, admin, request, and quiz flows before re-enabling their vocabulary types.
 - Run and expand browser-level visual checks for the implemented mobile layout and answer-comparison overlay.
 - Consider a durable outbox/retry design only if best-effort post-commit notifications later require guaranteed delivery.

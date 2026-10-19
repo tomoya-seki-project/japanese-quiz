@@ -175,6 +175,7 @@ The PostgreSQL and QuizAttempt work was committed as `10f6dd2` on 16 September 2
 | 2026-10-04 | `8e77709` | Added notification return paths, quiz settings restore, and unanswered-question guards. |
 | 2026-10-04 | `314c866` | Refined feedback filtering, notification bulk updates, vocabulary requests, and query loading. |
 | 2026-10-07 | `a909a7e` | Applied Tailwind UI across the application and added browser-test scaffolding. |
+| 2026-10-12 | `32ac5c8` (`v0.9.6`) | Kept the current question visible inside the mobile quiz keyboard dialog and synchronised it across Ajax question changes. |
 
 ### Engineering direction
 
@@ -182,9 +183,10 @@ The PostgreSQL and QuizAttempt work was committed as `10f6dd2` on 16 September 2
 - Quiz settings, full-pool choice, and active-session state have distinct responsibilities.
 - Shared Django components, Tailwind CSS, and vanilla JavaScript provide the mobile UI without introducing a separate frontend application.
 - The result view positions missing and extra markers over the relevant kana images.
+- Quiz question context is duplicated inside the keyboard dialog deliberately; Ajax state changes update both the page and dialog to prevent stale prompts.
 - Eleven Django tests passed with isolated SQLite settings on 7 October 2026. Fourteen Playwright cases exist, but the CLI was unavailable for this documentation sync.
 
 ## Current Position
 
-By October 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes. The most important remaining work is broader automated testing, production deployment and operations, and a complete multiple-choice vertical slice.
+By October 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes. The latest recorded product commit is `32ac5c8` (`v0.9.6`). Production-readiness work after that commit remains in the working tree and is therefore described in [TODO](TODO.md) and [Development Phases](PROJECT_PHASES.md), not presented here as committed history. The most important remaining work is finalising that release candidate, production deployment and operations, broader browser coverage, and a complete multiple-choice vertical slice.
 

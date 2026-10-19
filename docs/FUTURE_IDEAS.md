@@ -8,7 +8,6 @@ This document stores possible future directions that are not committed to the cu
 - [Event Notifications](#event-notifications)
 - [User Messages and Admin Inbox](#user-messages-and-admin-inbox)
 - [Quiz](#quiz)
-- [Scheduled Maintenance](#scheduled-maintenance)
 - [Post-v1.0.0 Multiple-Choice Quiz](#post-v100-multiple-choice-quiz)
 - [Vocabulary Data Model](#vocabulary-data-model)
 - [Database Export and Restore](#database-export-and-restore)
@@ -18,6 +17,7 @@ This document stores possible future directions that are not committed to the cu
 
 - Add a password-reset flow using Django's built-in views, forms, and `default_token_generator`. Use a separate timeout policy if activation and password reset later require different expiry periods.
 - Add quiz streak statistics to the user profile: longest correct streak, longest incorrect streak, and the current correct or incorrect streak. Decide during implementation whether to store separate counters or a streak type with one current count.
+- Show the ten most recent quiz attempts on My Page. Define the retained data and presentation when the feature enters active scope.
 
 ## Event Notifications
 
@@ -36,13 +36,6 @@ This document stores possible future directions that are not committed to the cu
 - Add the complete katakana answer flow.
 - Implement a smartphone-style Japanese flick keyboard. Each key represents a kana row such as あ, か, さ, た, な, は, ま, や, or ら; holding and flicking selects another kana in that row.
 - If recent-skip behaviour later needs greater precision, retain only the latest ten vocabulary IDs instead of introducing a complete question-history model.
-
-## Scheduled Maintenance
-
-- After v1.0.0, consider periodically increasing overdue `UserVocab.weight` according to `last_quiz_at`, stage-specific waiting periods, boost size, an upper bound, and the user's average weight.
-- Define a retention policy and cleanup management command for completed, expired, and long-pending `QuizAttempt` records.
-- Keep weight adjustment and attempt cleanup as separate commands so they can run at different frequencies and report failures independently. Both should support logging, processed counts, and `--dry-run`.
-- Choose cron or the hosting platform's scheduler at deployment time. Do not introduce Celery Beat solely for these jobs unless the project later needs queues, retries, workers, or substantially more background processing.
 
 ## Post-v1.0.0 Multiple-Choice Quiz
 

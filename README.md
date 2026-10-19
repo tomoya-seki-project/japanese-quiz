@@ -4,11 +4,13 @@ WordLoop is a Django-based Japanese vocabulary learning application. It combines
 
 > **Status:** In development
 >
-> **Version:** v0.7.0
+> **Latest tagged version:** v0.9.6
 >
-> **Milestone:** Core workflows and the mobile UI are implemented; testing and production deployment remain in progress.
+> **Target release:** v1.0.0
+>
+> **Milestone:** Production-readiness Phase 1 is complete. Phase 2 application preparation is in progress and remains uncommitted.
 
-The project is not yet production-ready. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. Multiple-choice quizzes, broader automated regression coverage, and production deployment remain incomplete.
+The project is not yet deployed or ready for public production use. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. The current v1.0.0 candidate work adds application-side production safeguards and tests, while release finalisation, VPS infrastructure, live monitoring, backup/recovery, browser verification, and multiple-choice quizzes remain incomplete.
 
 ## Current Features
 
@@ -16,7 +18,8 @@ The project is not yet production-ready. Core dictionary, review, account, notif
 
 - A custom `User` model uses email as the login identifier.
 - Registration creates an inactive account that must be activated through a time-limited, single-use email link.
-- Activation emails can be resent through a privacy-preserving flow with cooldown protection.
+- Activation emails can be resent through a privacy-preserving flow with cooldown protection. Production cooldown state is shared through Redis and fails open with error logging if the cache is unavailable.
+- Registration and resend apply permissive per-IP limits. Production accepts the client IP only from the value overwritten by the controlled Nginx proxy.
 - Registration, login, resend, and admin forms canonicalise email addresses to lowercase.
 - A case-insensitive database constraint prevents duplicate identities that differ only by letter case.
 - Login, logout, profile, and optional remember-me sessions are supported.
@@ -77,8 +80,8 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - Global `400`, `403`, `404`, and `500` handlers are registered.
 - Quiz Ajax actions return structured validation errors and the client handles non-JSON, network, and parsing failures.
 - Account entry points use a resilient vocabulary-sync wrapper so retryable side-effect failures do not unnecessarily block login or registration.
-- Logging separates console, debug-only, information, and error output.
-- File logs rotate daily and retain seven days.
+- Development logging separates console, debug-only, information, and error output; development file logs rotate daily and retain seven days.
+- Non-debug production logging uses console output only so Gunicorn/systemd can collect it without competing application file handlers.
 - Domain workflows log outcomes and identifiers without recording credentials, feedback bodies, sessions, or complete POST payloads.
 
 ### Mobile Interface
@@ -88,10 +91,21 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - Local Japanese fonts, kana backgrounds, and shared JavaScript support the interface. Generated CSS is committed so Node is unnecessary at runtime.
 - Fourteen Playwright browser cases cover routes, responsive overflow, forms, notifications, and quiz interaction; they require a separate browser-test setup.
 
+### Production-Readiness Foundation
+
+- Production dependencies include Gunicorn, the Redis client, and the Django Sentry SDK integration.
+- `STATIC_ROOT` supports `collectstatic`; generated `staticfiles/` output is not committed and is intended to be served by Nginx.
+- Non-debug startup validates required SMTP configuration instead of silently falling back to development email behaviour.
+- Non-debug requests use trusted-proxy HTTPS metadata, secure cookies, HTTPS redirect, and configurable HSTS.
+- `/health/` performs a lightweight PostgreSQL `SELECT 1` check and returns `200` or `503`; Redis is deliberately not a hard-fail health dependency.
+- Production logging writes to stdout/stderr for Gunicorn and systemd journal collection. Sentry is enabled only outside debug mode when a DSN is supplied and filters activation credentials, cookies, headers, request bodies, and other sensitive context.
+- Local production-like verification has covered migration drift, Django deployment warnings, a two-worker Gunicorn Unix-socket health request, and graceful shutdown. These checks do not replace VPS validation.
+
 ## Current Priorities
 
-- Expand account, domain, quiz integration, and `QuizAttempt` concurrency tests.
-- Complete production settings, secret management, deployment, and database-operation hardening.
+- Finalise v1.0.0 release metadata, review the dependency/secret/diff inventory, rerun release-candidate checks, and commit/tag the application-preparation work.
+- Expand browser and integration coverage for complete account, vocabulary-review, quiz-pool, answer, navigation, and operational flows.
+- Provision and verify the VPS, Nginx, systemd/Gunicorn, PostgreSQL, Redis, TLS/proxy trust, static files, Sentry, monitoring, backup/restore, and rollback procedures.
 - Run and extend browser UI verification across supported viewport sizes and Ajax states.
 - Keep unfinished multiple-choice functionality outside the active user flow until its full vertical slice is complete.
 
@@ -104,6 +118,9 @@ See [the project TODO](docs/TODO.md) for current work and [Future Ideas](docs/FU
 | Backend | Django 6.0.5 |
 | Language | Python |
 | Database | PostgreSQL 16 with Psycopg 3 |
+| Shared cache | Redis in production; local-memory cache in development |
+| Application server | Gunicorn sync workers behind Nginx (planned deployment) |
+| Error monitoring | Sentry SDK integration; live project configuration remains pending |
 | Frontend | Django Templates, Tailwind CSS, and vanilla JavaScript |
 | Authentication | Django Auth with a custom `User` model |
 | Time zone | Asia/Tokyo |
@@ -233,6 +250,7 @@ Development URLs:
 | `/quiz/` | Quiz home |
 | `/quiz/setting` | Quiz settings |
 | `/quiz/play` | Ajax quiz play |
+| `/health/` | Django and PostgreSQL health check (`200`/`503`) |
 | `/core/feedback/` | Role-based feedback entry |
 | `/core/feedback/create/` | Submit feedback |
 | `/core/feedback/list/` | Superuser feedback list |
@@ -286,7 +304,7 @@ Browser-test setup and isolated fixtures are documented in [frontend/README.md](
 
 ## Testing
 
-Eleven Django regression tests cover template compilation, language boundaries, built-in validation, shared choices, kana keyboard values, escaping, notifications, key detail labels, and the regular-user boundary for the answer-judgement debug dialog. All eleven passed on 7 October 2026 using isolated SQLite test settings. Ten earlier tests also passed on an isolated PostgreSQL test database.
+The isolated SQLite suite discovers 39 Django tests: 37 pass and two PostgreSQL-only concurrency tests skip by design. It covers the existing UI/language contracts plus production SMTP validation, the database-backed health endpoint, Redis cooldown failure policy, Sentry privacy filtering, per-IP rate limiting, single-use quiz attempts, and concurrent vocabulary approval.
 
 An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test database. Supply its credentials through the shell environment or local/CI secrets:
 
@@ -294,19 +312,19 @@ An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test 
 DB_USER=japanese_quiz_test DB_PASSWORD="<test-role-password>" python manage.py test
 ```
 
-Fourteen Playwright browser cases have been added; the CLI was unavailable during the latest documentation sync, so that run was not verified. High-priority missing Django coverage includes activation and email identity, reviewed vocabulary mutations, concurrent request handling, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
+A targeted `QuizAttempt`/`VocabRequest` suite discovers 12 tests: ten pass with SQLite settings, and the two true multi-connection tests were subsequently confirmed passing with the dedicated PostgreSQL test role. Fourteen Playwright browser cases exist but do not yet have a current pass result. Important remaining coverage includes complete registration/activation and vocabulary-review browser flows, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
 
 ## Current Limitations
 
 - Multiple-choice import, review, administration, and quiz flows are not connected; their active vocabulary types remain disabled.
-- Automated tests do not yet cover the major domain and concurrency paths.
+- Automated coverage has expanded, including two PostgreSQL concurrency cases, but complete browser and integration coverage is still missing.
 - Full database export and restore are not implemented.
 - The mobile layout and answer overlay are implemented; browser verification needs to be run and expanded.
-- Settings read secrets, hosts, database, and SMTP values from the environment, but production infrastructure and operational procedures are not ready.
+- Application-side production hardening exists in the current uncommitted working tree, but release finalisation, production infrastructure, and operational procedures are not complete.
 
 ## Security Notes
 
-Settings load secrets, database credentials, SMTP, allowed hosts, and trusted origins from environment variables. With `DEBUG=False`, HTTPS redirect and secure cookies are enabled. Production deployment still requires separate secrets and hosts, correctly configured TLS proxy and static-file serving, PostgreSQL backup and rollback procedures, and `python manage.py check --deploy` in the deployed environment.
+Settings load secrets, database credentials, SMTP, Redis, allowed hosts, trusted origins, and optional Sentry configuration from environment variables. With `DEBUG=False`, HTTPS redirect, secure cookies, trusted-proxy HTTPS handling, HSTS, Redis cache, SMTP fail-fast validation, and optional Sentry initialisation are enabled. Production deployment still requires separate secrets and hosts, a verified Cloudflare/Nginx/Gunicorn trust boundary, Nginx static-file serving, least-privilege PostgreSQL, backup/restore and rollback procedures, monitoring, and a fresh `python manage.py check --deploy` review in the deployed environment.
 
 ## Development History
 

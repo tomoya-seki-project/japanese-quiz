@@ -21,6 +21,8 @@ from django.conf.urls.static import static
 from django.views.generic.base import TemplateView
 from errorHandler.views import error400, error403, error404, error500
 
+from core.views import health_check
+
 handler400 = error400
 handler403 = error403
 handler404 = error404
@@ -33,6 +35,7 @@ urlpatterns = [
     path('core/', include('core.urls')),
     path('dictionary/', include('dictionary.urls')),
     path('quiz/', include('quiz.urls')),
+    path('health/', health_check, name="health"),
 ]
 
 if settings.DEBUG:

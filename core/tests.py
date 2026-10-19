@@ -1,18 +1,264 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.db import DatabaseError
+from django.http import HttpResponse
+from django.middleware.security import SecurityMiddleware
 from django.template.loader import get_template, render_to_string
-from django.test import SimpleTestCase, TestCase
+from django.test import (
+    RequestFactory,
+    SimpleTestCase,
+    TestCase,
+    override_settings,
+)
 from django.urls import reverse
 from django.utils import translation
 
 from accounts.forms import UserCreationAdminForm
+from accounts.views import _is_ip_rate_limit_allowed
 from core.forms import FeedbackCreateForm, FeedbackReplyForm
 from core.models import Event, Feedback, FeedbackType
 from dictionary.forms import VocabCreateRequestForm
 from dictionary.models import Vocab, VocabType, VocabLevel, VocabRequest, VocabRequestStatus, VocabRequestType
 from dictionary.service.vocab_request import VocabRequestService
 from quiz.forms import QuizSettingForm
+from config.sentry import redact_sensitive_sentry_data
+
+
+@override_settings(
+    CACHES={"default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "ip-rate-limit-tests",
+    }},
+    RATE_LIMIT_CLIENT_IP_META_KEY="HTTP_X_REAL_IP",
+    REGISTRATION_IP_RATE_LIMIT=10,
+    REGISTRATION_IP_RATE_LIMIT_WINDOW_SECONDS=3600,
+    ACTIVATION_RESEND_IP_RATE_LIMIT=10,
+    ACTIVATION_RESEND_IP_RATE_LIMIT_WINDOW_SECONDS=600,
+)
+class IPRateLimitTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.factory = RequestFactory()
+
+    def allowed(self, ip="192.0.2.1", scope="registration"):
+        request = self.factory.post("/", HTTP_X_REAL_IP=ip)
+        return _is_ip_rate_limit_allowed(
+            request=request, scope=scope, limit=10, window_seconds=600,
+        )
+
+    def test_limits_are_separate_by_ip_and_scope(self):
+        for _ in range(10):
+            self.assertTrue(self.allowed())
+        self.assertFalse(self.allowed())
+        self.assertTrue(self.allowed(ip="192.0.2.2"))
+        self.assertTrue(self.allowed(scope="activation-resend"))
+
+    def test_equivalent_ipv6_addresses_share_limit(self):
+        for _ in range(10):
+            self.assertTrue(self.allowed(ip="2001:db8::1"))
+        self.assertFalse(self.allowed(ip="2001:0db8:0:0:0:0:0:1"))
+
+    def test_missing_or_invalid_trusted_ip_fails_open(self):
+        for value in (None, "not-an-ip", "192.0.2.1, 192.0.2.2"):
+            with self.subTest(value=value):
+                with self.assertLogs("accounts.views", level="ERROR"):
+                    self.assertTrue(self.allowed(ip=value))
+
+    def test_cache_failure_fails_open(self):
+        with patch("accounts.views.cache.add", side_effect=RuntimeError("offline")):
+            with self.assertLogs("accounts.views", level="ERROR"):
+                self.assertTrue(self.allowed())
+
+    def test_untrusted_forwarded_header_cannot_change_limit(self):
+        for _ in range(10):
+            self.assertTrue(self.allowed())
+        request = self.factory.post(
+            "/", HTTP_X_REAL_IP="192.0.2.1",
+            HTTP_X_FORWARDED_FOR="192.0.2.99",
+        )
+        self.assertFalse(_is_ip_rate_limit_allowed(
+            request=request, scope="registration", limit=10, window_seconds=600,
+        ))
+
+    def test_both_routes_block_before_creating_user_or_sending_mail(self):
+        cases = (
+            ("accounts:user_regist", "3600"),
+            ("accounts:resend_activation_email", "600"),
+        )
+        for route, retry_after in cases:
+            with self.subTest(route=route):
+                cache.clear()
+                url = reverse(route)
+                for _ in range(10):
+                    response = self.client.post(url, {}, HTTP_X_REAL_IP="192.0.2.1")
+                    self.assertEqual(response.status_code, 200)
+                user_count = get_user_model().objects.count()
+                with patch("accounts.views.send_activation_email") as send:
+                    response = self.client.post(url, {
+                        "username": "limited-user",
+                        "email": "limited@example.test",
+                        "password": "test-password",
+                        "password2": "test-password",
+                    }, HTTP_X_REAL_IP="192.0.2.1")
+                self.assertContains(response, "リクエスト回数が多すぎます。", status_code=429)
+                self.assertEqual(response["Retry-After"], retry_after)
+                self.assertEqual(get_user_model().objects.count(), user_count)
+                send.assert_not_called()
+                self.assertEqual(self.client.get(url).status_code, 200)
+                self.assertEqual(self.client.post(
+                    url, {}, HTTP_X_REAL_IP="192.0.2.2",
+                ).status_code, 200)
+
+
+class SentryDataRedactionTests(SimpleTestCase):
+    def test_activation_credentials_are_redacted_recursively(self):
+        event = {
+            "request": {
+                "url": (
+                    "https://example.com/accounts/activate/"
+                    "MQ/secret-token/?source=email"
+                ),
+            },
+            "breadcrumbs": {
+                "values": [
+                    {
+                        "message": (
+                            "Opening /accounts/activate/Mg/another-token/"
+                        ),
+                    },
+                ],
+            },
+            "extra": (
+                "/accounts/activate/Mw/third-token/",
+            ),
+        }
+
+        redacted = redact_sensitive_sentry_data(event, hint={})
+        redacted_text = repr(redacted)
+
+        self.assertEqual(
+            redacted["request"]["url"],
+            (
+                "https://example.com/accounts/activate/"
+                "[Filtered]/[Filtered]/?source=email"
+            ),
+        )
+        self.assertNotIn("secret-token", redacted_text)
+        self.assertNotIn("another-token", redacted_text)
+        self.assertNotIn("third-token", redacted_text)
+        self.assertNotIn("/activate/MQ/", redacted_text)
+        self.assertNotIn("/activate/Mg/", redacted_text)
+        self.assertNotIn("/activate/Mw/", redacted_text)
+
+    def test_non_activation_data_is_unchanged(self):
+        event = {
+            "request": {
+                "url": "https://example.com/accounts/user_login/",
+            },
+            "message": "ordinary application error",
+        }
+
+        redacted = redact_sensitive_sentry_data(event, hint={})
+
+        self.assertEqual(redacted, event)
+
+
+@override_settings(
+    SECURE_PROXY_SSL_HEADER=(
+        "HTTP_X_FORWARDED_PROTO",
+        "https",
+    ),
+    SECURE_SSL_REDIRECT=True,
+    ALLOWED_HOSTS=["testserver"],
+)
+class ProxyHTTPSSettingsTests(SimpleTestCase):
+    def setUp(self):
+        self.request_factory = RequestFactory()
+        self.middleware = SecurityMiddleware(
+            lambda request: HttpResponse("ok")
+        )
+
+    def test_https_proxy_header_marks_request_secure(self):
+        request = self.request_factory.get(
+            "/",
+            HTTP_HOST="testserver",
+            HTTP_X_FORWARDED_PROTO="https",
+        )
+
+        response = self.middleware(request)
+
+        self.assertTrue(request.is_secure())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            request.build_absolute_uri("/accounts/activate/example/"),
+            "https://testserver/accounts/activate/example/",
+        )
+
+    def test_missing_or_http_proxy_header_redirects_to_https(self):
+        cases = (
+            {},
+            {"HTTP_X_FORWARDED_PROTO": "http"},
+        )
+
+        for request_meta in cases:
+            with self.subTest(request_meta=request_meta):
+                request = self.request_factory.get(
+                    "/",
+                    HTTP_HOST="testserver",
+                    **request_meta,
+                )
+
+                response = self.middleware(request)
+
+                self.assertFalse(request.is_secure())
+                self.assertEqual(response.status_code, 301)
+                self.assertEqual(
+                    response["Location"],
+                    "https://testserver/",
+                )
+
+
+class HealthCheckTests(TestCase):
+    def test_health_check_returns_ok_when_database_is_available(self):
+        response = self.client.get(reverse("health"), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_health_check_returns_503_when_database_is_unavailable(self):
+        with patch(
+            "core.views.connection.cursor",
+            side_effect=DatabaseError("database unavailable"),
+        ):
+            with self.assertLogs("core.views", level="ERROR") as logs:
+                response = self.client.get(
+                    reverse("health"),
+                    secure=True,
+                )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"status": "unhealthy"})
+        self.assertNotIn(b"database unavailable", response.content)
+        self.assertIn("health_check_database", logs.output[0])
+
+    def test_health_check_allows_head_but_rejects_post(self):
+        head_response = self.client.head(
+            reverse("health"),
+            secure=True,
+        )
+        post_response = self.client.post(
+            reverse("health"),
+            secure=True,
+        )
+
+        self.assertEqual(head_response.status_code, 200)
+        self.assertEqual(head_response.content, b"")
+        self.assertEqual(post_response.status_code, 405)
 
 
 class TemplateLanguageTests(SimpleTestCase):

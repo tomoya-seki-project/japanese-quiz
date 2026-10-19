@@ -1,7 +1,10 @@
+from ipaddress import ip_address
 import logging
+
 
 from django.contrib.auth import get_user_model
 from django.http import Http404
+from django.utils.crypto import salted_hmac
 from django.utils.encoding import force_str, force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
@@ -44,6 +47,95 @@ from core.service.event import EventService
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+def _get_rate_limit_client_ip(request):
+    meta_key = settings.RATE_LIMIT_CLIENT_IP_META_KEY
+    raw_ip = request.META.get(meta_key)
+
+    if not isinstance(raw_ip, str):
+        logger.error(
+            "Rate limit client IP unavailable: "
+            "operation=%s meta_key=%s",
+            "rate_limit_client_ip",
+            meta_key,
+        )
+        return None
+
+    try:
+        return ip_address(raw_ip.strip()).compressed
+    except ValueError:
+        logger.error(
+            "Rate limit client IP invalid: "
+            "operation=%s meta_key=%s",
+            "rate_limit_client_ip",
+            meta_key,
+        )
+        return None
+
+def _is_ip_rate_limit_allowed(*, request, scope, limit, window_seconds):
+    client_ip = _get_rate_limit_client_ip(request)
+
+    if client_ip is None:
+        return True
+
+    ip_digest = salted_hmac(
+        "accounts.ip-rate-limit",
+        client_ip,
+    ).hexdigest()
+
+    try:
+        for slot in range(limit):
+            cache_key = (
+                f"ip-rate-limit:{scope}:"
+                f"{ip_digest}:{slot}"
+            )
+
+            if cache.add(
+                cache_key,
+                True,
+                timeout=window_seconds,
+            ):
+                return True
+    except Exception:
+        logger.exception(
+            "IP rate limit cache unavailable: "
+            "operation=%s scope=%s",
+            "ip_rate_limit",
+            scope,
+        )
+        return True
+
+    return False
+
+def _activation_email_cooldown_key(user_id):
+    return f"activation-email-resend:{user_id}"
+
+def _try_start_activation_email_cooldown(*, user_id):
+    try:
+        return cache.add(
+            _activation_email_cooldown_key(user_id),
+            True,
+            timeout=settings.ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS,
+        )
+    except Exception:
+        logger.exception(
+            "Activation email cooldown cache unavailable: "
+            "operation=%s user_id=%s",
+            "activation_email_cooldown_add",
+            user_id,
+        )
+        return True
+
+def _clear_activation_email_cooldown(*, user_id):
+    try:
+        cache.delete(_activation_email_cooldown_key(user_id))
+    except Exception:
+        logger.exception(
+            "Activation email cooldown cache unavailable: "
+            "operation=%s user_id=%s",
+            "activation_email_cooldown_delete",
+            user_id,
+        )
 
 def send_activation_email(*, request, user):
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
@@ -115,6 +207,38 @@ class RegistUserView(CreateView):
     form_class = RegistForm
     success_url = reverse_lazy('accounts:activation_email_sent')
 
+    def post(self, request, *args, **kwargs):
+        window_seconds = (
+            settings.REGISTRATION_IP_RATE_LIMIT_WINDOW_SECONDS
+        )
+
+        allowed = _is_ip_rate_limit_allowed(
+            request=request,
+            scope="registration",
+            limit=settings.REGISTRATION_IP_RATE_LIMIT,
+            window_seconds=window_seconds,
+        )
+
+        if not allowed:
+            messages.error(
+                request,
+                "リクエスト回数が多すぎます。"
+                "しばらくしてからもう一度お試しください。",
+            )
+
+            response = render(
+                request,
+                self.template_name,
+                {
+                    "form": self.get_form_class()(),
+                },
+                status=429,
+            )
+            response["Retry-After"] = str(window_seconds)
+            return response
+
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
         result = super().form_valid(form)
 
@@ -127,11 +251,8 @@ class RegistUserView(CreateView):
             )
             return redirect("accounts:resend_activation_email")
 
-        cache.set(
-            f"activation-email-resend:{self.object.pk}",
-            True,
-            timeout=settings.ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS,
-        )
+        _try_start_activation_email_cooldown(user_id=self.object.pk)
+
         logger.info(
             "User registration completed: "
             "operation=%s user_id=%s activation_email_sent=%s",
@@ -274,6 +395,38 @@ class ResendActivationEmailView(FormView):
     form_class = ResendActivationEmailForm
     success_url = reverse_lazy("accounts:activation_email_sent")
 
+    def post(self, request, *args, **kwargs):
+        window_seconds = (
+            settings.ACTIVATION_RESEND_IP_RATE_LIMIT_WINDOW_SECONDS
+        )
+
+        allowed = _is_ip_rate_limit_allowed(
+            request=request,
+            scope="activation-resend",
+            limit=settings.ACTIVATION_RESEND_IP_RATE_LIMIT,
+            window_seconds=window_seconds,
+        )
+
+        if not allowed:
+            messages.error(
+                request,
+                "リクエスト回数が多すぎます。"
+                "しばらくしてからもう一度お試しください。",
+            )
+
+            response = render(
+                request,
+                self.template_name,
+                {
+                    "form": self.get_form_class()(),
+                },
+                status=429,
+            )
+            response["Retry-After"] = str(window_seconds)
+            return response
+
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
         email = form.cleaned_data["email"]
 
@@ -283,13 +436,7 @@ class ResendActivationEmailView(FormView):
         ).first()
 
         if user is not None:
-            cache_key = f"activation-email-resend:{user.pk}"
-
-            can_send = cache.add(
-                cache_key,
-                True,
-                timeout=settings.ACTIVATION_EMAIL_RESEND_COOLDOWN_SECONDS,
-            )
+            can_send = _try_start_activation_email_cooldown(user_id=user.pk)
 
             if can_send:
                 email_sent = send_activation_email(
@@ -297,7 +444,7 @@ class ResendActivationEmailView(FormView):
                     user=user,
                 )
                 if not email_sent:
-                    cache.delete(cache_key)
+                    _clear_activation_email_cooldown(user_id=user.pk)
                 else:
                     logger.info(
                         "Activation email resent: "

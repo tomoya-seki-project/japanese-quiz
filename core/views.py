@@ -7,7 +7,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from django.core.exceptions import ValidationError
 
-from django.db import transaction
+from django.db import transaction, DatabaseError, connection
+from django.http import JsonResponse
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_safe
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -30,6 +33,24 @@ from .service.event import EventService
 from .service.feedback import FeedbackService
 
 logger = logging.getLogger(__name__)
+
+@never_cache
+@require_safe
+def health_check(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        logger.exception(
+            "Health check database failure: operation=%s",
+            "health_check_database",
+        )
+        return JsonResponse(
+            {"status": "unhealthy"},
+            status=503,
+        )
+    return JsonResponse({"status":"ok"})
 
 
 class UserEventListView(LoginRequiredMixin, ListView):

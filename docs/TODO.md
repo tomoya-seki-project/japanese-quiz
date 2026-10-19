@@ -1,6 +1,6 @@
 # Project TODO
 
-This document tracks committed work in the current project scope. Completed milestones are summarised here and described in greater detail in [Project History](PROJECT_HISTORY.md). Uncommitted directions belong in [Future Ideas](FUTURE_IDEAS.md).
+This document tracks work adopted into the current project scope. Completed milestones are summarised here and described in greater detail in [Project History](PROJECT_HISTORY.md). Directions that have not been adopted belong in [Future Ideas](FUTURE_IDEAS.md); Git commit state is recorded separately.
 
 ## Status
 
@@ -20,17 +20,16 @@ This document tracks committed work in the current project scope. Completed mile
 
 Completed:
 
-- Eleven Django regression tests pass with isolated SQLite test settings; the earlier ten-test suite also passed on an isolated PostgreSQL test database.
-- Coverage includes template compilation, language boundaries, shared choices, kana keyboard values, escaping, notifications, key detail labels, and a guard that hides the answer-judgement debug dialog from regular users. Fourteen Playwright browser cases are present, but could not be run in this environment because the CLI is not installed.
-- Django system checks and migration drift checks pass.
+- The isolated SQLite suite discovers 39 Django tests: 37 pass and two PostgreSQL-only concurrency tests skip by design. Django system checks report no issues.
+- A targeted `QuizAttempt`/`VocabRequest` suite discovers 12 tests: ten pass on SQLite; the two true multi-connection tests were subsequently confirmed passing with the dedicated PostgreSQL test role.
+- Coverage now includes production SMTP validation, database-backed health checks, Redis cooldown failure policy, Sentry privacy filtering, per-IP rate limiting, single-use quiz attempts, and concurrent vocabulary approval. Fourteen Playwright browser cases exist but do not yet have a current pass result.
 
 Remaining:
 
-- Account registration, activation, resend, and case-insensitive email identity.
-- Vocabulary request create/update/delete/restore, duplicate pending requests, approval/rejection, and final approval validation.
+- Complete browser coverage for registration, activation, resend, and email delivery behaviour.
+- Vocabulary request create/update/delete/restore and complete approval/rejection browser flows.
 - User vocabulary synchronisation, `in_use` updates, ownership, active-state boundaries, weight, and streak calculations.
 - Quiz answer comparison, filtered/full-pool decisions, initial/Next/Skip/Submit/resume paths, invalid current questions, and empty-pool termination.
-- True multi-connection tests for `QuizAttempt` Answer/Skip concurrency and duplicate processing.
 - Event, feedback, logging, and management-command behaviour.
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Production settings and deployment hardening**
@@ -39,12 +38,15 @@ Completed:
 
 - Application settings read secrets, PostgreSQL and SMTP credentials, hosts, and trusted origins from environment variables.
 - `DEBUG=False` enables HTTPS redirect and secure session/CSRF cookies; Zoho SMTP and the no-reply alias have sent a real activation email.
+- The current working tree adds production dependencies, `STATIC_ROOT`, SMTP fail-fast validation, Redis-backed shared cache with fail-open handling, trusted-proxy HTTPS metadata, a PostgreSQL-backed `/health/` endpoint, console logging, and Sentry privacy filtering.
+- Registration and activation resend have shared, fail-open per-IP limits. Local production-like checks include migration drift, `check --deploy`, a two-worker Gunicorn Unix-socket health request, and the test evidence above.
 
 Remaining before production:
 
-- Supply separate production secrets, host/origin values, TLS proxy settings, and static-file serving.
-- Provision a least-privilege PostgreSQL role and database; document backup, restore, migration, rollback, logging, and monitoring.
-- Run `python manage.py check --deploy` in the production environment and verify DNS, SPF/DKIM/DMARC, activation links, and SMTP failure handling.
+- Update release metadata, complete the final dependency/secret/diff inventory, rerun release-candidate checks, produce the planned modification and verification reports, and commit/tag the application-preparation work.
+- Supply separate production secrets, host/origin values, TLS proxy settings, Redis, and Nginx static-file serving on the VPS; verify the Cloudflare/Nginx/Gunicorn client-IP trust chain.
+- Provision a least-privilege PostgreSQL role and database; implement backup, restore, migration, rollback, systemd/Gunicorn, logging, and monitoring operations.
+- Rerun `python manage.py check --deploy` in production and verify DNS, SPF/DKIM/DMARC, activation links, SMTP failure handling, shared Redis behaviour, and Sentry alerts.
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Overdue UserVocab weight adjustment**
 
@@ -80,6 +82,7 @@ Remaining before production:
 
 - Registration creates inactive accounts and sends a time-limited activation link.
 - Activation and resend flows use privacy-preserving responses and cooldown protection.
+- Production cooldown state is shared through Redis and fails open with error logging if the cache is unavailable; registration and resend also apply permissive per-IP limits.
 - Email is canonicalised to lowercase across manager, public forms, and admin forms.
 - A case-insensitive database constraint is the final identity-uniqueness guard.
 - Vocabulary synchronisation begins only after account activation.
@@ -119,6 +122,7 @@ Remaining before production:
 - PostgreSQL row locks and post-lock `PENDING` checks allow only one learning-state mutation.
 - Answer and Skip use a consistent `QuizAttempt → UserVocab` lock order.
 - Frontend submission guards improve UX but are not treated as the integrity boundary.
+- A PostgreSQL-only test uses two threads and independent database connections to verify that concurrent processing applies the mutation once.
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Bottom-up answer comparison**
 
@@ -131,7 +135,7 @@ Remaining before production:
 - Development and test execution use PostgreSQL with Psycopg 3.
 - The schema can be rebuilt from migrations on a fresh database.
 - Application and test roles are separated; the application role remains without `CREATEDB`.
-- Existing regression tests pass on an isolated test database.
+- The dedicated test role successfully runs the PostgreSQL-only `QuizAttempt` and `VocabRequest` concurrency tests.
 
 > <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Error handling, logging, and code hygiene**
 
@@ -160,7 +164,7 @@ The following checks belong to the test-expansion task rather than reopening com
 - Concurrent admin review and stale review-form submissions.
 - Case-insensitive registration races.
 - Concurrent vocabulary synchronisation and event generation.
-- Multi-connection Answer-versus-Answer and Answer-versus-Skip races.
+- Broader Answer-versus-Answer and Answer-versus-Skip browser/integration combinations beyond the existing database concurrency test.
 - Log routing, rotation, retention, and sensitive-data assertions.
 - Execute and extend the fourteen Playwright cases for responsive layouts, Ajax focus management, and the result overlay.
 
