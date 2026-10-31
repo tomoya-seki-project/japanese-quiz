@@ -20,7 +20,7 @@ This document tracks work adopted into the current project scope. Completed mile
 
 Completed:
 
-- The isolated SQLite suite discovers 39 Django tests: 37 pass and two PostgreSQL-only concurrency tests skip by design. Django system checks report no issues.
+- The production-aligned PostgreSQL suite discovers 40 Django tests and all 40 pass. Django system checks report no issues.
 - A targeted `QuizAttempt`/`VocabRequest` suite discovers 12 tests: ten pass on SQLite; the two true multi-connection tests were subsequently confirmed passing with the dedicated PostgreSQL test role.
 - Coverage now includes production SMTP validation, database-backed health checks, Redis cooldown failure policy, Sentry privacy filtering, per-IP rate limiting, single-use quiz attempts, and concurrent vocabulary approval. Fourteen Playwright browser cases exist but do not yet have a current pass result.
 
@@ -32,21 +32,23 @@ Remaining:
 - Quiz answer comparison, filtered/full-pool decisions, initial/Next/Skip/Submit/resume paths, invalid current questions, and empty-pool termination.
 - Event, feedback, logging, and management-command behaviour.
 
-> <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Production settings and deployment hardening**
+> <span style="background:#1b5e20;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">DONE</span> **Production settings and deployment hardening**
 
 Completed:
 
 - Application settings read secrets, PostgreSQL and SMTP credentials, hosts, and trusted origins from environment variables.
 - `DEBUG=False` enables HTTPS redirect and secure session/CSRF cookies; Zoho SMTP and the no-reply alias have sent a real activation email.
-- The current working tree adds production dependencies, `STATIC_ROOT`, SMTP fail-fast validation, Redis-backed shared cache with fail-open handling, trusted-proxy HTTPS metadata, a PostgreSQL-backed `/health/` endpoint, console logging, and Sentry privacy filtering.
-- Registration and activation resend have shared, fail-open per-IP limits. Local production-like checks include migration drift, `check --deploy`, a two-worker Gunicorn Unix-socket health request, and the test evidence above.
+- Production dependencies, `STATIC_ROOT`, SMTP fail-fast validation, Redis-backed shared cache with fail-open handling, trusted-proxy HTTPS metadata, a PostgreSQL-backed `/health/` endpoint, console logging, and Sentry privacy filtering are deployed.
+- Registration and activation resend have shared, fail-open per-IP limits. Production validation covered migration drift, `check --deploy`, Nginx/Gunicorn health, client-IP trust, and 40 passing PostgreSQL tests.
 
-Remaining before production:
+Completed production operations:
 
-- Update release metadata, complete the final dependency/secret/diff inventory, rerun release-candidate checks, produce the planned modification and verification reports, and commit/tag the application-preparation work.
-- Supply separate production secrets, host/origin values, TLS proxy settings, Redis, and Nginx static-file serving on the VPS; verify the Cloudflare/Nginx/Gunicorn client-IP trust chain.
-- Provision a least-privilege PostgreSQL role and database; implement backup, restore, migration, rollback, systemd/Gunicorn, logging, and monitoring operations.
-- Rerun `python manage.py check --deploy` in production and verify DNS, SPF/DKIM/DMARC, activation links, SMTP failure handling, shared Redis behaviour, and Sentry alerts.
+- Deployed separate production secrets, host/origin values, TLS proxy settings, Redis, Nginx static serving, least-privilege PostgreSQL, systemd/Gunicorn, Sentry, UptimeRobot, and Netdata.
+- Verified Cloudflare/Nginx/Gunicorn client-IP trust, DNS/TLS, activation email delivery, shared Redis behaviour, privacy-filtered Sentry events, public health, static assets, and error boundaries.
+- Implemented local and R2 off-site backup with retention and cron; restored into an isolated database and compared tables, migrations, row counts, and sequences.
+- Performed rollback and roll-forward between the previous commit and release candidate with successful health checks.
+
+Post-release follow-up: confirm the first natural cron run and complete the initial monitoring window.
 
 > <span style="background:#e65100;color:#ffffff;padding:2px 7px;border-radius:4px;font-weight:700;">WORKING</span> **Overdue UserVocab weight adjustment**
 

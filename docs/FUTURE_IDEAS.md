@@ -12,6 +12,7 @@ This document stores possible future directions that are not committed to the cu
 - [Vocabulary Data Model](#vocabulary-data-model)
 - [Database Export and Restore](#database-export-and-restore)
 - [CSV Import and Logging](#csv-import-and-logging)
+- [Post-v1.0.0 Operations and Infrastructure](#post-v100-operations-and-infrastructure)
 
 ## Accounts
 
@@ -67,4 +68,13 @@ This document stores possible future directions that are not committed to the cu
 - Consider a database import-history model.
 - Allow an admin-inbox/import report to update the originating user message with processing results.
 - Duplicate rows currently produce terminal messages and logs. A future enhancement may export all duplicate rows to a separate CSV for review.
+
+## Post-v1.0.0 Operations and Infrastructure
+
+- Add CI that runs the PostgreSQL test suite, then evaluate automated deployment only after rollback and secret-handling boundaries are explicit.
+- Periodically restore an off-site backup into an isolated database and compare schema, migrations, row counts, and sequences; successful uploads alone are not recovery proof.
+- Confirm scheduled backups and monitoring alerts through natural runs, not only manual invocation, and document retention/cost changes before increasing frequency.
+- Replace or renew the Cloudflare Origin CA certificate before 27 October 2029; evaluate ACME/Certbot separately as a learning exercise.
+- Increase HSTS duration only after HTTPS and subdomain policy remain stable. Do not enable preload or include-subdomains without reviewing every affected hostname.
+- Consider Discord alerts in addition to email, while avoiding duplicate noise from Sentry, UptimeRobot, and Netdata.
 

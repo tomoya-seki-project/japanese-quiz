@@ -176,6 +176,9 @@ The PostgreSQL and QuizAttempt work was committed as `10f6dd2` on 16 September 2
 | 2026-10-04 | `314c866` | Refined feedback filtering, notification bulk updates, vocabulary requests, and query loading. |
 | 2026-10-07 | `a909a7e` | Applied Tailwind UI across the application and added browser-test scaffolding. |
 | 2026-10-12 | `32ac5c8` (`v0.9.6`) | Kept the current question visible inside the mobile quiz keyboard dialog and synchronised it across Ajax question changes. |
+| 2026-10-20 | `40124f3` | Hardened application settings, shared cache, health, logging, Sentry privacy, rate limiting, and deployment tests. |
+| 2026-10-22 | `eb92d3e` | Strengthened vocabulary collection/import tooling and prepared the deployment candidate. |
+| 2026-10-31 | `af7513a` | Made the `400` handler resilient to errors raised before URL resolution completes. |
 
 ### Engineering direction
 
@@ -186,7 +189,15 @@ The PostgreSQL and QuizAttempt work was committed as `10f6dd2` on 16 September 2
 - Quiz question context is duplicated inside the keyboard dialog deliberately; Ajax state changes update both the page and dialog to prevent stale prompts.
 - Eleven Django tests passed with isolated SQLite settings on 7 October 2026. Fourteen Playwright cases exist, but the CLI was unavailable for this documentation sync.
 
+## 2026-10-23 to 2026-10-31 — First Production Deployment
+
+WordLoop was deployed to an Ubuntu 24.04 LTS VPS at `https://wordloop.silent-mori.com/` behind Cloudflare and Nginx. Gunicorn runs under systemd with PostgreSQL and loopback-only Redis. Static assets, SMTP activation, proxy/client-IP trust, Sentry privacy filtering, uptime monitoring, resource monitoring, and public error boundaries were verified in the deployed environment.
+
+All 40 Django tests passed against PostgreSQL. PostgreSQL backups were configured locally and in private Cloudflare R2 storage with retention and scheduling. A restore into an isolated database matched tables, migrations, row counts, and sequences. A real rollback to `eb92d3e` and roll-forward to `af7513a` both returned a healthy response after restart retry handling.
+
+This infrastructure work is recorded as operational evidence alongside the repository release history. The verified application and documentation state forms the `v1.0.0` release baseline.
+
 ## Current Position
 
-By October 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes. The latest recorded product commit is `32ac5c8` (`v0.9.6`). Production-readiness work after that commit remains in the working tree and is therefore described in [TODO](TODO.md) and [Development Phases](PROJECT_PHASES.md), not presented here as committed history. The most important remaining work is finalising that release candidate, production deployment and operations, broader browser coverage, and a complete multiple-choice vertical slice.
+By the end of October 2026, WordLoop has operational end-to-end paths for accounts, reviewed vocabulary, personal learning state, notifications, feedback, and kana quizzes, and v1.0.0 is publicly deployed. Application code was verified at `af7513a`; the final release baseline adds the completed project documentation. Remaining work includes broader automated browser coverage, ongoing operational checks, and a complete multiple-choice vertical slice.
 

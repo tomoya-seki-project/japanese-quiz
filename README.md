@@ -2,15 +2,13 @@
 
 WordLoop is a Django-based Japanese vocabulary learning application. It combines a reviewed shared dictionary with user-specific learning state, weighted quizzes, visual kana feedback, notifications, and feedback workflows.
 
-> **Status:** In development
+> **Status:** WordLoop v1.0.0 is deployed in production
 >
-> **Latest tagged version:** v0.9.6
+> **Release version:** v1.0.0
 >
-> **Target release:** v1.0.0
->
-> **Milestone:** Production-readiness Phase 1 is complete. Phase 2 application preparation is in progress and remains uncommitted.
+> **Live site:** https://wordloop.silent-mori.com/
 
-The project is not yet deployed or ready for public production use. Core dictionary, review, account, notification, feedback, and kana quiz workflows are operational. The current v1.0.0 candidate work adds application-side production safeguards and tests, while release finalisation, VPS infrastructure, live monitoring, backup/recovery, browser verification, and multiple-choice quizzes remain incomplete.
+The release is deployed on an Ubuntu VPS behind Cloudflare and Nginx, with systemd-managed Gunicorn, PostgreSQL, Redis, Sentry, uptime/resource monitoring, and tested off-site backup/restore and rollback procedures. Multiple-choice quizzes and complete automated browser coverage remain outside this release.
 
 ## Current Features
 
@@ -99,13 +97,12 @@ The `MCSense` schema foundation exists, but its import, request, admin, and quiz
 - Non-debug requests use trusted-proxy HTTPS metadata, secure cookies, HTTPS redirect, and configurable HSTS.
 - `/health/` performs a lightweight PostgreSQL `SELECT 1` check and returns `200` or `503`; Redis is deliberately not a hard-fail health dependency.
 - Production logging writes to stdout/stderr for Gunicorn and systemd journal collection. Sentry is enabled only outside debug mode when a DSN is supplied and filters activation credentials, cookies, headers, request bodies, and other sensitive context.
-- Local production-like verification has covered migration drift, Django deployment warnings, a two-worker Gunicorn Unix-socket health request, and graceful shutdown. These checks do not replace VPS validation.
+- Production verification covers the public HTTPS path, static assets, proxy/client-IP trust, SMTP, Redis sharing and failure policy, Sentry privacy, monitoring alerts, PostgreSQL backup/restore, rollback, and all 40 Django tests against PostgreSQL.
 
 ## Current Priorities
 
-- Finalise v1.0.0 release metadata, review the dependency/secret/diff inventory, rerun release-candidate checks, and commit/tag the application-preparation work.
 - Expand browser and integration coverage for complete account, vocabulary-review, quiz-pool, answer, navigation, and operational flows.
-- Provision and verify the VPS, Nginx, systemd/Gunicorn, PostgreSQL, Redis, TLS/proxy trust, static files, Sentry, monitoring, backup/restore, and rollback procedures.
+- Confirm the first naturally scheduled backup, complete the initial production observation window, and keep restore/rollback procedures exercised.
 - Run and extend browser UI verification across supported viewport sizes and Ajax states.
 - Keep unfinished multiple-choice functionality outside the active user flow until its full vertical slice is complete.
 
@@ -119,8 +116,8 @@ See [the project TODO](docs/TODO.md) for current work and [Future Ideas](docs/FU
 | Language | Python |
 | Database | PostgreSQL 16 with Psycopg 3 |
 | Shared cache | Redis in production; local-memory cache in development |
-| Application server | Gunicorn sync workers behind Nginx (planned deployment) |
-| Error monitoring | Sentry SDK integration; live project configuration remains pending |
+| Application server | systemd-managed Gunicorn sync workers behind Nginx |
+| Error monitoring | Sentry SDK with production privacy filtering and alert verification |
 | Frontend | Django Templates, Tailwind CSS, and vanilla JavaScript |
 | Authentication | Django Auth with a custom `User` model |
 | Time zone | Asia/Tokyo |
@@ -304,7 +301,7 @@ Browser-test setup and isolated fixtures are documented in [frontend/README.md](
 
 ## Testing
 
-The isolated SQLite suite discovers 39 Django tests: 37 pass and two PostgreSQL-only concurrency tests skip by design. It covers the existing UI/language contracts plus production SMTP validation, the database-backed health endpoint, Redis cooldown failure policy, Sentry privacy filtering, per-IP rate limiting, single-use quiz attempts, and concurrent vocabulary approval.
+The production-aligned PostgreSQL suite discovers 40 Django tests and all 40 pass. It covers the existing UI/language contracts plus production SMTP validation, the database-backed health endpoint, Redis cooldown failure policy, Sentry privacy filtering, per-IP rate limiting, single-use quiz attempts, concurrent vocabulary approval, and the early-middleware `400` boundary.
 
 An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test database. Supply its credentials through the shell environment or local/CI secrets:
 
@@ -312,19 +309,19 @@ An isolated `japanese_quiz_test` PostgreSQL role can create and remove the test 
 DB_USER=japanese_quiz_test DB_PASSWORD="<test-role-password>" python manage.py test
 ```
 
-A targeted `QuizAttempt`/`VocabRequest` suite discovers 12 tests: ten pass with SQLite settings, and the two true multi-connection tests were subsequently confirmed passing with the dedicated PostgreSQL test role. Fourteen Playwright browser cases exist but do not yet have a current pass result. Important remaining coverage includes complete registration/activation and vocabulary-review browser flows, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
+The two true multi-connection tests pass with the dedicated PostgreSQL test role. Fourteen Playwright browser cases exist but do not yet have a complete current pass result. Important remaining coverage includes complete registration/activation and vocabulary-review browser flows, learning-state calculations, answer comparison, and no-pool/full-pool quiz integration.
 
 ## Current Limitations
 
 - Multiple-choice import, review, administration, and quiz flows are not connected; their active vocabulary types remain disabled.
 - Automated coverage has expanded, including two PostgreSQL concurrency cases, but complete browser and integration coverage is still missing.
-- Full database export and restore are not implemented.
+- Application-level full-database CSV export/import is not implemented; operational PostgreSQL dump/restore is deployed and verified separately.
 - The mobile layout and answer overlay are implemented; browser verification needs to be run and expanded.
-- Application-side production hardening exists in the current uncommitted working tree, but release finalisation, production infrastructure, and operational procedures are not complete.
+- Production infrastructure and recovery procedures are operational. The first natural scheduled-backup run and early observation window remain follow-up checks.
 
 ## Security Notes
 
-Settings load secrets, database credentials, SMTP, Redis, allowed hosts, trusted origins, and optional Sentry configuration from environment variables. With `DEBUG=False`, HTTPS redirect, secure cookies, trusted-proxy HTTPS handling, HSTS, Redis cache, SMTP fail-fast validation, and optional Sentry initialisation are enabled. Production deployment still requires separate secrets and hosts, a verified Cloudflare/Nginx/Gunicorn trust boundary, Nginx static-file serving, least-privilege PostgreSQL, backup/restore and rollback procedures, monitoring, and a fresh `python manage.py check --deploy` review in the deployed environment.
+Settings load secrets, database credentials, SMTP, Redis, allowed hosts, trusted origins, and Sentry configuration from environment variables. Production uses `DEBUG=False`, HTTPS redirect, secure cookies, trusted-proxy HTTPS handling, HSTS, Redis cache, SMTP fail-fast validation, least-privilege PostgreSQL, Nginx static serving, monitoring, and off-site backup. The Cloudflare/Nginx/Gunicorn trust boundary, restore path, and rollback path have been verified; secrets and origin credentials are deliberately excluded from the repository.
 
 ## Development History
 

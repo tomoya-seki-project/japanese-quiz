@@ -36,7 +36,8 @@ The architecture is guided by five principles:
 | [16](#phase-16-maintenance-command-foundation) | 2026-09-30 | Kana asset tooling and QuizAttempt retention |
 | [17](#phase-17-workflow-navigation-and-state-refinement) | 2026-10-04 | Notification, feedback, vocabulary, and quiz controls |
 | [18](#phase-18-tailwind-mobile-ui) | 2026-10-07 | Tailwind UI, shared components, and browser-test foundation |
-| [19](#phase-19-production-readiness-and-application-preparation) | 2026-10-17 to 2026-10-20 | Readiness review, production hardening, and deployment-test foundation (in progress) |
+| [19](#phase-19-production-readiness-and-application-preparation) | 2026-10-17 to 2026-10-20 | Readiness review, production hardening, and deployment-test foundation |
+| [20](#phase-20-first-production-deployment-and-recovery-verification) | 2026-10-23 to 2026-10-31 | VPS deployment, public HTTPS, monitoring, backup/restore, and rollback verification |
 
 ## Phase 1: Project Foundation and Account System
 
@@ -429,7 +430,7 @@ System and migration checks and eleven Django tests passed. Browser cases were n
 
 **Period:** 2026-10-17 to 2026-10-20
 
-**Status:** In progress; the application-preparation changes remain uncommitted.
+**Status:** Complete.
 
 ### Objective
 
@@ -451,11 +452,30 @@ Convert a repository-wide production-readiness review into the smallest applicat
 - Sentry initialises only outside debug mode when a DSN exists, and strips activation tokens, cookies, headers, and request bodies before transmission.
 - Per-IP thresholds were adopted as a Phase 2 implementation decision on 20 October rather than retroactively treated as part of the original deployment plan.
 
-### Remaining before this phase is complete
+### Result
 
-- Update release metadata, perform the final dependency/secret/diff inventory, and rerun the checks against the release-candidate state.
-- Produce the planned modification and verification reports, then record the release commit and tag decision.
-- Keep VPS provisioning, Nginx/systemd/TLS configuration, live Redis and PostgreSQL validation, monitoring, backup/restore, and public browser smoke tests in the later deployment phases.
+The application-side blockers were implemented, committed, and carried into the VPS deployment. Infrastructure verification remained a separate phase so local readiness evidence was not presented as proof of production operation.
+
+## Phase 20: First Production Deployment and Recovery Verification
+
+**Period:** 2026-10-23 to 2026-10-31
+
+**Status:** Complete; this phase defines the verified `v1.0.0` release baseline.
+
+### Outcomes
+
+- Provisioned an Ubuntu 24.04 LTS VPS with key-based administration, firewalling, intrusion protection, unattended security updates, and a non-login application user.
+- Deployed Nginx, systemd-managed Gunicorn, PostgreSQL, loopback-only Redis, collected static assets, and Cloudflare Origin CA TLS at `https://wordloop.silent-mori.com/`.
+- Configured proxied DNS, Full (strict) encryption, an origin boundary limited to Cloudflare traffic, trusted client-IP restoration, and cache bypass for dynamic application responses.
+- Connected Sentry, UptimeRobot, and Netdata and verified error delivery, sensitive activation-path filtering, availability email alerts, node offline/recovery notifications, and resource baselines.
+- Passed all 40 Django tests against PostgreSQL and completed manual production smoke checks for accounts, activation email, vocabulary review operations, quizzes, and error pages.
+- Implemented local and Cloudflare R2 off-site database backups with retention and scheduling, then restored into an isolated database and compared schema, migrations, row counts, and sequences.
+- Performed a real rollback to the previous commit and roll-forward to release candidate `af7513a`; both health checks returned `200` after restart retry handling.
+
+### Post-release operations
+
+- Confirm the first naturally scheduled 03:20 JST backup and complete the initial 24–72-hour observation window.
+- Keep the 14 Playwright cases visible as incomplete automated browser evidence; manual smoke checks do not replace them.
 
 ## Current Architecture
 
@@ -497,10 +517,10 @@ Responsibility boundaries:
 
 ## Current State and Remaining Work
 
-The dictionary, reviewed vocabulary workflow, user vocabulary management, email activation, notification history, feedback, and kana quiz now form usable end-to-end paths. The v1.0.0 production-readiness effort is near the end of application preparation, but those changes remain uncommitted. Important remaining work includes:
+The v1.0.0 application is publicly deployed at `https://wordloop.silent-mori.com/`. Production PostgreSQL, Redis, Nginx/Gunicorn, TLS, monitoring, off-site backup/restore, and rollback have direct verification evidence. Important remaining work includes:
 
-- Expand browser and integration coverage for complete account, vocabulary-review, quiz-pool, answer, navigation, and operational flows. The current isolated suite discovers 39 tests, and the PostgreSQL-only `QuizAttempt` and `VocabRequest` concurrency cases have passed separately.
-- Finalise and commit the application-preparation release candidate, then supply production secrets, `DEBUG=False`, hosts and trusted origins; verify TLS/proxy trust, Redis sharing, static files, Sentry, database backup/restore, and deployment operations on the VPS.
+- Expand browser and integration coverage for complete account, vocabulary-review, quiz-pool, answer, navigation, and operational flows. The production-aligned PostgreSQL suite currently passes all 40 tests, including the `QuizAttempt` and `VocabRequest` concurrency cases.
+- Complete the first scheduled-backup observation and early production monitoring window; continue practising restore and rollback procedures.
 - Finish multiple-choice import, admin, request, and quiz flows before re-enabling their vocabulary types.
 - Run and expand browser-level visual checks for the implemented mobile layout and answer-comparison overlay.
 - Consider a durable outbox/retry design only if best-effort post-commit notifications later require guaranteed delivery.
