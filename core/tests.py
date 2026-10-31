@@ -222,6 +222,27 @@ class ProxyHTTPSSettingsTests(SimpleTestCase):
                 )
 
 
+@override_settings(
+    DEBUG=False,
+    SECURE_SSL_REDIRECT=True,
+    ALLOWED_HOSTS=["testserver"],
+)
+class BadRequestHandlerTests(SimpleTestCase):
+    def test_disallowed_host_returns_custom_400_page(self):
+        response = self.client.get(
+            "/",
+            HTTP_HOST="invalid.example",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "<title>400 | 言葉の輪</title>",
+            status_code=400,
+            html=True,
+        )
+
+
 class HealthCheckTests(TestCase):
     def test_health_check_returns_ok_when_database_is_available(self):
         response = self.client.get(reverse("health"), secure=True)
