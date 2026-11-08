@@ -19,8 +19,8 @@ this skill, `AGENTS.md`, `resource/categories.csv`, `dictionary/models.py`, and
 and the active root differ, stop and ask which writable clone to use.
 
 Use [`scripts/manage_vocab_csv.py`](scripts/manage_vocab_csv.py) for repository
-context, deterministic validation, duplicate checks, and writes. Do not edit a
-monthly CSV manually.
+context, deterministic validation, duplicate checks, appends, and corrections.
+Do not edit a monthly CSV manually.
 
 ## Trigger boundary
 
@@ -49,12 +49,20 @@ once whether a discussed word should be recorded; no answer means no write.
    JSON file. Do not append a candidate that fails validation.
 8. Build the final response from the helper's persisted-row output.
 
+For corrections to rows already in the current monthly CSV, use `update` with
+objects containing the exact original `match_word` and `match_kana` plus all 14
+validated replacement fields. The helper requires each target to occur exactly
+once, excludes the matched originals during duplicate validation, and replaces
+the file atomically.
+
 Example commands, run from the resolved repository root:
 
 ```bash
 python3 .agents/skills/japanese-vocab-csv/scripts/manage_vocab_csv.py context
 python3 .agents/skills/japanese-vocab-csv/scripts/manage_vocab_csv.py validate --rows /tmp/vocab-rows.json
 python3 .agents/skills/japanese-vocab-csv/scripts/manage_vocab_csv.py append --rows /tmp/vocab-rows.json
+python3 .agents/skills/japanese-vocab-csv/scripts/manage_vocab_csv.py update --rows /tmp/vocab-updates.json --dry-run
+python3 .agents/skills/japanese-vocab-csv/scripts/manage_vocab_csv.py update --rows /tmp/vocab-updates.json
 ```
 
 ## Project type classification

@@ -1,5 +1,12 @@
 # Repository Instructions
 
+## Project diagram rules
+
+Before creating, redrawing, or exporting project diagrams with `diagram-design`,
+read and follow `docs-myself/diagrams/diagram-rules.md` alongside the skill instructions.
+These project requirements take precedence over the skill defaults. Do not
+modify the installed third-party skill to persist project-specific preferences.
+
 ## Project documentation sync
 
 Do not invoke `project-status-sync` automatically during reviews, checks,

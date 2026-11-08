@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and append Japanese Quiz vocabulary staging rows."""
+"""Validate, append, and update Japanese Quiz vocabulary staging rows."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import csv
 import json
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -133,6 +134,44 @@ def load_candidate_rows(path: Path) -> list[dict[str, str]]:
             raise ValidationFailure(f"Row {index}: all field values must be strings")
         rows.append({field: item[field].strip() for field in FIELDS})
     return rows
+
+
+def load_update_rows(path: Path) -> list[tuple[tuple[str, str], dict[str, str]]]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationFailure(f"Cannot read update JSON {path}: {exc}") from exc
+
+    if not isinstance(raw, list) or not raw:
+        raise ValidationFailure("Update JSON must be a non-empty array")
+
+    updates: list[tuple[tuple[str, str], dict[str, str]]] = []
+    expected = set(FIELDS) | {"match_word", "match_kana"}
+    seen_matches: set[tuple[str, str]] = set()
+    for index, item in enumerate(raw, start=1):
+        if not isinstance(item, dict):
+            raise ValidationFailure(f"Row {index}: expected an object")
+        actual = set(item)
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing or extra:
+            details = []
+            if missing:
+                details.append(f"missing {missing}")
+            if extra:
+                details.append(f"unexpected {extra}")
+            raise ValidationFailure(f"Row {index}: {'; '.join(details)}")
+        if any(not isinstance(item[field], str) for field in expected):
+            raise ValidationFailure(f"Row {index}: all field values must be strings")
+
+        match = (item["match_word"].strip(), item["match_kana"].strip())
+        if not all(match):
+            raise ValidationFailure(f"Row {index}: match_word and match_kana are required")
+        if match in seen_matches:
+            raise ValidationFailure(f"Row {index}: repeated update target {match}")
+        seen_matches.add(match)
+        updates.append((match, {field: item[field].strip() for field in FIELDS}))
+    return updates
 
 
 def vocabulary_csv_paths(root: Path) -> list[Path]:
@@ -284,6 +323,56 @@ def validate_candidates(
     return errors, warnings
 
 
+def validate_updates(
+    root: Path,
+    updates: list[tuple[tuple[str, str], dict[str, str]]],
+) -> tuple[list[str], list[str]]:
+    destination = destination_for(root)
+    header = read_header(destination)
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if header is None:
+        errors.append(f"{destination}: update destination does not exist")
+        return errors, warnings
+    if header != FIELDS:
+        errors.append(
+            f"{destination}: incompatible header; expected {FIELDS}, found {header}"
+        )
+        return errors, warnings
+
+    categories = set(read_categories(root))
+    existing = read_existing_rows(root)
+    target_locations: set[tuple[Path, int]] = set()
+    for index, (match, row) in enumerate(updates, start=1):
+        errors.extend(validate_row(index, row, categories))
+        if row["type"] in MC_TYPES:
+            warnings.append(
+                f"Row {index}: {row['type']} is staged; the current importer filters this type"
+            )
+
+        matches = [
+            (path, line_number)
+            for path, line_number, existing_row in existing
+            if path == destination
+            and (existing_row.get("word", ""), existing_row.get("kana", "")) == match
+        ]
+        if not matches:
+            errors.append(f"Row {index}: update target {match} not found in {destination.name}")
+        elif len(matches) > 1:
+            errors.append(
+                f"Row {index}: update target {match} occurs {len(matches)} times in {destination.name}"
+            )
+        else:
+            target_locations.add(matches[0])
+
+    remaining = [
+        item for item in existing if (item[0], item[1]) not in target_locations
+    ]
+    errors.extend(duplicate_errors([row for _, row in updates], remaining))
+    return errors, warnings
+
+
 def append_rows(root: Path, rows: list[dict[str, str]]) -> list[dict[str, str]]:
     destination = destination_for(root)
     exists = destination.exists()
@@ -297,6 +386,59 @@ def append_rows(root: Path, rows: list[dict[str, str]]) -> list[dict[str, str]]:
         persisted = list(csv.DictReader(handle))[-len(rows):]
     if persisted != rows:
         raise ValidationFailure("Persisted rows did not match the validated candidates")
+    return persisted
+
+
+def update_rows(
+    root: Path,
+    updates: list[tuple[tuple[str, str], dict[str, str]]],
+) -> list[dict[str, str]]:
+    destination = destination_for(root)
+    replacements = dict(updates)
+    with destination.open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    updated_rows: list[dict[str, str]] = []
+    for row in rows:
+        replacement = replacements.get((row.get("word", ""), row.get("kana", "")))
+        if replacement is None:
+            updated_rows.append(row)
+        else:
+            updated_rows.append(replacement)
+    persisted = [replacement for _, replacement in updates]
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            newline="",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            writer = csv.DictWriter(handle, fieldnames=FIELDS, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(updated_rows)
+        temporary_path.chmod(destination.stat().st_mode)
+        temporary_path.replace(destination)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+
+    with destination.open(encoding="utf-8-sig", newline="") as handle:
+        verified_rows = list(csv.DictReader(handle))
+    verified_by_key = {
+        (row.get("word", ""), row.get("kana", "")): row for row in verified_rows
+    }
+    verified = [
+        verified_by_key.get((replacement["word"], replacement["kana"]))
+        for replacement in persisted
+    ]
+    if verified != persisted:
+        raise ValidationFailure("Persisted updates did not match the validated replacements")
     return persisted
 
 
@@ -329,9 +471,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", help="Explicit Japanese Quiz repository root")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("context", help="Print current deterministic CSV context")
-    for command in ("validate", "append"):
+    for command in ("validate", "append", "update"):
         child = subparsers.add_parser(command)
-        child.add_argument("--rows", required=True, type=Path, help="Candidate JSON array")
+        help_text = "Update JSON array" if command == "update" else "Candidate JSON array"
+        child.add_argument("--rows", required=True, type=Path, help=help_text)
+        if command == "update":
+            child.add_argument(
+                "--dry-run",
+                action="store_true",
+                help="Validate update targets and replacements without writing",
+            )
     return parser
 
 
@@ -343,8 +492,14 @@ def main() -> int:
             emit(context_payload(root))
             return 0
 
-        rows = load_candidate_rows(args.rows)
-        errors, warnings = validate_candidates(root, rows)
+        if args.command == "update":
+            updates = load_update_rows(args.rows)
+            errors, warnings = validate_updates(root, updates)
+            rows = [row for _, row in updates]
+        else:
+            updates = []
+            rows = load_candidate_rows(args.rows)
+            errors, warnings = validate_candidates(root, rows)
         if errors:
             emit({"status": "invalid", "errors": errors, "warnings": warnings})
             return 2
@@ -354,6 +509,29 @@ def main() -> int:
                     "status": "valid",
                     "destination": str(destination_for(root)),
                     "row_count": len(rows),
+                    "warnings": warnings,
+                }
+            )
+            return 0
+
+        if args.command == "update":
+            if args.dry_run:
+                emit(
+                    {
+                        "status": "valid_update",
+                        "destination": str(destination_for(root)),
+                        "row_count": len(rows),
+                        "warnings": warnings,
+                    }
+                )
+                return 0
+            persisted = update_rows(root, updates)
+            emit(
+                {
+                    "status": "updated",
+                    "destination": str(destination_for(root)),
+                    "row_count": len(persisted),
+                    "persisted_rows": persisted,
                     "warnings": warnings,
                 }
             )
