@@ -52,6 +52,8 @@ def health_check(request):
         )
     return JsonResponse({"status":"ok"})
 
+class UserEventCreateList(LoginRequiredMixin, FormView):
+    pass
 
 class UserEventListView(LoginRequiredMixin, ListView):
     model = UserEvent

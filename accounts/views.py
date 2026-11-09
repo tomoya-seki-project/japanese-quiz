@@ -22,6 +22,7 @@ from django.views.generic import (
     CreateView,
     FormView,
     TemplateView,
+    ListView,
 )
 
 from django.contrib.auth import authenticate, login, logout
@@ -453,3 +454,9 @@ class ResendActivationEmailView(FormView):
                         user.pk,
                     )
         return super().form_valid(form)
+
+    class UserListView(LoginRequiredMixin, ListView):
+        pass
+
+    class UserDetailView(LoginRequiredMixin, TemplateView):
+        pass

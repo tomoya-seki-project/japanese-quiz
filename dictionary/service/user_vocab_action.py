@@ -121,3 +121,7 @@ class UserVocabService():
         deactivated_count = get_unselect_qs.update(in_use=False, update_at=now)
         activated_count = get_select_qs.update(in_use=True, update_at=now)
         return activated_count, deactivated_count
+
+    @staticmethod
+    def reset_all_user_vocab_weight(*, request, user_id):
+        pass

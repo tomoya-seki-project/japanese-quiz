@@ -58,6 +58,13 @@ class User(AbstractUser):
 
 class UserProfile(TimeStampedModel):
     last_vocab_sync_at = models.DateTimeField(blank=True, null=True)
+    total_answered = models.IntegerField(default=0)
+    global_streak = models.IntegerField(default=0)
+    most_correct = models.IntegerField(default=0)
+    most_wrong = models.IntegerField(default=0)
+    total_correct = models.IntegerField(default=0)
+    total_wrong = models.IntegerField(default=0)
+
 
     user = models.OneToOneField(
         User, on_delete=models.CASCADE,
